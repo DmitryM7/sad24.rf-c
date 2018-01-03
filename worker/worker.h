@@ -35,9 +35,9 @@ class worker
    void stopLight();
    byte getDayOfWeek();
    void showDateTime();
-   unsigned long getSecMidnight();
+   long getSecMidnight();
    void setBeforeTaskUpdate(bool (*_mEvent)(char* oStr));
-   bool shouldTaskWork(unsigned int iAddress,bool& oShoulWaterWork,bool& oShouldLightWork);
+   bool shouldTaskWork(unsigned int iAddress,unsigned long iSecMidnight,bool& oShoulWaterWork,bool& oShouldLightWork);
    void setTime(char* vCommand);
    void setDateTime(byte iYear,byte iMonth,byte iDay,byte iHour,byte iMinutes,byte iSec);
     

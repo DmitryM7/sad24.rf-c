@@ -6,6 +6,7 @@
 
 
 const char OK_M[] PROGMEM = "OK";
+const char SPACE_M[] PROGMEM = " ";
 
 
 
@@ -281,7 +282,7 @@ bool gprs2::canDoPostUrl() {
     return postUrl(iUrl,iPar,oRes,250);
   }
   bool gprs2::postUrl(char* iUrl, char* iPar, char* oRes,unsigned int iResLength) {
-      char _tmpStr[30];
+      char _tmpStr[30], vSplitChar[2];
       unsigned int vFactSize  = 0,
                   vFirstSpace = 0;
       unsigned long vCurrTime = 0;
@@ -396,8 +397,9 @@ bool gprs2::canDoPostUrl() {
 
       _doCmd(F("AT+HTTPREAD"));
       getAnswer3(oRes,iResLength);    
+      strcpy_P(vSplitChar, (char*)SPACE_M);
 
-      _mstr.trim(oRes,' ');
+      _mstr.trim(oRes,vSplitChar);
       
 
 
@@ -411,14 +413,18 @@ bool gprs2::canDoPostUrl() {
       oRes[strlen(oRes)-1] = '\0';
       oRes[strlen(oRes)-1] = '\0';
 
-      vFirstSpace = _mstr.indexOf(oRes,":");
-      vFirstSpace = _mstr.indexOf(oRes," ",vFirstSpace+2);
+      strcpy_P(vSplitChar,PSTR(":"));
+      vFirstSpace = _mstr.indexOf(oRes,vSplitChar);
+
+      strcpy_P(vSplitChar, (char*)SPACE_M);
+      vFirstSpace = _mstr.indexOf(oRes,vSplitChar,vFirstSpace+2);
 
       for (int vI = 0; vI < vFirstSpace; vI++) {
           oRes[vI] = ' ';
       };
 
-      _mstr.trim(oRes,' ');
+      strcpy_P(vSplitChar, (char*)SPACE_M);
+      _mstr.trim(oRes,vSplitChar);
      _sendTermCommand();
    return true;
 
@@ -430,7 +436,7 @@ bool gprs2::saveOnSms() {
    mstr _mstr;
    _doCmd(F("AT+CNMI=1,1,0,0,0"));
    getAnswer3(vRes,30);
-strcpy_P(vTmpStr, (char*)OK_M);
+   strcpy_P(vTmpStr, (char*)OK_M);
    return _mstr.indexOf(vRes,vTmpStr) > -1;
 }
 
@@ -444,11 +450,11 @@ strcpy_P(vTmpStr, (char*)OK_M);
   return  _mstr.indexOf(vRes,vTmpStr)>-1;
 }
 
-void gprs2::getSmsText(unsigned int iNum,char* oRes) {
+void gprs2::getSmsText(unsigned int iNum,char* oRes,int iSmsSize) {
   char vCommand[15];
   sprintf_P(vCommand,PSTR("AT+CMGR=%u,1"),iNum);
   _doCmd(vCommand);
-  _getAnswer3(oRes,200,true);     
+  _getAnswer3(oRes,iSmsSize,true);     
 }
 
 
@@ -607,11 +613,11 @@ int gprs2::getSmsCount() {
 
 
     for (unsigned int vI=1; vI<6; vI++) {
-         getSmsText(vI,vRes);  
+         getSmsText(vI,vRes,sizeof(vRes));  
 
          _mstr.trim(vRes,' ');
 
-strcpy_P(vTmpStr, (char*)OK_M);
+         strcpy_P(vTmpStr, (char*)OK_M);
 
          if (!_mstr.isEqual(vRes,vTmpStr)) {
              vCount++;
@@ -622,13 +628,14 @@ strcpy_P(vTmpStr, (char*)OK_M);
 return vCount;
 };
 
+
 int gprs2::_freeRam () {
   extern int __heap_start, *__brkval;
   int v;
   return (int) &v - (__brkval == 0 ? (int) &__heap_start : (int) __brkval);
 }
 
- bool gprs2::setOnSms(void (*iSmsEvent)(char* oStr)) {
+ bool gprs2::setOnSms(bool (*iSmsEvent)(byte iSms, char* oStr)) {
     _onSmsRead = iSmsEvent;
  }
 
@@ -639,17 +646,15 @@ int gprs2::_freeRam () {
  void gprs2::readSms(bool deleteAfterRead) {
   char vRes[200], 
        vCommand[100];   
-  mstr _mstr;
+   mstr _mstr;
 
     _setSmsTextMode();
     saveOnSms();
 
-
-
     for (unsigned int vI=1; vI<6; vI++) {
 
-         getSmsText(vI,vRes);
-        _emptyBuffer(vCommand,100);
+         getSmsText(vI,vRes,sizeof(vRes));
+        _emptyBuffer(vCommand,sizeof(vCommand));
                
          if (strlen(vRes) < 20) {
             continue;
@@ -663,15 +668,13 @@ int gprs2::_freeRam () {
 
         _getSmsBody(vRes,vCommand);
 
-        if (_onSmsRead) {
-         if (strlen(vCommand) > 0) {
+        if (_onSmsRead &&  strlen(vCommand) > 0) {
             if (!_onSmsRead(vI,vCommand)) {                 
                 if (deleteAfterRead) {
                     deleteSms(vI);
                 };
         	continue;
             };
-         };
       };
 
        if (deleteAfterRead) {
@@ -717,9 +720,6 @@ void gprs2::_getSmsBody(char* vRes,char* vCommand) {
 
 	      };
               vCommand[vCurrPos+1] = '\0';     
-              vSmsBegin = false;
-              vCurrPos = 0;
-
 }
 void gprs2::_doCmd(char* iStr) {
   _modem.println(iStr);

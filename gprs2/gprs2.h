@@ -24,7 +24,7 @@ class gprs2
     void getLastError(char* oLastError);
     uint8_t getLastErrorNum();
     bool saveOnSms();
-    void getSmsText(unsigned int iNum,char* oRes);
+    void getSmsText(unsigned int iNum,char* oRes,int iSmsSize);
     bool deleteAllSms();
     bool deleteSms(byte iSms);
     void doCmd(const __FlashStringHelper *iStr,char* oRes,int iSize);
@@ -34,7 +34,7 @@ class gprs2
     bool sendSms(char* iPhone,char* iText);
     void readSms(bool deleteAfterRead);
     void readSms();
-    bool setOnSms(void (*_mSmsEvent)(char* oStr));
+    bool setOnSms(bool (*_mSmsEvent)(byte iSms, char* oStr));
     bool hasNetwork(byte iWaitAttempt);
     void softRestart();
     void getCoords(char* iLongitude,char* iLatitdue);

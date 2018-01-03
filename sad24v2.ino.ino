@@ -18,12 +18,12 @@ struct Connection {
 struct Globals {
   char version[3];  
   int  sleepTime;
-  int  connectPeriod = 60000;
+  int  connectPeriod;
 };
 
 struct offlineParams {
-    int  tempUpLight = -5000;
-    int  tempUpWater = 5000;
+    int  tempUpLight;
+    int  tempUpWater;
 };
 
 
@@ -31,7 +31,7 @@ unsigned int mOfflineParamsStart = sizeof(Connection) + sizeof(Globals);
 unsigned int mWorkerStart = mOfflineParamsStart + sizeof(offlineParams);
 
 int mCurrTempOut = 19900;
-int mCurrTempIn  = 1990;
+int mCurrTempIn  = -2000;
 
 volatile workerInfo _water;
 volatile workerInfo _light;
@@ -85,7 +85,7 @@ void loadSensorInfo1(int *oT1, int *oH1, int *oT2, long *oP1) {
   };
 
   if (isnan(t1) || abs(t1) > 999 ) {
-    t1 = 200;
+    t1 = 0;
   };
 
 
@@ -434,13 +434,15 @@ bool beforeTaskUpdate(char* iStr) {
  * требуется, то возвращается 0.                          *
  **********************************************************/
 byte workWithRes(char* iRes) {
+  char vTmpStr[2];  
   
   worker _worker(mWorkerStart);
   _worker.setBeforeTaskUpdate(beforeTaskUpdate);
   mstr _mstr;
 
-  if (_mstr.begins(iRes,"+")) {
-    _mstr.trim(iRes,'+');        
+  strcpy_P(vTmpStr,PSTR("+"));
+  if (_mstr.begins(iRes,vTmpStr)) {
+    _mstr.trim(iRes,vTmpStr);        
     return _worker.update(iRes);
   };
   
@@ -474,23 +476,29 @@ void doJob() {
        isWaterShouldWork = false,
        isLightShouldWork = false;       
        
-  unsigned long int secMidnight;
+  long secMidnight;  
+  
 
-  secMidnight = _worker.getSecMidnight();   
+  secMidnight = _worker.getSecMidnight();     
 
-
+  
+ 
   if (getCurrTempOut() <= getTempUpLight()) {
     isLightShouldWork = true;
   };
 
+
   if (getCurrTempIn() >= getTempUpWater()) {
     isWaterShouldWork = true;
-  };
+  };  
 
+  
 
 
   for (unsigned int vI = 0; vI < _worker.maxTaskCount; vI++) {           
-    _worker.shouldTaskWork(vI,isWater,isLight);
+    _worker.shouldTaskWork(vI,secMidnight,isWater,isLight);
+
+   
 
     if (isWater) {
        isWaterShouldWork = true;
@@ -509,7 +517,6 @@ void doJob() {
   * Тогда возможно нужно одно строго отключить и только         *
   * тогда включить другое.                                      *
   ***************************************************************/
-
   if (!isLightShouldWork && _light.isWork) {
     _worker.stopLight();
     _light.isWork = false;
@@ -523,6 +530,7 @@ void doJob() {
     _water.isWork = false;
     Serial.print(F("WATER OFF: "));
     Serial.println(secMidnight);
+    Serial.flush();
   };
 
  if (isWaterShouldWork && !_water.isWork) {
@@ -531,6 +539,7 @@ void doJob() {
     _water.startTime = secMidnight;
     Serial.print(F("WATER ON: "));
     Serial.println(secMidnight);
+    Serial.flush();
   };
    
 
@@ -562,9 +571,8 @@ void doJob() {
    
 }
 
-void Timer1_doJob() {
-  sei();
-  doJob();
+void Timer1_doJob(void) {  
+  doJob();  
 }
 
 void restartModem() {    
@@ -621,11 +629,14 @@ void setup() {
     // Site PASS
     strcpy_P(_connection.sitePass, PSTR("guest"));
     
-    // Задержка соединения по-умолчанию 15 минут
+    // Задержка соединения по-умолчанию 15 минут    
     _globals.connectPeriod = 15;
 
     _worker.setDateTime(17,5,9,11,0,0);
 
+    _offlineParams.tempUpLight = -1000;
+    _offlineParams.tempUpWater = 1000;
+    
     // Сохраняю настройки
     EEPROM.put(0, _connection);
     EEPROM.put(sizeof(Connection), _globals);
@@ -660,7 +671,7 @@ void loop() {
       Проверяем СМС с паролем к сайту
    **************************************/  
    
-  if (vCurrTime - vPrevTime2 >= 60000 || isFirstRun) {  
+   if (vCurrTime - vPrevTime2 >= 60000 || isFirstRun) {  
     digitalWrite(13, HIGH);    // turn the LED off by making the voltage LOW          
     readSms(); 
     digitalWrite(13, LOW);    // turn the LED off by making the voltage LOW
@@ -668,24 +679,21 @@ void loop() {
    };
 
   /***************************************
-   * Выполняем основную работу.
-   */
+   * Выполняем основную работу.          *
+   ***************************************/
   
   if (vCurrTime - vPrevTime1 >= connectPeriod() || isFirstRun) {
 
     Timer1.stop();    
     
-    Serial.print(F("-Start: "));
+    Serial.print(F("-Start: "));    
     showDateTime();
     Serial.println(F(" -"));
-
     loadSensorInfo1(&t1, &h1, &t2, &p1);
 
-
-
     Serial.print(F("T_out:"));
-    Serial.println(t1);
-
+    Serial.println(t1);    
+ 
     Serial.print(F("T_in:"));
     Serial.println(t2);
         
@@ -694,6 +702,7 @@ void loop() {
 
     Serial.print(F("P:"));
     Serial.println(p1);
+
     
     Serial.print(F("W&L:"));
     Serial.print(_water.duration);
@@ -701,17 +710,17 @@ void loop() {
     Serial.println(_light.duration);
 
     Serial.println(F("-Stop-"));
-    Timer1.start();
-
-
-    updateRemoteParams();    
-    updateRemoteMeasure(t1, h1, t2, p1);
-        
-    /*if (doPostMeasure(t1, h1, t2, p1)) {  
+    Serial.flush();
+    Timer1.start();       
+  
+    updateRemoteParams();        
+    //updateRemoteMeasure(t1, h1, t2, p1);
+    
+    if (updateRemoteMeasure(t1, h1, t2, p1)) {  
       vSim900ErrorCount=0;
     } else {          
       vSim900ErrorCount+=1;           
-    };*/
+    };
 
 
     /***************************************************
@@ -724,11 +733,12 @@ void loop() {
        vSim900ErrorCount=0;
     };
 
+ 
     vPrevTime1 = millis();
 
   };
-     
 
+  
   isFirstRun = false;
-  delay(1000);
+  delay(5000);
 }

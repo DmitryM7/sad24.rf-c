@@ -57,6 +57,7 @@ byte worker::update(char* iCommand) {
 
       if (strcmp_P(vCommand,PSTR("U"))==0) {
          vNeedReconnect = 1;
+         continue;
       };
 
        Serial.println(str1);
@@ -190,12 +191,25 @@ void worker::showDateTime() {
   Serial.flush();
  };
 
-unsigned long worker::getSecMidnight() {
+ long worker::getSecMidnight() {
   bool H12 = false, 
        PM;
+  long h,m,s,ret,ret1;
+  /******************************************************
+   * Включили прерывания. Прочитали нужные данные       *
+   * и тут же х отключили. Если этого не                *
+   * сделать, то получим переполнение памяти.           *
+   *                                                    *
+   ******************************************************/
+//  sei();
   DS3231 Clock;
-
-  return long((long)(Clock.getHour(H12, PM)) * 3600 + int(Clock.getMinute()) * 60 + int(Clock.getSecond()));
+  h = long(Clock.getHour(H12, PM));
+  m = long(Clock.getMinute());
+  s = long(Clock.getSecond());
+//cli();
+//  reti();
+  ret1 = h * 3600  + m * 60 + s;
+  return ret1;
 };
 
 void worker::_setDateTime(byte iYear,byte iMonth,byte iDay,byte iHour,byte iMinutes,byte iSec) {
@@ -211,24 +225,33 @@ void worker::setBeforeTaskUpdate(bool (*iEvent)(char* oStr)) {
   _beforeTaskUpdate = iEvent;  
 }
 
-bool worker::shouldTaskWork(unsigned int iAddress,bool& oShouldWaterWork,bool& oShouldLightWork) {
+bool worker::shouldTaskWork(unsigned int iAddress,
+                            unsigned long iSecMidnight,
+                            bool& oShouldWaterWork,
+                            bool& oShouldLightWork
+                            ) {
  mstr _mstr;
  unsigned long int secMidnight, secTaskBeg, secTaskEnd;
+ long h,m,s,ret,ret1;
+
  char dayOfWeek[2];
  task _task;  
 
 
   EEPROM.get(_startAddress + iAddress * sizeof(task),_task);
 
-  secMidnight = getSecMidnight(); 
+  h = long(_task.hours);
+  m = long(_task.minutes);
+  s = long(_task.seconds);
+
   sprintf_P(dayOfWeek, PSTR("%d"), getDayOfWeek());
-  secTaskBeg = (unsigned long)(_task.hours * 3600 + _task.minutes * 60 + _task.seconds);
-  secTaskEnd = min((unsigned long)(secTaskBeg + _task.duration), 86400);
-/*  Serial.print(iAddress); Serial.print(F(" = ")); Serial.print(secTaskBeg); Serial.print(F(" & ")); Serial.println(secTaskEnd);
-  Serial.flush();*/
+  secTaskBeg =  h * 3600 + m * 60 + s;
+  secTaskEnd = min(secTaskBeg + _task.duration, 86400);
+//  Serial.print(iAddress); Serial.print(_task.executor); Serial.print(F("  ")); Serial.print(F(" = ")); Serial.print(_task.hours); Serial.print(F(" & ")); Serial.println(_task.minutes);
+//  Serial.print(iAddress); Serial.print(F(" ")); Serial.print(iSecMidnight); Serial.print(F(" ->")); Serial.print(_task.executor); Serial.print(F("  ")); Serial.print(F(" = ")); Serial.print(secTaskBeg); Serial.print(F(" & ")); Serial.println(secTaskEnd);
+//  Serial.flush();
 
-
- if (_mstr.indexOf(_task.dayOfWeek, dayOfWeek) != -1 && secTaskBeg <= secMidnight && secMidnight <= secTaskEnd) {
+ if (_mstr.indexOf(_task.dayOfWeek, dayOfWeek) != -1 && secTaskBeg <= iSecMidnight && iSecMidnight <= secTaskEnd) {
     oShouldLightWork = strcmp_P(_task.executor, PSTR("L")) == 0;
     oShouldWaterWork = strcmp_P(_task.executor, PSTR("W")) == 0;
     return true;
@@ -242,33 +265,40 @@ bool worker::shouldTaskWork(unsigned int iAddress,bool& oShouldWaterWork,bool& o
 
 void worker::setTime(char* vCommand) {
    mstr _mstr;
-   char vDelimiter[2],vTimeStr[14],vUnit[2];
+   char vDelimiter[2],vTimeStr[15],vUnit[2];
    byte vYear,vMonth,vDay,vHour,vMinutes,vSec;
 
    if (strlen(vCommand)!=14) {
       return;
    };
 
+
    strcpy_P(vDelimiter, PSTR(";"));
+
+
    _mstr.entry(2,vCommand,vDelimiter,vTimeStr);
 
+
    _mstr.substr(vTimeStr,0,2,vUnit);
-   vYear = (byte) atoi(vUnit);
+   vYear = byte(atoi(vUnit));
+
 
    _mstr.substr(vTimeStr,2,2,vUnit);
-   vMonth = (byte) atoi(vUnit);
+   vMonth = byte(atoi(vUnit));
 
    _mstr.substr(vTimeStr,4,2,vUnit);
-   vDay = (byte) atoi(vUnit);
+   vDay = byte(atoi(vUnit));
 
    _mstr.substr(vTimeStr,6,2,vUnit);
-   vHour = (byte) atoi(vUnit);
+   vHour = byte(atoi(vUnit));
+
+
 
    _mstr.substr(vTimeStr,8,2,vUnit);
-   vMinutes = (byte) atoi(vUnit);
+   vMinutes = byte(atoi(vUnit));
 
    _mstr.substr(vTimeStr,10,2,vUnit);
-   vSec = (byte) atoi(vUnit);
+   vSec = byte(atoi(vUnit));
 
    Serial.print(F("Set Time:"));
    Serial.print(vYear);
