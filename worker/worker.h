@@ -5,7 +5,7 @@
 
 struct task {
   char executor[5];
-  char dayOfWeek[30];
+  char dayOfWeek[18];
 
   unsigned int hours;
   unsigned int minutes;
@@ -14,11 +14,11 @@ struct task {
   unsigned long duration = 0;
 };
 
-struct workerInfo {
- bool isWork = false;
- unsigned long startTime = 0;
- unsigned long duration  = 0;
-};
+typedef struct {
+  volatile bool isWork = false;
+  volatile unsigned long startTime = 0;
+  volatile unsigned long duration  = 0;
+} workerInfo;
 
 class worker
 {

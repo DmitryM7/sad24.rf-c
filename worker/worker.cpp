@@ -109,7 +109,10 @@ void worker::setTask(unsigned int iAddress,char* iStr) {
         _mstr.entry(4,iStr,vDelimiter,vStr);
         _task.duration = strtol(vStr,NULL,10);
 
+        noInterrupts();
 	EEPROM.put(vFactAddress,_task);
+	interrupts();
+
         Serial.print(iAddress);
         Serial.print(F(" = "));
         Serial.println(F("write OK"));

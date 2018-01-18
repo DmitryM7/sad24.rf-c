@@ -33,8 +33,8 @@ unsigned int mWorkerStart = mOfflineParamsStart + sizeof(offlineParams);
 int mCurrTempOut = 19900;
 int mCurrTempIn  = -2000;
 
-volatile workerInfo _water;
-volatile workerInfo _light;
+workerInfo _water;
+workerInfo _light;
 
 
 void loadSensorInfo1(int *oT1, int *oH1, int *oT2, long *oP1) {    
@@ -159,7 +159,11 @@ void parseTwoParamCommand(char* iCommand) {
    Serial.print(_connection.siteLogin);
    Serial.print(F("@"));
    Serial.println(_connection.sitePass);
+
+   noInterrupts();
    EEPROM.put(0, _connection); 
+   interrupts();
+   
    Serial.println(F("-"));
   };
 
@@ -200,8 +204,11 @@ void parseThreeParamCommand(char* iCommand) {
     Serial.print(_connection.apnPass);
     Serial.print(F("@"));
     Serial.println(_connection.apnPoint);
-    
+
+    noInterrupts();
     EEPROM.put(0, _connection); 
+    interrupts();
+    
     Serial.println(F("-"));
    }
 }
@@ -249,7 +256,12 @@ bool setSleepTime(int iSleepTime) {
   Globals _globals;
   EEPROM.get(sizeof(Connection), _globals);
   _globals.sleepTime = iSleepTime;
+
+  noInterrupts();
   EEPROM.put(sizeof(Connection), _globals);
+  interrupts();
+
+  
 };
 int  getSleepTime() {
   Globals _globals;
@@ -283,7 +295,11 @@ void setTempOffline(int iLight,int iWater) {
  EEPROM.get(mOfflineParamsStart,_offlineParams);
  _offlineParams.tempUpLight = iLight;
  _offlineParams.tempUpWater = iWater;
+
+ noInterrupts(); 
  EEPROM.put(mOfflineParamsStart,_offlineParams);
+ interrupts();
+
 }
 
 
@@ -297,7 +313,11 @@ void setConnectPeriod(int iSleepTime) {
   Globals _globals;
   EEPROM.get(sizeof(Connection), _globals);
   _globals.connectPeriod = iSleepTime;
+
+  noInterrupts();
   EEPROM.put(sizeof(Connection), _globals);
+  interrupts();
+
 }
 
 bool doPostParams(char* iRes,unsigned int iSize) {
@@ -482,7 +502,6 @@ void doJob() {
   secMidnight = _worker.getSecMidnight();     
 
   
- 
   if (getCurrTempOut() <= getTempUpLight()) {
     isLightShouldWork = true;
   };
@@ -562,16 +581,36 @@ void doJob() {
    **************************************************/
 
    if (_water.isWork) {
+    /************************************************
+     * Если время включения больше, чем текущее время
+     * это означает, что либо мы перешагнули через
+     * полуночь либо перевелись часы. Соответсвенно устанавливаем
+     * время включения в 0. Исходим из того, что считаем время работы
+     * исполнителя в текущих сутках.
+     */
+    if (_water.startTime > secMidnight) {
+      _water.startTime = 0;
+    };
     _water.duration = secMidnight - _water.startTime;
    };
 
    if (_light.isWork) {
+    /************************************************
+     * Если время включения больше, чем текущее время
+     * это означает, что либо мы перешагнули через
+     * полуночь либо перевелись часы. Соответсвенно устанавливаем
+     * время включения в 0. Исходим из того, что считаем время работы
+     * исполнителя в текущих сутках.
+     */
+     if (_light.startTime > secMidnight) {
+      _light.startTime = 0;
+     };
     _light.duration = secMidnight - _light.startTime;
    };
    
 }
 
-void Timer1_doJob(void) {  
+void Timer1_doJob(void) {   
   doJob();  
 }
 
