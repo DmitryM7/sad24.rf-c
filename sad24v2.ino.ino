@@ -66,7 +66,7 @@ void loadSensorInfo1(int *oT1, int *oH1, int *oT2, long *oP1) {
   t1 = dht.readTemperature();
 
   vCurrTime = millis();
-  
+ 
   while ((isnan(h1) || isnan(t1)) && millis() - vCurrTime < 15000) {    
     delay(3000);
     h1 = dht.readHumidity();
@@ -112,16 +112,6 @@ void showDateTime() {
   _worker.showDateTime();
 }
 
-void parseNoParamCommand(char* iCommand) {
-
-}
-
-void parseOneParamCommand(char* iCommand) {
-   char vTmpStr[10], vCmd[10];
-   Connection _connection;
-
-   
-}
 
 void parseTwoParamCommand(char* iCommand) {
      char vTmpStr[10],
@@ -222,13 +212,7 @@ bool onSms(byte iSms,char* iCommand) {
   
   strcpy_P(vTmpStr, PSTR(":"));    
   
-   switch (_mstr.numEntries(iCommand,vTmpStr)) {
-    case 1:
-        parseNoParamCommand(iCommand);
-     break;
-    case 2:    
-        parseOneParamCommand(iCommand);
-     break;
+   switch (_mstr.numEntries(iCommand,vTmpStr)) {    
      case 3:
         parseTwoParamCommand(iCommand);
      break;
@@ -626,7 +610,6 @@ void setup() {
   
   Connection _connection;
   Globals _globals;
-  offlineParams _offlineParams;
 
   worker _worker(mWorkerStart);
 
@@ -673,13 +656,12 @@ void setup() {
 
     _worker.setDateTime(17,5,9,11,0,0);
 
-    _offlineParams.tempUpLight = -1000;
-    _offlineParams.tempUpWater = 1000;
+    
     
     // Сохраняю настройки
     EEPROM.put(0, _connection);
     EEPROM.put(sizeof(Connection), _globals);
-    EEPROM.put(mOfflineParamsStart, _offlineParams);
+    setTempOffline(-99,99);
     Serial.println(F("END SET"));
   };
   
@@ -748,12 +730,17 @@ void loop() {
     Serial.print(F("&"));
     Serial.println(_light.duration);
 
+
+    Serial.print(F("Off.mode: "));
+    Serial.print(getTempUpLight());
+    Serial.print(F(" & "));
+    Serial.println(getTempUpWater());
+
     Serial.println(F("-Stop-"));
     Serial.flush();
     Timer1.start();       
   
     updateRemoteParams();        
-    //updateRemoteMeasure(t1, h1, t2, p1);
     
     if (updateRemoteMeasure(t1, h1, t2, p1)) {  
       vSim900ErrorCount=0;

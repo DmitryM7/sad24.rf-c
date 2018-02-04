@@ -7,6 +7,7 @@
 
 const char OK_M[] PROGMEM = "OK";
 const char SPACE_M[] PROGMEM = " ";
+const char COMMA_M[] PROGMEM = ",";
 
 
 
@@ -402,7 +403,6 @@ bool gprs2::canDoPostUrl() {
       _mstr.trim(oRes,vSplitChar);
       
 
-
        if (oRes[strlen(oRes)-2]!='O' && oRes[strlen(oRes)-1]!='K') {
            _setLastError(__LINE__,oRes);
            _emptyBuffer(oRes,iResLength);
@@ -644,9 +644,8 @@ int gprs2::_freeRam () {
  };
 
  void gprs2::readSms(bool deleteAfterRead) {
-  char vRes[200], 
-       vCommand[100];   
-   mstr _mstr;
+  char vRes[200],vCommand[100];   
+  mstr _mstr;
 
     _setSmsTextMode();
     saveOnSms();
@@ -752,17 +751,31 @@ strcpy_P(vTmpStr, (char*)OK_M);
     return true;
 }
 
- void gprs2::getCoords(char* oLongitude,char* oLatitdue) {
-     char vRes[50],vUnit[10];
+ bool gprs2::getCoords(char* oLongitude,char* oLatitdue) {
+     char vRes[50],vUnit[10],vTmpStr[13];
      mstr _mstr;
+
     _doCmd(F("AT+CIPGSMLOC=1,1"));
-    getAnswer3(vRes,50);
+    getAnswer3(vRes,sizeof(vRes));
+
     _emptyBuffer(oLongitude,10);
     _emptyBuffer(oLatitdue,10);
-    if (_mstr.numEntries(vRes,',')>0) {
-        _mstr.entry(2,vRes,',',vUnit);
-        strcpy(oLongitude,vUnit);
-        _mstr.entry(3,vRes,',',vUnit);
-        strcpy(oLatitdue,vUnit);
-     };    
+
+
+    strcpy_P(vTmpStr,PSTR("+CIPGSMLOC: 0"));
+    if (_mstr.indexOf(vRes,vTmpStr)==-1) {
+       return false;
+    };
+
+    strcpy_P(vTmpStr, (char*)COMMA_M);
+    if (_mstr.numEntries(vRes,vTmpStr)<=0) {
+       return false;
+    };
+
+      _mstr.entry(2,vRes,vTmpStr,vUnit);
+      strcpy(oLongitude,vUnit);
+      _mstr.entry(3,vRes,vTmpStr,vUnit);
+      strcpy(oLatitdue,vUnit);
+
+      return true;
  };

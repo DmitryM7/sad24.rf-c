@@ -37,7 +37,7 @@ class gprs2
     bool setOnSms(bool (*_mSmsEvent)(byte iSms, char* oStr));
     bool hasNetwork(byte iWaitAttempt);
     void softRestart();
-    void getCoords(char* iLongitude,char* iLatitdue);
+    bool getCoords(char* iLongitude,char* iLatitdue);
 
   private:
     SoftwareSerial _modem;
