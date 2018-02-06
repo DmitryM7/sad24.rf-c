@@ -365,7 +365,7 @@ bool updateRemoteMeasure(int t1,  int h1, int t2, long p1) {
   EEPROM.get(0, _connection);
 
 
-  sprintf_P(vParams, PSTR("r=%s&s=%s&t1=%d&h1=%d&t2=%d&p1=%ld&w1=%ld&l1=%ld&d=%ld"), _connection.siteLogin, _connection.sitePass, t1, h1, t2, p1, _water.duration, _light.duration, millis());
+  sprintf_P(vParams, PSTR("r=%s&s=%s&t1=%d&h1=%d&t2=%d&p1=%ld&w1=%lu&l1=%lu&d=%lu"), _connection.siteLogin, _connection.sitePass, t1, h1, t2, p1, _water.duration, _light.duration, millis());
 
   sim900.setInternetSettings(_connection.apnPoint, _connection.apnLogin, _connection.apnPass);    
 
