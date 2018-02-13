@@ -155,11 +155,12 @@ int mstr::indexOf(char* iStr, char* iPattern) {
 
 int mstr::indexOf(char* iStr, char* iPattern,int iStartPosition) {
    char* pch;
-   pch = strstr(iStr + iStartPosition,iPattern);
 
-   if (pch >= iStr) {
-      return pch - iStr;
-   };
+       pch = strstr(iStr + iStartPosition,iPattern);
+
+      if (pch >= iStr) {
+        return pch - iStr;
+      };
 
   return -1;
 };

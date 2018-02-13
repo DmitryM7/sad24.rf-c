@@ -61,7 +61,7 @@ byte worker::update(char* iCommand) {
       };
 
        Serial.println(str1);
-       setTask(vAddress,str1);
+       setTask2(vAddress,str1);
        vAddress++;
    };
    return vNeedReconnect;
@@ -76,7 +76,7 @@ void worker::setTask(unsigned int iAddress,char* iStr) {
         vDelimiter=';',
         vDelimiter2=':';
 
-      
+/*      
        vFactAddress = _startAddress + iAddress * sizeof(task);   
 
         if (_mstr.numEntries(iStr,vDelimiter)!=4) {
@@ -116,8 +116,44 @@ void worker::setTask(unsigned int iAddress,char* iStr) {
         Serial.print(iAddress);
         Serial.print(F(" = "));
         Serial.println(F("write OK"));
+*/
 
 }
+
+void worker::setTask2(unsigned int iAddress,char* iStr) {
+   mstr _mstr;
+   task _task;
+   unsigned int vFactAddress;
+   char vStr[20],
+        vDelimiter=';';
+
+      
+       vFactAddress = _startAddress + iAddress * sizeof(task);   
+
+        if (_mstr.numEntries(iStr,vDelimiter)!=3) {
+           return;
+        };
+
+
+        _mstr.entry(2,iStr,vDelimiter,vStr);
+        _task.startCode = atol(vStr);
+
+
+        _mstr.entry(3,iStr,vDelimiter,vStr);
+        _task.duration = atol(vStr);
+
+        noInterrupts();
+	EEPROM.put(vFactAddress,_task);
+	interrupts();
+
+        Serial.print(iAddress);
+        Serial.print(F(" = "));
+        Serial.print(_task.startCode);
+        Serial.print(F("  "));
+        Serial.println(F("write OK"));
+
+}
+
 
 task worker::_getTask(int iAddress) {
   task oTask;
@@ -197,20 +233,12 @@ void worker::showDateTime() {
  long worker::getSecMidnight() {
   bool H12 = false, 
        PM;
-  long h,m,s,ret,ret1;
-  /******************************************************
-   * Включили прерывания. Прочитали нужные данные       *
-   * и тут же х отключили. Если этого не                *
-   * сделать, то получим переполнение памяти.           *
-   *                                                    *
-   ******************************************************/
-//  sei();
+  long h,m,s,ret1;
+
   DS3231 Clock;
   h = long(Clock.getHour(H12, PM));
   m = long(Clock.getMinute());
   s = long(Clock.getSecond());
-//cli();
-//  reti();
   ret1 = h * 3600  + m * 60 + s;
   return ret1;
 };
@@ -233,36 +261,40 @@ bool worker::shouldTaskWork(unsigned int iAddress,
                             bool& oShouldWaterWork,
                             bool& oShouldLightWork
                             ) {
- mstr _mstr;
- unsigned long int secMidnight, secTaskBeg, secTaskEnd;
- long h,m,s,ret,ret1;
-
- char dayOfWeek[2];
- task _task;  
-
-
-  EEPROM.get(_startAddress + iAddress * sizeof(task),_task);
-
-  h = long(_task.hours);
-  m = long(_task.minutes);
-  s = long(_task.seconds);
-
-  sprintf_P(dayOfWeek, PSTR("%d"), getDayOfWeek());
-  secTaskBeg =  h * 3600 + m * 60 + s;
-  secTaskEnd = min(secTaskBeg + _task.duration, 86400);
-//  Serial.print(iAddress); Serial.print(_task.executor); Serial.print(F("  ")); Serial.print(F(" = ")); Serial.print(_task.hours); Serial.print(F(" & ")); Serial.println(_task.minutes);
-//  Serial.print(iAddress); Serial.print(F(" ")); Serial.print(iSecMidnight); Serial.print(F(" ->")); Serial.print(_task.executor); Serial.print(F("  ")); Serial.print(F(" = ")); Serial.print(secTaskBeg); Serial.print(F(" & ")); Serial.println(secTaskEnd);
-//  Serial.flush();
-
- if (_mstr.indexOf(_task.dayOfWeek, dayOfWeek) != -1 && secTaskBeg <= iSecMidnight && iSecMidnight <= secTaskEnd) {
-    oShouldLightWork = strcmp_P(_task.executor, PSTR("L")) == 0;
-    oShouldWaterWork = strcmp_P(_task.executor, PSTR("W")) == 0;
-    return true;
- };
-
     oShouldLightWork = false;
     oShouldWaterWork = false;
     return false;
+
+};
+
+byte worker::shouldTaskWork2(unsigned int iAddress,
+                             unsigned long iSecMidnight,
+                             byte iDayOfWeek
+                            ) {
+  unsigned long secTaskBeg, secTaskEnd;
+  byte vH,vM,vS;
+  bool isCurrWeekDay,isInTime;
+  task _task;  
+
+  EEPROM.get(_startAddress + iAddress * sizeof(task),_task);
+
+
+  vH   = lowByte((_task.startCode & 32505856)  >> 20);
+  vM   = lowByte((_task.startCode & 1032192)   >> 14);
+  vS   = lowByte((_task.startCode & 16128)     >> 8);
+
+
+  secTaskBeg    =  vH * 3600 + vM * 60 + vS;
+  secTaskEnd    = min(secTaskBeg + _task.duration, 86400);
+
+  isCurrWeekDay = bitRead(_task.startCode,32 - iDayOfWeek);
+  isInTime      = secTaskBeg <= iSecMidnight && iSecMidnight <= secTaskEnd;
+
+  if (isCurrWeekDay && isInTime) {
+     return lowByte(_task.startCode & 3);
+  };
+
+    return 0;
 
 };
 

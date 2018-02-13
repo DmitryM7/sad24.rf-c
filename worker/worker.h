@@ -4,18 +4,12 @@
 #include <DS3231.h>
 
 struct task {
-  char executor[5];
-  char dayOfWeek[18];
-
-  unsigned int hours;
-  unsigned int minutes;
-  unsigned int seconds;
-
-  unsigned long duration = 0;
+  unsigned long startCode = 0;
+  unsigned long duration  = 0;
 };
 
 typedef struct {
-  volatile bool isWork = false;
+  volatile bool          isWork    = false;
   volatile unsigned long startTime = 0;
   volatile unsigned long duration  = 0;
 } workerInfo;
@@ -27,6 +21,7 @@ class worker
    worker(unsigned int iStartAddress);
    byte update(char* iCommand);
    void setTask(unsigned int iAddress,char* iStr);
+   void setTask2(unsigned int iAddress,char* iStr);
    task getTask(int iAddress);
    void setStartAddress(unsigned int iStartAddress);
    void startWater();
@@ -38,6 +33,7 @@ class worker
    long getSecMidnight();
    void setBeforeTaskUpdate(bool (*_mEvent)(char* oStr));
    bool shouldTaskWork(unsigned int iAddress,unsigned long iSecMidnight,bool& oShoulWaterWork,bool& oShouldLightWork);
+   byte shouldTaskWork2(unsigned int iAddress,unsigned long iSecMidnight,byte iCurrDayOfWeek);
    void setTime(char* vCommand);
    void setDateTime(byte iYear,byte iMonth,byte iDay,byte iHour,byte iMinutes,byte iSec);
     
