@@ -127,10 +127,7 @@ bool gprs2::_getAnswer3(char* oRes,unsigned int iSize,bool saveCRLF,bool showAns
     char  vRes[12], vTmpStr[5];
     mstr _mstr;
     _doCmd(F("AT+CGATT?"));
-    Serial.print(F("CGATT: "));
     getAnswer3(vRes,sizeof(vRes));
-    Serial.println(vRes);
-    Serial.println();
 
     strcpy_P(vTmpStr, PSTR(": 1")); 
 
@@ -185,8 +182,6 @@ bool gprs2::gprsUp() {
     _doCmd(F("AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\""));
     getAnswer3(vRes,sizeof(vRes));
     strcpy_P(vTmpStr, (char*)OK_M);
-    Serial.print(F("GPRS:"));
-    Serial.println(vRes);
 
     if (_mstr.indexOf(vRes,vTmpStr)==-1) {
      _setLastError(__LINE__,vRes);
@@ -198,9 +193,7 @@ bool gprs2::gprsUp() {
     _modem.println(F("\""));
     _modem.flush();
     getAnswer3(vRes,sizeof(vRes));
-    Serial.print(F("APN:"));
-    Serial.println(vRes);
-
+    
    strcpy_P(vTmpStr, (char*)OK_M);
     if (_mstr.indexOf(vRes,vTmpStr)==-1) {
      _setLastError(__LINE__,vRes);
@@ -212,8 +205,6 @@ bool gprs2::gprsUp() {
     _modem.println(F("\""));
     _modem.flush();
     getAnswer3(vRes,sizeof(vRes));
-    Serial.print(F("USER:"));
-    Serial.println(vRes);
 
 
     strcpy_P(vTmpStr, (char*)OK_M);
@@ -227,8 +218,6 @@ bool gprs2::gprsUp() {
     _modem.println(F("\""));
     _modem.flush();
     getAnswer3(vRes,sizeof(vRes));
-    Serial.print(F("PWD"));
-    Serial.println(vRes);
 
 
     strcpy_P(vTmpStr, (char*)OK_M);
@@ -240,8 +229,6 @@ bool gprs2::gprsUp() {
 
     _doCmd(F("AT+SAPBR=1,1"));
     getAnswer3(vRes,sizeof(vRes));
-    Serial.print(F("SAPBR1,1:"));
-    Serial.println(vRes);
     
     return isGprsUp();
 }
@@ -603,13 +590,14 @@ bool gprs2::isReady() {
 };
 
 bool gprs2::sendSms(char* iPhone,char* iText) {
-  char vTmpStr[20],vRes[20];
+  char vTmpStr[8],vRes[20];
   mstr _mstr;
 
 
   _modem.print(F("AT+CMGS=\""));
   _modem.print(iPhone);
   _modem.println("\"");
+  _modem.flush();
   getAnswer3(vRes,sizeof(vRes));
 
   
@@ -715,7 +703,7 @@ void gprs2::_getSmsBody(char* vRes,char* vCommand) {
 
   unsigned int vCurrPos = 0, vStartPos = 0, vSmsLength;
   bool vSmsBegin = false;
-  char vTmpStr[5];
+  char vTmpStr[8];
   mstr _mstr;
          vSmsLength = strlen(vRes);
 
@@ -752,14 +740,12 @@ void gprs2::_doCmd(char* iStr) {
 };
 
 void gprs2::_doCmd(const __FlashStringHelper *iStr) {
-  Serial.println(iStr);
-  Serial.flush();
   _modem.println(iStr);
   _modem.flush();
 }
 
 void gprs2::softRestart() {
-    char vRes[20],vTmpStr[20];
+    char vRes[20],vTmpStr[5];
     mstr _mstr;
 
     Serial.print(F("*REST* : "));
@@ -780,7 +766,7 @@ strcpy_P(vTmpStr, (char*)OK_M);
 }
 
  bool gprs2::getCoords(char* oLongitude,char* oLatitdue) {
-     char vRes[50],vUnit[10],vTmpStr[13];
+     char vRes[50],vUnit[10],vTmpStr[15];
      mstr _mstr;
 
     _doCmd(F("AT+CIPGSMLOC=1,1"));

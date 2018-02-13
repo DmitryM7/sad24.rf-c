@@ -370,7 +370,7 @@ bool doPostParams(char* iRes, unsigned int iSize) {
 
 
 bool updateRemoteMeasure(int t1,  int h1, int t2, long p1) {
-  char vParams[150],
+  char vParams[200],
        vError[20],
        vRes[45];
 
@@ -472,7 +472,7 @@ byte workWithRes(char* iRes) {
 }
 
 bool updateRemoteParams() {
-  char vRes[200];
+  char vRes[150];
   byte vShouldReconnect = 1;
 
   while (vShouldReconnect == 1) {
