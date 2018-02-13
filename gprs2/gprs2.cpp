@@ -45,7 +45,7 @@ bool gprs2::_getAnswer3(char* oRes,unsigned int iSize,bool saveCRLF,bool showAns
   vCurrTime     = millis();
   vLastReadTime = millis();
 
-  while (millis() - vCurrTime < 15000) {
+  while (millis() - vCurrTime < 2000) {
 
     if (_modem.available()) {
 
@@ -124,13 +124,15 @@ bool gprs2::_getAnswer3(char* oRes,unsigned int iSize,bool saveCRLF,bool showAns
  }
 
  bool gprs2::hasGprs() {
-    char  vRes[15], vTmpStr[10];
+    char  vRes[12], vTmpStr[5];
     mstr _mstr;
-
     _doCmd(F("AT+CGATT?"));
+    Serial.print(F("CGATT: "));
     getAnswer3(vRes,sizeof(vRes));
+    Serial.println(vRes);
+    Serial.println();
 
-    strcpy_P(vTmpStr, PSTR("+CGATT: 1")); 
+    strcpy_P(vTmpStr, PSTR(": 1")); 
 
     if (_mstr.indexOf(vRes,vTmpStr) == -1) {
       _setLastError(__LINE__,vRes);      
@@ -141,7 +143,7 @@ bool gprs2::_getAnswer3(char* oRes,unsigned int iSize,bool saveCRLF,bool showAns
  }
 
  bool gprs2::isGprsUp() {
-    char  vRes[15],vTmpStr[15];
+    char  vRes[15],vTmpStr[7];
     mstr _mstr;
     _doCmd(F("AT+SAPBR=2,1"));
     getAnswer3(vRes,sizeof(vRes));
@@ -150,7 +152,7 @@ bool gprs2::_getAnswer3(char* oRes,unsigned int iSize,bool saveCRLF,bool showAns
     /********************************
      * Hasn't  status info          *
      ********************************/
-     strcpy_P(vTmpStr, PSTR("+SAPBR: 1,1")); 
+     strcpy_P(vTmpStr, PSTR(": 1,1")); 
 
     if (_mstr.indexOf(vRes,vTmpStr)==-1) {
       _setLastError(__LINE__,vRes);
@@ -164,7 +166,7 @@ bool gprs2::_getAnswer3(char* oRes,unsigned int iSize,bool saveCRLF,bool showAns
 bool gprs2::gprsUp() {
 
      char vRes[25],vTmpStr[25];
-     long int vCurrTime;
+     long int vCurrTime = millis();
      bool vStatus;
      mstr _mstr;
 
@@ -176,13 +178,14 @@ bool gprs2::gprsUp() {
       return false;
     };
 
-    if (isGprsUp()) {
+   if (isGprsUp()) {
       return true;
     };
 
     _doCmd(F("AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\""));
     getAnswer3(vRes,sizeof(vRes));
     strcpy_P(vTmpStr, (char*)OK_M);
+    Serial.print(F("GPRS:"));
     Serial.println(vRes);
 
     if (_mstr.indexOf(vRes,vTmpStr)==-1) {
@@ -195,6 +198,7 @@ bool gprs2::gprsUp() {
     _modem.println(F("\""));
     _modem.flush();
     getAnswer3(vRes,sizeof(vRes));
+    Serial.print(F("APN:"));
     Serial.println(vRes);
 
    strcpy_P(vTmpStr, (char*)OK_M);
@@ -208,6 +212,7 @@ bool gprs2::gprsUp() {
     _modem.println(F("\""));
     _modem.flush();
     getAnswer3(vRes,sizeof(vRes));
+    Serial.print(F("USER:"));
     Serial.println(vRes);
 
 
@@ -222,7 +227,7 @@ bool gprs2::gprsUp() {
     _modem.println(F("\""));
     _modem.flush();
     getAnswer3(vRes,sizeof(vRes));
-    Serial.print(F("4>"));
+    Serial.print(F("PWD"));
     Serial.println(vRes);
 
 
@@ -235,6 +240,7 @@ bool gprs2::gprsUp() {
 
     _doCmd(F("AT+SAPBR=1,1"));
     getAnswer3(vRes,sizeof(vRes));
+    Serial.print(F("SAPBR1,1:"));
     Serial.println(vRes);
     
     return isGprsUp();
@@ -291,6 +297,7 @@ bool gprs2::canDoPostUrl() {
  Serial.print(isR);  Serial.print(F(" : "));  Serial.print(isN); Serial.print(F(" : "));  Serial.println(isGprsUp);
  isN      = hasNetwork(3);
  Serial.print(isR);  Serial.print(F(" : "));  Serial.print(isN); Serial.print(F(" : "));  Serial.println(isGprsUp);
+ delay(3000);
  isGprsUp = gprsUp();
  Serial.print(isR);  Serial.print(F(" : "));  Serial.print(isN); Serial.print(F(" : "));  Serial.println(isGprsUp);
  isR      = isR && isN && isGprsUp;
@@ -745,6 +752,8 @@ void gprs2::_doCmd(char* iStr) {
 };
 
 void gprs2::_doCmd(const __FlashStringHelper *iStr) {
+  Serial.println(iStr);
+  Serial.flush();
   _modem.println(iStr);
   _modem.flush();
 }

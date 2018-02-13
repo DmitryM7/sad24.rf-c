@@ -493,29 +493,20 @@ void doJob() {
   worker _worker(mWorkerStart);
 
   long secMidnight;
-  byte currDayOfWeek;
-  unsigned int vI;
+  byte currDayOfWeek;  
   byte executor;
-  bool isWaterShouldWork = false, isLightShouldWork = false;
-
+  bool isWaterShouldWork = false, 
+       isLightShouldWork = false;
 
 
   secMidnight   = _worker.getSecMidnight();
   currDayOfWeek = _worker.getDayOfWeek();
-  
+
+  isLightShouldWork = getCurrTempOut() <= getTempUpLight();
+  isWaterShouldWork = getCurrTempIn()  >= getTempUpWater();  
 
 
-  if (getCurrTempOut() <= getTempUpLight()) {
-    isLightShouldWork = true;
-  };
-
-
-  if (getCurrTempIn() >= getTempUpWater()) {
-    isWaterShouldWork = true;
-  };
-
-
-  for (vI = 0; vI < _worker.maxTaskCount; vI++) {
+  for (unsigned int vI = 0; vI < _worker.maxTaskCount; vI++) {
     executor = _worker.shouldTaskWork2(vI, secMidnight, currDayOfWeek);
 
     isLightShouldWork = isLightShouldWork || (bool)bitRead(executor,0);
@@ -526,26 +517,17 @@ void doJob() {
   if (!isLightShouldWork && _light.isWork) {
     _worker.stopLight();
     _light.isWork = false;
-    Serial.print(F("LIGHT OFF: "));
-    Serial.println(secMidnight);
-    Serial.flush();
   };
 
   if (!isWaterShouldWork && _water.isWork) {
     _worker.stopWater();
     _water.isWork = false;
-    Serial.print(F("WATER OFF: "));
-    Serial.println(secMidnight);
-    Serial.flush();
   };
 
   if (isWaterShouldWork && !_water.isWork) {
     _worker.startWater();
     _water.isWork = true;
     _water.startTime = secMidnight;
-    Serial.print(F("WATER ON: "));
-    Serial.println(secMidnight);
-    Serial.flush();
   };
 
 
@@ -555,9 +537,6 @@ void doJob() {
     _worker.startLight();
     _light.isWork = true;
     _light.startTime = secMidnight;
-    Serial.print(F("LIGHT ON: "));
-    Serial.println(secMidnight);
-    Serial.flush();
   };
 
 
@@ -744,7 +723,7 @@ void loop() {
     Serial.print(F("Con.per.: "));
     Serial.println(connectPeriod());
 
-    Serial.print(F("Start: ")); Serial.print(vCurrTime); Serial.print(F(" : ")); Serial.print(vPrevTime1); Serial.print(F(" : ")); Serial.println(isFirstRun);
+    Serial.print(F("Cycle : ")); Serial.print(vCurrTime); Serial.print(F(" : ")); Serial.print(vPrevTime1); Serial.print(F(" : ")); Serial.println(isFirstRun);
 
     Serial.println(F("-Stop-"));
     Serial.flush();
