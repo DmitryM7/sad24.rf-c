@@ -20,7 +20,6 @@ class worker
    int maxTaskCount = 5;
    worker(unsigned int iStartAddress);
    byte update(char* iCommand);
-   void setTask(unsigned int iAddress,char* iStr);
    void setTask2(unsigned int iAddress,char* iStr);
    task getTask(int iAddress);
    void setStartAddress(unsigned int iStartAddress);
@@ -32,7 +31,6 @@ class worker
    void showDateTime();
    long getSecMidnight();
    void setBeforeTaskUpdate(bool (*_mEvent)(char* oStr));
-   bool shouldTaskWork(unsigned int iAddress,unsigned long iSecMidnight,bool& oShoulWaterWork,bool& oShouldLightWork);
    byte shouldTaskWork2(unsigned int iAddress,unsigned long iSecMidnight,byte iCurrDayOfWeek);
    void setTime(char* vCommand);
    void setDateTime(byte iYear,byte iMonth,byte iDay,byte iHour,byte iMinutes,byte iSec);

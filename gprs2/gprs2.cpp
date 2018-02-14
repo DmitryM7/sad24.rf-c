@@ -279,17 +279,7 @@ bool gprs2::isConnect() {
 
 
 bool gprs2::canDoPostUrl() {
- bool isR, isN, isGprsUp;
- isR      = isReady();
- Serial.print(isR);  Serial.print(F(" : "));  Serial.print(isN); Serial.print(F(" : "));  Serial.println(isGprsUp);
- isN      = hasNetwork(3);
- Serial.print(isR);  Serial.print(F(" : "));  Serial.print(isN); Serial.print(F(" : "));  Serial.println(isGprsUp);
- delay(3000);
- isGprsUp = gprsUp();
- Serial.print(isR);  Serial.print(F(" : "));  Serial.print(isN); Serial.print(F(" : "));  Serial.println(isGprsUp);
- isR      = isR && isN && isGprsUp;
-return isR;
-//      return isReady() && hasNetwork(3) && gprsUp();
+   return isReady() && hasNetwork(3) && gprsUp();
 };
 
   bool gprs2::postUrl(char* iUrl, char* iPar, char* oRes) {
@@ -755,7 +745,7 @@ void gprs2::softRestart() {
     Serial.println(F("*"));
     Serial.flush();
 
-strcpy_P(vTmpStr, (char*)OK_M);
+    strcpy_P(vTmpStr, (char*)OK_M);
 
     if (_mstr.indexOf(vRes,vTmpStr)==-1) {
       _setLastError(__LINE__,vRes);

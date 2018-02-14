@@ -509,22 +509,28 @@ void doJob() {
   for (unsigned int vI = 0; vI < _worker.maxTaskCount; vI++) {
     executor = _worker.shouldTaskWork2(vI, secMidnight, currDayOfWeek);
 
-    isLightShouldWork = isLightShouldWork || (bool)bitRead(executor,0);
-    isWaterShouldWork = isWaterShouldWork || (bool)bitRead(executor,1);    
+    isLightShouldWork = isLightShouldWork || (bool)bitRead(executor,1);
+    isWaterShouldWork = isWaterShouldWork || (bool)bitRead(executor,0);    
 
   };
 
   if (!isLightShouldWork && _light.isWork) {
+    Serial.print(F("Stop L:"));
+    Serial.println(secMidnight);
     _worker.stopLight();
     _light.isWork = false;
   };
 
   if (!isWaterShouldWork && _water.isWork) {
+    Serial.print(F("Stop W:"));
+    Serial.println(secMidnight);
     _worker.stopWater();
     _water.isWork = false;
   };
 
   if (isWaterShouldWork && !_water.isWork) {
+    Serial.print(F("Start W:"));
+    Serial.println(secMidnight);
     _worker.startWater();
     _water.isWork = true;
     _water.startTime = secMidnight;
@@ -534,6 +540,8 @@ void doJob() {
 
 
   if (isLightShouldWork && !_light.isWork) {
+    Serial.print(F("Start L:"));
+    Serial.println(secMidnight);
     _worker.startLight();
     _light.isWork = true;
     _light.startTime = secMidnight;
@@ -722,8 +730,6 @@ void loop() {
 
     Serial.print(F("Con.per.: "));
     Serial.println(connectPeriod());
-
-    Serial.print(F("Cycle : ")); Serial.print(vCurrTime); Serial.print(F(" : ")); Serial.print(vPrevTime1); Serial.print(F(" : ")); Serial.println(isFirstRun);
 
     Serial.println(F("-Stop-"));
     Serial.flush();

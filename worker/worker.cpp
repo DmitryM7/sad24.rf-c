@@ -60,65 +60,11 @@ byte worker::update(char* iCommand) {
          continue;
       };
 
-       Serial.println(str1);
        setTask2(vAddress,str1);
        vAddress++;
    };
    return vNeedReconnect;
 };
-
-void worker::setTask(unsigned int iAddress,char* iStr) {
-   mstr _mstr;
-   task _task;
-   unsigned int vFactAddress;
-   char vStr[20],
-        vStr1[5],
-        vDelimiter=';',
-        vDelimiter2=':';
-
-/*      
-       vFactAddress = _startAddress + iAddress * sizeof(task);   
-
-        if (_mstr.numEntries(iStr,vDelimiter)!=4) {
-           return;
-        };
-
-
-        _mstr.entry(1,iStr,vDelimiter,vStr);
-        strcpy(_task.executor,vStr);
-
-
-        _mstr.entry(2,iStr,vDelimiter,vStr);
-        strcpy(_task.dayOfWeek,vStr);
-
-        _mstr.entry(3,iStr,vDelimiter,vStr);
-
-        if (_mstr.numEntries(vStr,vDelimiter2)!=3) {
-         return;
-        };
-
-        _mstr.entry(1,vStr,vDelimiter2,vStr1);
-	_task.hours     = atoi(vStr1);
-
-        _mstr.entry(2,vStr,vDelimiter2,vStr1);
-        _task.minutes   = atoi(vStr1);
-
-        _mstr.entry(3,vStr,vDelimiter2,vStr1);
-        _task.seconds   = atoi(vStr1);
-
-        _mstr.entry(4,iStr,vDelimiter,vStr);
-        _task.duration = strtol(vStr,NULL,10);
-
-        noInterrupts();
-	EEPROM.put(vFactAddress,_task);
-	interrupts();
-
-        Serial.print(iAddress);
-        Serial.print(F(" = "));
-        Serial.println(F("write OK"));
-*/
-
-}
 
 void worker::setTask2(unsigned int iAddress,char* iStr) {
    mstr _mstr;
@@ -142,6 +88,7 @@ void worker::setTask2(unsigned int iAddress,char* iStr) {
         _mstr.entry(3,iStr,vDelimiter,vStr);
         _task.duration = atol(vStr);
 
+
         noInterrupts();
 	EEPROM.put(vFactAddress,_task);
 	interrupts();
@@ -149,8 +96,9 @@ void worker::setTask2(unsigned int iAddress,char* iStr) {
         Serial.print(iAddress);
         Serial.print(F(" = "));
         Serial.print(_task.startCode);
-        Serial.print(F("  "));
-        Serial.println(F("write OK"));
+        Serial.print(F(" -> "));
+        Serial.print(_task.duration);
+        Serial.println(F(" write OK"));
 
 }
 
@@ -256,23 +204,13 @@ void worker::setBeforeTaskUpdate(bool (*iEvent)(char* oStr)) {
   _beforeTaskUpdate = iEvent;  
 }
 
-bool worker::shouldTaskWork(unsigned int iAddress,
-                            unsigned long iSecMidnight,
-                            bool& oShouldWaterWork,
-                            bool& oShouldLightWork
-                            ) {
-    oShouldLightWork = false;
-    oShouldWaterWork = false;
-    return false;
-
-};
 
 byte worker::shouldTaskWork2(unsigned int iAddress,
                              unsigned long iSecMidnight,
                              byte iDayOfWeek
                             ) {
   unsigned long secTaskBeg, secTaskEnd;
-  byte vH,vM,vS;
+  unsigned int  vH, vM, vS;
   bool isCurrWeekDay,isInTime;
   task _task;  
 
@@ -283,15 +221,15 @@ byte worker::shouldTaskWork2(unsigned int iAddress,
   vM   = lowByte((_task.startCode & 1032192)   >> 14);
   vS   = lowByte((_task.startCode & 16128)     >> 8);
 
-
   secTaskBeg    =  vH * 3600 + vM * 60 + vS;
   secTaskEnd    = min(secTaskBeg + _task.duration, 86400);
 
   isCurrWeekDay = bitRead(_task.startCode,32 - iDayOfWeek);
   isInTime      = secTaskBeg <= iSecMidnight && iSecMidnight <= secTaskEnd;
 
+
   if (isCurrWeekDay && isInTime) {
-     return lowByte(_task.startCode & 3);
+     return lowByte(_task.startCode);
   };
 
     return 0;
