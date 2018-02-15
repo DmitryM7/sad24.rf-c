@@ -210,7 +210,7 @@ byte worker::shouldTaskWork2(unsigned int iAddress,
                              byte iDayOfWeek
                             ) {
   unsigned long secTaskBeg, secTaskEnd;
-  unsigned int  vH, vM, vS;
+  byte  vH, vM, vS;
   bool isCurrWeekDay,isInTime;
   task _task;  
 
@@ -221,7 +221,15 @@ byte worker::shouldTaskWork2(unsigned int iAddress,
   vM   = lowByte((_task.startCode & 1032192)   >> 14);
   vS   = lowByte((_task.startCode & 16128)     >> 8);
 
-  secTaskBeg    =  vH * 3600 + vM * 60 + vS;
+  secTaskBeg    =  (long)vH * 3600 + (long)vM * 60 + (long)vS;
+
+/*
+  Serial.println(F("---"));
+  Serial.print(iAddress); Serial.print(F(" : ")); Serial.print(vH); Serial.print(F(" : ")); Serial.print(vM); Serial.print(F(" : ")); Serial.println(vS);
+  Serial.print(iAddress); Serial.print(F(" : ")); Serial.print(iSecMidnight); Serial.print(F(" : ")); Serial.print(secTaskBeg); Serial.print(F(" : ")); Serial.println(_task.duration);
+  Serial.flush();
+*/
+
   secTaskEnd    = min(secTaskBeg + _task.duration, 86400);
 
   isCurrWeekDay = bitRead(_task.startCode,32 - iDayOfWeek);
