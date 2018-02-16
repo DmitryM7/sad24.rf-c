@@ -349,14 +349,6 @@ bool doPostParams(char* iRes, unsigned int iSize) {
     Serial.print(F("status: "));
     Serial.println(iRes);
 
-    if (!_water.isWork) {
-      _water.duration = 0;
-    };
-
-    if (!_light.isWork) {
-      _light.duration = 0;
-    };
-
   } else {
     sim900.getLastError(vError);
     Serial.print(F("error: "));
@@ -399,6 +391,16 @@ bool updateRemoteMeasure(int t1,  int h1, int t2, long p1) {
      **************************************************************************/
     Serial.print(F("status: "));
     Serial.println(vRes);
+
+    
+    if (!_water.isWork) {
+      _water.duration = 0;
+    };
+
+    if (!_light.isWork) {
+      _light.duration = 0;
+    };
+    
 
   } else {
     sim900.getLastError(vError);
@@ -602,6 +604,8 @@ void setup() {
 
   worker _worker(mWorkerStart);
 
+  
+
 
   pinMode(13, OUTPUT);
   digitalWrite(13, LOW);    // turn the LED off by making the voltage LOW
@@ -611,7 +615,7 @@ void setup() {
 
   Serial.begin(19200);
   Wire.begin();
-
+_worker.setDateTime(18, 2, 16, 0, 0, 0);
 
   _water.isWork = false;
   _light.isWork = false;

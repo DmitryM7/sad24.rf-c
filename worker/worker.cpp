@@ -230,6 +230,7 @@ byte worker::shouldTaskWork2(unsigned int iAddress,
   Serial.flush();
 */
 
+
   secTaskEnd    = min(secTaskBeg + _task.duration, 86400);
 
   isCurrWeekDay = bitRead(_task.startCode,32 - iDayOfWeek);
