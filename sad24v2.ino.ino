@@ -615,7 +615,7 @@ void setup() {
 
   Serial.begin(19200);
   Wire.begin();
-_worker.setDateTime(18, 2, 16, 0, 0, 0);
+
 
   _water.isWork = false;
   _light.isWork = false;
