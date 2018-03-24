@@ -1,3 +1,4 @@
+#include <avr/wdt.h>
 #include <BMP085.h>
 #include <DHT.h>
 #include <gprs2.h>
@@ -51,7 +52,7 @@ void loadSensorInfo1(int *oT1, int *oH1, int *oT2, long *oP1) {
 
   dps.getPressure(&p1);
 
-
+  wdt_reset();
   dht.begin();
 
   /***********************************************************
@@ -67,10 +68,11 @@ void loadSensorInfo1(int *oT1, int *oH1, int *oT2, long *oP1) {
 
   vCurrTime = millis();
 
-  while ((isnan(h1) || isnan(t1)) && millis() - vCurrTime < 15000) {
-    delay(3000);
+  while ((isnan(h1) || isnan(t1)) && millis() - vCurrTime < 5000) {
+    delay(1000);
     h1 = dht.readHumidity();
     t1 = dht.readTemperature();
+    wdt_reset();
   };
 
 
@@ -239,9 +241,9 @@ void readSms() {
 bool setSleepTime(int iSleepTime) {
   Globals _globals;
 
-  /**
-     Проверяю на разумность переданных значений.
-  */
+  /**************************************************
+   * Проверяю на разумность переданных значений.    *
+   **************************************************/
   if (iSleepTime < 5 || iSleepTime > 600) {
     return false;
   };
@@ -586,6 +588,7 @@ void doJob() {
 }
 
 void Timer1_doJob(void) {
+  wdt_reset();
   doJob();
 }
 
@@ -614,6 +617,7 @@ void setup() {
   _worker.stopLight();
 
   Serial.begin(19200);
+  Serial.println(F("Start"));
   Wire.begin();
 
 
@@ -665,6 +669,8 @@ void setup() {
   Timer1.initialize(3000000);
   Timer1.attachInterrupt(Timer1_doJob);
 
+  wdt_enable (WDTO_8S);
+
 }
 
 void loop() {
@@ -707,6 +713,7 @@ void loop() {
     showDateTime();
     Serial.println(F(" -"));
     loadSensorInfo1(&t1, &h1, &t2, &p1);
+    Timer1.start();
 
     Serial.print(F("T_out:"));
     Serial.println(t1);
@@ -737,7 +744,6 @@ void loop() {
 
     Serial.println(F("-Stop-"));
     Serial.flush();
-    Timer1.start();
 
     updateRemoteParams();
 
@@ -749,9 +755,9 @@ void loop() {
 
 
     /***************************************************
-       Если при попытке отправить данные
-       возникло более 3х ошибок, то перезагружаем
-       модем.
+     * Если при попытке отправить данные               *
+     * возникло более 3х ошибок, то перезагружаем      *
+     *  модем.                                         *
      ***************************************************/
     if (vSim900ErrorCount > 2) {
       restartModem();
