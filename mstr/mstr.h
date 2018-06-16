@@ -6,12 +6,10 @@ class mstr
 
   public:
     mstr();
-    bool entry(unsigned int iField,char* iStr,char iDelimiter,int iMaxEntrySize,int iStartPosition,int iEndPosition,char* oFieldValue);
-    bool entry(unsigned int iField,char* iStr,char* iDelimiter,int iMaxEntrySize,int iStartPosition,int iEndPosition,char* oFieldValue);
-    bool entry(unsigned int iField,char* iStr,char iDelimiter,int iMaxEntrySize,char* oFieldValue);
-    bool entry(unsigned int iField,char* iStr,char* iDelimiter,int iMaxEntrySize,char* oRes);
-    bool entry(unsigned int iField,char* iStr,char iDelimiter,char* oFieldValue);
+    bool entry(unsigned int iField,char* iStr,char  iDelimiter,int iMaxEntrySize,char* oFieldValue);
+    bool entry(unsigned int iField,char* iStr,char* iDelimiter,int iMaxEntrySize,char* oFieldValue);
     bool entry(unsigned int iField,char* iStr,char* iDelimiter,char* oFieldValue);
+
 
     int numEntries(char* iStr,char iDelimiter,int iStartPosition,int iEndPosition);
     int numEntries(char* iStr,char* iDelimiter,int iStartPosition,int iEndPosition);
@@ -28,5 +26,6 @@ class mstr
 
     bool begins(char* iStr,char* iPattern);
     void substr(char* iStr,int iStartPos,int iLength,char* oStr);
+
 };
 #endif

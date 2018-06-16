@@ -51,8 +51,6 @@ void loadSensorInfo1(int *oT1, int *oH1, int *oT2, long *oP1) {
 
 
   dps.getPressure(&p1);
-
-  wdt_reset();
   dht.begin();
 
   /***********************************************************
@@ -167,6 +165,7 @@ void parseThreeParamCommand(char* iCommand) {
   mstr _mstr;
   Connection _connection;
   strcpy_P(vTmpStr, PSTR(":"));
+  Serial.println(F("Three param"));
   _mstr.entry(1, iCommand, vTmpStr, 10, vCmd);
 
   EEPROM.get(0, _connection);
@@ -705,15 +704,15 @@ void loop() {
      Выполняем основную работу.
    ***************************************/
 
-  if (vCurrTime - vPrevTime1 >= connectPeriod() || isFirstRun) {
+  if (vCurrTime - vPrevTime1 >= connectPeriod() || isFirstRun) {                       
 
-    Timer1.stop();
+    //Timer1.stop();
 
     Serial.print(F("-Start: "));
     showDateTime();
     Serial.println(F(" -"));
     loadSensorInfo1(&t1, &h1, &t2, &p1);
-    Timer1.start();
+    //Timer1.start();
 
     Serial.print(F("T_out:"));
     Serial.println(t1);

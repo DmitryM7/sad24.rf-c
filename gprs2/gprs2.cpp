@@ -366,14 +366,17 @@ bool gprs2::canDoPostUrl() {
 
        while (_mstr.indexOf(oRes,_tmpStr)==-1 && millis() - vCurrTime < 30000) {
         getAnswer3(oRes,iResLength);
-       };     
+       }; 
+
+
+
+
 
 
          strcpy_P(_tmpStr, PSTR("+HTTPACTION: 1,200")); 
 
-        
          if (_mstr.indexOf(oRes,_tmpStr)==-1) {
-            
+           
               /************************************************************
                * Проверяем, что ответ сервера не содержит редирект по 302 *
                ************************************************************/
@@ -394,13 +397,21 @@ bool gprs2::canDoPostUrl() {
                         _sendTermCommand();
                        _emptyBuffer(oRes,iResLength);
                        return false;
+            } else {
+                  _doCmd(F("AT+HTTPREAD"));
+                  getAnswer3(oRes,iResLength);
+                  Serial.println(oRes);
+                  strcpy_P(_tmpStr, PSTR("302 redirect"));             
+                 _setLastError(__LINE__,_tmpStr);
+                  _sendTermCommand();
+                  _emptyBuffer(oRes,iResLength);
+                  return false;
             };
          };
 
-
-
       _doCmd(F("AT+HTTPREAD"));
       getAnswer3(oRes,iResLength);    
+
       strcpy_P(vSplitChar, (char*)SPACE_M);
 
       _mstr.trim(oRes,vSplitChar);
@@ -669,7 +680,7 @@ int gprs2::_freeRam () {
         Serial.println(vRes);
         Serial.println(F("-"));
 
-        _getSmsBody(vRes,vCommand);
+        _getSmsBody(vRes,vCommand,sizeof(vCommand));
 
         if (_onSmsRead &&  strlen(vCommand) > 0) {
             if (!_onSmsRead(vI,vCommand)) {                 
@@ -689,41 +700,32 @@ int gprs2::_freeRam () {
 
  }
 
-void gprs2::_getSmsBody(char* vRes,char* vCommand) {
+void gprs2::_getSmsBody(char* vRes,char* vCommand,unsigned int iMaxSmsBodyLength) {
 
-  unsigned int vCurrPos = 0, vStartPos = 0, vSmsLength;
-  bool vSmsBegin = false;
-  char vTmpStr[8];
+  unsigned int vCurrPos = 0, vStartPos = 0, vSmsLength;  
+  char vTmpStr[2];
   mstr _mstr;
-         vSmsLength = strlen(vRes);
 
-         strcpy_P(vTmpStr, PSTR("+CMGR:"));
-         vStartPos = _mstr.indexOf(vRes,vTmpStr);
+         vSmsLength = min(strlen(vRes),iMaxSmsBodyLength);
+
+        /********************************************************
+         * Нас интересует перенос строки тела смс от заголовка, *
+         * поэтому ищем со второго символа чтобы его пропустить *
+         *******************************************************/
+         strcpy_P(vTmpStr, PSTR("\n")); 
+         vStartPos = _mstr.indexOf(vRes,vTmpStr,2) + 1;
+              
 
 	      for (unsigned int vJ=vStartPos; vJ<vSmsLength; vJ++) {
-                  if (vSmsBegin) {
-                     if (vRes[vJ]!='\n' && vRes[vJ]!='\r' && vRes[vJ]!='\0') {
-                          vCommand[vCurrPos] = vRes[vJ];        
-                          vCurrPos++;
-                     };
-                  };
 
-                  if (vRes[vJ]=='\n') {
+                 if (vRes[vJ]=='\n' || vRes[vJ]=='\r') {  break;  };
 
-                    if (vSmsBegin) {
-                      break;
-                    };
-
-                    vSmsBegin = true;  
-                  };
-
-                  if (vCurrPos>98) {
-                     break;
-                  };
-
-	      };
-              vCommand[vCurrPos+1] = '\0';     
+                  vCommand[vCurrPos] = vRes[vJ];        
+                  vCurrPos++;
+              };
+              vCommand[iMaxSmsBodyLength] = '\0';     
 }
+
 void gprs2::_doCmd(char* iStr) {
   _modem.println(iStr);
   _modem.flush();

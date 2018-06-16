@@ -54,7 +54,7 @@ class gprs2
     void _sendTermCommand();
     bool _setSmsTextMode();
     int _freeRam();
-    void _getSmsBody(char* vRes,char* vCommand);
+    void _getSmsBody(char* vRes,char* vCommand,unsigned int iMaxSmsBodyLength);
     bool (*_onSmsRead)(byte iSms,char* oStr);
     void _doCmd(char* iStr);
     void _doCmd(const __FlashStringHelper *iStr);        

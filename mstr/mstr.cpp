@@ -68,9 +68,6 @@ int mstr::numEntries(char* iStr,char iDelimiter,int iStartPosition,int iEndPosit
   return vNumEntries;
 };
 
-bool mstr::entry(unsigned int iField,char* iStr,char iDelimiter,char* oRes) {
-  return entry(iField,iStr,iDelimiter,20,oRes);
-}
 
 bool mstr::entry(unsigned int iField,char* iStr,char* iDelimiter,char* oRes) {
   if (strlen(iDelimiter)!=1) { 
@@ -83,71 +80,69 @@ bool mstr::entry(unsigned int iField,char* iStr,char* iDelimiter,int iMaxEntrySi
   if (strlen(iDelimiter)!=1) { 
      return false;
   };
-  return entry(iField,iStr,iDelimiter[0],iMaxEntrySize,oRes);
+
+ return entry(iField,iStr,iDelimiter[0],iMaxEntrySize,oRes);
 }
+
 bool mstr::entry(unsigned int iField,char* iStr,char iDelimiter,int iMaxEntrySize,char* oRes) {
-  return entry(iField,iStr,iDelimiter,iMaxEntrySize,0,strlen(iStr),oRes);
-};
 
-bool mstr::entry(unsigned int iField,char* iStr,char* iDelimiter,int iMaxEntrySize,int iStartPosition,int iEndPosition,char* oRes) {
+   unsigned int vPrevPos = 0, vCurrPos = -1, vCurrField = 1, vStrLength = strlen(iStr);
+   bool vEndRase = false;
+   int vDiffPos;
 
-  if (strlen(iDelimiter)!=1) { 
-     return false;
-  };
-
-  return entry(iField,iStr,iDelimiter[0],iMaxEntrySize,iStartPosition,iEndPosition,oRes);
-};
-
-bool mstr::entry(unsigned int iField,
-                 char* iStr,
-                 char iDelimiter,
-                 int iMaxEntrySize,
-                 int iStartPosition,
-                 int iEndPosition,
-                 char* oRes) {
-   int vDelimiterCurrPos=iEndPosition,
-       vDelimiterPrevPos=iStartPosition-1,
-       vDelimiter=1;
-   char vRes[100];
-
-   /******************************************************** 
-    * Находим вхождение разделителя                        *
-    * с номером iField. По-умолчанию, предполагаем, что    *
-    * разделителей нет.                                    *
-    ********************************************************/
-   for (unsigned int vI=iStartPosition; vI<iEndPosition; vI++) {
-
-        if (iStr[vI]==iDelimiter) {
-           if (vDelimiter==iField) {
-               vDelimiterCurrPos=vI - 1;
-               break;
-           } else {
-               vDelimiterPrevPos=vI; 
-               vDelimiter++;
-           };
-        };
+   for (unsigned int vI = 0; vI < vStrLength; vI++) {
+     if (iStr[vI]==iDelimiter ||( vEndRase = vI == vStrLength - 1)) {
+      vPrevPos = vCurrPos;
+      vCurrPos = vI;
+      /*************************************************************
+       * Если последний символ в строке разделитель, то его        *
+       * исключаем из итогового значения.                          *
+       *************************************************************/
+      vDiffPos = max(vCurrPos - vPrevPos - (vEndRase && iStr[vI] != iDelimiter ? 0 : 1),0);
+      
+      if (vCurrField == iField) {
+        if (vDiffPos > iMaxEntrySize) { return false; };
+        strncpy(oRes, iStr + vPrevPos + 1,vDiffPos);
+        oRes[vDiffPos]='\0';
+        return true;
+      };
+      
+      vCurrField++;
+    };
    };
+   
+   
+   return false;   
+/*
+   int vCurrPosEntry = 1,vSize = strlen(iStr);   
+   char vTmpStr[vSize]; 
+   char* str1; 
+
+   strncpy(vTmpStr,iStr,vSize);
+
+   char* pdata1 = vTmpStr;
 
 
 
+ Serial.println(F("---")); 
+  Serial.print(vTmpStr);
+  Serial.println(F("*"));
+ Serial.println(F("---")); 
+        
+   while ((str1 = strtok_r(pdata1,iDelimiter,&pdata1 ))!=NULL) {
 
-   if (vDelimiterCurrPos - vDelimiterPrevPos > iMaxEntrySize) {
-         return false;      
+
+     if (vCurrPosEntry == iField) {
+        if (strlen(str1) > iMaxEntrySize) { return false; } else { strcpy(oRes,str1); return true; };
+     };
+
+      vCurrPosEntry++;
+
    };
-
-    /********************************************************
-     * Теперь в обратную сторону до следующего делителя     *
-     * набираем нужные символы.                             *
-     ********************************************************/
-
-   vRes[vDelimiterCurrPos-vDelimiterPrevPos]='\0';
-
-   for (int vI=vDelimiterCurrPos;vI>vDelimiterPrevPos;vI--) {
-        vRes[vI-vDelimiterPrevPos-1]=iStr[vI];
-   };
-   strcpy(oRes,vRes);
-   return true;   
+   
+   return false;   */
 }
+
 
 int mstr::indexOf(char* iStr, char* iPattern) {
   return indexOf(iStr,iPattern,0);
