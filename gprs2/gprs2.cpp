@@ -292,6 +292,8 @@ bool gprs2::canDoPostUrl() {
       unsigned long vCurrTime = 0;
       mstr _mstr;
 
+      Serial.println(iUrl);
+
        if (iResLength < 35) {
           _setSizeParamError(__LINE__);
           _sendTermCommand();
@@ -367,11 +369,6 @@ bool gprs2::canDoPostUrl() {
        while (_mstr.indexOf(oRes,_tmpStr)==-1 && millis() - vCurrTime < 30000) {
         getAnswer3(oRes,iResLength);
        }; 
-
-
-
-
-
 
          strcpy_P(_tmpStr, PSTR("+HTTPACTION: 1,200")); 
 
