@@ -292,6 +292,8 @@ bool gprs2::canDoPostUrl() {
       unsigned long vCurrTime = 0;
       mstr _mstr;
 
+      Serial.println(iUrl);
+
        if (iResLength < 35) {
           _setSizeParamError(__LINE__);
           _sendTermCommand();
@@ -702,28 +704,26 @@ int gprs2::_freeRam () {
 
 void gprs2::_getSmsBody(char* vRes,char* vCommand,unsigned int iMaxSmsBodyLength) {
 
-  unsigned int vCurrPos = 0, vStartPos = 0, vSmsLength;  
+  unsigned int vCurrPos = 0, vStartPos = 0, vEndPos;  
   char vTmpStr[2];
   mstr _mstr;
 
-         vSmsLength = min(strlen(vRes),iMaxSmsBodyLength);
 
         /********************************************************
          * Нас интересует перенос строки тела смс от заголовка, *
          * поэтому ищем со второго символа чтобы его пропустить *
          *******************************************************/
          strcpy_P(vTmpStr, PSTR("\n")); 
-         vStartPos = _mstr.indexOf(vRes,vTmpStr,2) + 1;
-              
+         vStartPos = _mstr.indexOf(vRes,vTmpStr,2) + 1;           
+         vEndPos = min(strlen(vRes),vStartPos + iMaxSmsBodyLength);
 
-	      for (unsigned int vJ=vStartPos; vJ<vSmsLength; vJ++) {
+	      for (unsigned int vJ=vStartPos; vJ<vEndPos; vJ++) {
 
                  if (vRes[vJ]=='\n' || vRes[vJ]=='\r') {  break;  };
-
-                  vCommand[vCurrPos] = vRes[vJ];        
+                  vCommand[vCurrPos] = vRes[vJ];       
                   vCurrPos++;
               };
-              vCommand[iMaxSmsBodyLength] = '\0';     
+              vCommand[min(vCurrPos,iMaxSmsBodyLength)] = '\0';     
 }
 
 void gprs2::_doCmd(char* iStr) {

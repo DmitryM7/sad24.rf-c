@@ -112,53 +112,6 @@ void showDateTime() {
   _worker.showDateTime();
 }
 
-
-void parseTwoParamCommand(char* iCommand) {
-  char vTmpStr[10],
-       vCmd[10],
-       vParam1[5],
-       vParam2[20];
-  mstr _mstr;
-  Connection _connection;
-
-
-  EEPROM.get(0, _connection);
-
-
-  strcpy_P(vTmpStr, PSTR(":"));
-  _mstr.entry(1, iCommand, vTmpStr, 10, vCmd);
-
-
-  /**************************************
-    Меняем учетные данные к сайту SITE:
-  ***************************************/
-
-  strcpy_P(vTmpStr, PSTR("SITE"));
-  if (_mstr.isEqual(vCmd, vTmpStr)) {
-    Serial.print(F("SITE: "));
-    strcpy_P(vTmpStr, PSTR(":"));
-
-    if (!_mstr.entry(2, iCommand, vTmpStr, 11, _connection.siteLogin)) {
-      return;
-    };
-
-    if (!_mstr.entry(3, iCommand, vTmpStr, 20, _connection.sitePass)) {
-      return;
-    };
-
-    Serial.print(_connection.siteLogin);
-    Serial.print(F("@"));
-    Serial.println(_connection.sitePass);
-
-    noInterrupts();
-    EEPROM.put(0, _connection);
-    interrupts();
-
-    Serial.println(F("-"));
-  };
-
-}
-
 void parseThreeParamCommand(char* iCommand) {
   char vTmpStr[10],
        vCmd[10];
@@ -201,7 +154,38 @@ void parseThreeParamCommand(char* iCommand) {
     interrupts();
 
     Serial.println(F("-"));
-  }
+  };
+
+  strcpy_P(vTmpStr, PSTR("SITE"));
+  if (_mstr.isEqual(vCmd, vTmpStr)) {
+    Serial.print(F("SITE: "));
+    strcpy_P(vTmpStr, PSTR(":"));
+
+    if (!_mstr.entry(2, iCommand, vTmpStr, 11, _connection.siteLogin)) {
+      return;
+    };
+
+    if (!_mstr.entry(3, iCommand, vTmpStr, 20, _connection.sitePass)) {
+      return;
+    };
+
+    if (!_mstr.entry(4, iCommand, vTmpStr, 40, _connection.sitePoint)) {
+      return;
+    };
+
+    Serial.print(_connection.siteLogin);
+    Serial.print(F(":"));
+    Serial.print(_connection.sitePass);
+    Serial.print(F("@"));
+    Serial.println(_connection.sitePoint);
+
+    noInterrupts();
+    EEPROM.put(0, _connection);
+    interrupts();
+
+    Serial.println(F("-"));
+  };
+  
 }
 
 bool onSms(byte iSms, char* iCommand) {
@@ -213,10 +197,7 @@ bool onSms(byte iSms, char* iCommand) {
 
   strcpy_P(vTmpStr, PSTR(":"));
 
-  switch (_mstr.numEntries(iCommand, vTmpStr)) {
-    case 3:
-      parseTwoParamCommand(iCommand);
-      break;
+  switch (_mstr.numEntries(iCommand, vTmpStr)) {    
     case 4:
       parseThreeParamCommand(iCommand);
       break;
@@ -518,21 +499,21 @@ void doJob() {
   };
 
   if (!isLightShouldWork && _light.isWork) {
-    Serial.print(F("Stop L:"));
+    Serial.print(F("EL:"));
     Serial.println(secMidnight);
     _worker.stopLight();
     _light.isWork = false;
   };
 
   if (!isWaterShouldWork && _water.isWork) {
-    Serial.print(F("Stop W:"));
+    Serial.print(F("EW:"));
     Serial.println(secMidnight);
     _worker.stopWater();
     _water.isWork = false;
   };
 
   if (isWaterShouldWork && !_water.isWork) {
-    Serial.print(F("Start W:"));
+    Serial.print(F("SW:"));
     Serial.println(secMidnight);
     _worker.startWater();
     _water.isWork = true;
@@ -543,7 +524,7 @@ void doJob() {
 
 
   if (isLightShouldWork && !_light.isWork) {
-    Serial.print(F("Start L:"));
+    Serial.print(F("SL:"));
     Serial.println(secMidnight);
     _worker.startLight();
     _light.isWork = true;
@@ -628,7 +609,7 @@ void setup() {
 
 
   if (strcmp_P(_globals.version, PSTR("INI")) != 0) {
-    //if (true) {
+  //  if (true) {
     Serial.println(F("SET"));
 
     for (int vI = 0 ; vI < EEPROM.length() ; vI++) {
@@ -639,7 +620,7 @@ void setup() {
     strcpy_P(_globals.version, PSTR("INI"));
 
     // Site POINT
-    strcpy_P(_connection.sitePoint, PSTR("xn--24-4lcq4a.xn--p1ai/ri/sa"));
+    strcpy_P(_connection.sitePoint, PSTR("xn--24-6kcq7d.xn--p1ai/ri/sa"));
 
     // Site LOGIN
     strcpy_P(_connection.siteLogin, PSTR("guest"));
