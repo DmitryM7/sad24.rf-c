@@ -370,6 +370,11 @@ bool gprs2::canDoPostUrl() {
         getAnswer3(oRes,iResLength);
        }; 
 
+
+
+
+
+
          strcpy_P(_tmpStr, PSTR("+HTTPACTION: 1,200")); 
 
          if (_mstr.indexOf(oRes,_tmpStr)==-1) {

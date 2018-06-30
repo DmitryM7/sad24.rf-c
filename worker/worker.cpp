@@ -71,14 +71,18 @@ void worker::setTask2(unsigned int iAddress,char* iStr) {
    task _task;
    unsigned int vFactAddress;
    char vStr[20],
-        vDelimiter=';';
+        vDelimiter[1];
 
+
+       strcpy_P(vDelimiter, PSTR(";"));
       
        vFactAddress = _startAddress + iAddress * sizeof(task);   
 
         if (_mstr.numEntries(iStr,vDelimiter)!=3) {
            return;
         };
+
+        Serial.println(iStr);
 
 
         _mstr.entry(2,iStr,vDelimiter,vStr);

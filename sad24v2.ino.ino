@@ -485,6 +485,7 @@ void doJob() {
 
   secMidnight   = _worker.getSecMidnight();
   currDayOfWeek = _worker.getDayOfWeek();
+  
 
   isLightShouldWork = getCurrTempOut() <= getTempUpLight();
   isWaterShouldWork = getCurrTempIn()  >= getTempUpWater();  
