@@ -267,6 +267,7 @@ int getTempUpWater() {
 void setTempOffline(int iLight, int iWater) {
   offlineParams _offlineParams;
 
+
   if (iLight < -99 || iLight > 99 || iWater < -99 || iWater > 99) {
     return;
   };
@@ -278,7 +279,7 @@ void setTempOffline(int iLight, int iWater) {
   noInterrupts();
   EEPROM.put(mOfflineParamsStart, _offlineParams);
   interrupts();
-
+  
 }
 
 
@@ -293,6 +294,7 @@ void setConnectPeriod(int iSleepTime) {
   if (iSleepTime < 5 || iSleepTime > 600) {
     return;
   };
+  
   Globals _globals;
   EEPROM.get(sizeof(Connection), _globals);
   _globals.connectPeriod = iSleepTime;
@@ -337,6 +339,8 @@ bool doPostParams(char* iRes, unsigned int iSize) {
     Serial.println(vError);
 
   };
+
+  Serial.flush();
 
   return vResult;
 
@@ -397,21 +401,27 @@ bool updateRemoteMeasure(int t1,  int h1, int t2, long p1) {
 
 
 bool beforeTaskUpdate(char* iStr) {
-  char vDelimiter = ';',
+  char vDelimiter[2],
        vCommand[2],
        vParam1[20],
-       vParam2[20];;
+       vParam2[20];
+       
   mstr _mstr;
 
+  strcpy_P(vDelimiter,PSTR(";"));
+  if (_mstr.numEntries(iStr, vDelimiter) > 1) {    
 
-
-  if (_mstr.numEntries(iStr, vDelimiter) >= 2) {
-    _mstr.entry(1, iStr, vDelimiter, vCommand);
+    if (!_mstr.entry(1, iStr, vDelimiter, vCommand)) {
+      Serial.println(F("E-N410"));
+      Serial.flush();
+      return false;
+    };
 
     if (strcmp_P(vCommand, PSTR("C")) == 0) {
       if (_mstr.entry(2, iStr, vDelimiter, 4, vParam1)) {
         Serial.print(F("Sleep = "));
         Serial.println(atoi(vParam1));
+        Serial.flush();
         setConnectPeriod(atoi(vParam1));
         return false;
       };
@@ -423,6 +433,7 @@ bool beforeTaskUpdate(char* iStr) {
         Serial.print(vParam1);
         Serial.print(F("&"));
         Serial.println(vParam2);
+        Serial.flush();
         setTempOffline(atoi(vParam1), atoi(vParam2));
         return false;
       };
@@ -688,14 +699,12 @@ void loop() {
 
   if (vCurrTime - vPrevTime1 >= connectPeriod() || isFirstRun) {                       
 
-    //Timer1.stop();
-
+  
     Serial.print(F("-Start: "));
     showDateTime();
     Serial.println(F(" -"));
     loadSensorInfo1(&t1, &h1, &t2, &p1);
-    //Timer1.start();
-
+ 
     Serial.print(F("T_out:"));
     Serial.println(t1);
 

@@ -35,7 +35,7 @@ byte worker::update(char* iCommand) {
    while ((str1 = strtok_r(iCommand,_tmpStr1,&iCommand))!=NULL) {
 
       if (_beforeTaskUpdate) {
-         if (_beforeTaskUpdate(str1)==false) {
+         if (!_beforeTaskUpdate(str1)) {
             continue;
          };
       };
@@ -47,7 +47,6 @@ byte worker::update(char* iCommand) {
       };
 
       _mstr.entry(1,str1,_tmpStr2,vCommand);
-
 
 
       if (strcmp_P(vCommand,PSTR("T"))==0) {
@@ -63,6 +62,7 @@ byte worker::update(char* iCommand) {
        setTask2(vAddress,str1);
        vAddress++;
    };
+
    return vNeedReconnect;
 };
 
@@ -71,7 +71,7 @@ void worker::setTask2(unsigned int iAddress,char* iStr) {
    task _task;
    unsigned int vFactAddress;
    char vStr[20],
-        vDelimiter[1];
+        vDelimiter[2];
 
 
        strcpy_P(vDelimiter, PSTR(";"));
