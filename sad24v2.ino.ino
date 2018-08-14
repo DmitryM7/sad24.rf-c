@@ -1,3 +1,5 @@
+#define PERIOD_MODEM_SLEEP 300000
+
 #include <avr/wdt.h>
 #include <BMP085.h>
 #include <DHT.h>
@@ -6,6 +8,9 @@
 #include <worker.h>
 #include <EEPROM.h>
 #include <TimerOne.h>
+#include "isDebug.h"
+
+
 
 struct Connection {
   char apnPoint[35];
@@ -118,7 +123,11 @@ void parseThreeParamCommand(char* iCommand) {
   mstr _mstr;
   Connection _connection;
   strcpy_P(vTmpStr, PSTR(":"));
-  Serial.println(F("Three param"));
+  
+  #ifdef IS_DEBUG
+   Serial.println(F("Three param"));
+  #endif
+  
   _mstr.entry(1, iCommand, vTmpStr, 10, vCmd);
 
   EEPROM.get(0, _connection);
@@ -128,7 +137,9 @@ void parseThreeParamCommand(char* iCommand) {
    **********************************/
   strcpy_P(vTmpStr, PSTR("APN7"));
   if (_mstr.isEqual(vCmd, vTmpStr)) {
-    Serial.print(F("APN: "));
+    #ifdef IS_DEBUG
+     Serial.print(F("APN: "));
+    #endif
 
     strcpy_P(vTmpStr, PSTR(":"));
     if (!_mstr.entry(2, iCommand, vTmpStr, 35, _connection.apnPoint)) {
@@ -143,22 +154,28 @@ void parseThreeParamCommand(char* iCommand) {
       return;
     };
 
+  #ifdef IS_DEBUG
     Serial.print(_connection.apnLogin);
     Serial.print(F(":"));
     Serial.print(_connection.apnPass);
     Serial.print(F("@"));
     Serial.println(_connection.apnPoint);
+  #endif
 
     noInterrupts();
     EEPROM.put(0, _connection);
     interrupts();
-
+   #ifdef IS_DEBUG
     Serial.println(F("-"));
+   #endif
   };
 
   strcpy_P(vTmpStr, PSTR("SITE"));
   if (_mstr.isEqual(vCmd, vTmpStr)) {
+
+    #ifdef IS_DEBUG
     Serial.print(F("SITE: "));
+    #endif
     strcpy_P(vTmpStr, PSTR(":"));
 
     if (!_mstr.entry(2, iCommand, vTmpStr, 11, _connection.siteLogin)) {
@@ -173,17 +190,21 @@ void parseThreeParamCommand(char* iCommand) {
       return;
     };
 
+  #ifdef IS_DEBUG
     Serial.print(_connection.siteLogin);
     Serial.print(F(":"));
     Serial.print(_connection.sitePass);
     Serial.print(F("@"));
     Serial.println(_connection.sitePoint);
+  #endif
 
     noInterrupts();
     EEPROM.put(0, _connection);
     interrupts();
-
+  
+  #ifdef IS_DEBUG
     Serial.println(F("-"));
+  #endif
   };
   
 }
@@ -191,9 +212,12 @@ void parseThreeParamCommand(char* iCommand) {
 bool onSms(byte iSms, char* iCommand) {
   mstr _mstr;
   char vTmpStr[2];
+
+ #ifdef IS_DEBUG
   Serial.print(iSms);
   Serial.print(F(">"));
   Serial.println(iCommand);
+ #endif
 
   strcpy_P(vTmpStr, PSTR(":"));
 
@@ -208,13 +232,9 @@ bool onSms(byte iSms, char* iCommand) {
 
 void readSms() {
   gprs2 sim900(7, 8);
-
-  sim900.isReady();
-
+    
   sim900.setOnSms(onSms);
-
-  sim900.readSms(true);
-
+  sim900.readSms(true);      
 }
 
 
@@ -320,8 +340,12 @@ bool doPostParams(char* iRes, unsigned int iSize) {
   sim900.getCoords(vL, vA);
 
   sprintf_P(vParams, PSTR("r=%s&s=%s&m=c&l=%s&a=%s"), _connection.siteLogin, _connection.sitePass, vL, vA);
+
+  
   vResult = sim900.postUrl(_connection.sitePoint, vParams, iRes, iSize);
+  #ifdef IS_DEBUG
   Serial.print(F("Params "));
+  #endif
 
   if (vResult) {
     /**************************************************************************
@@ -330,17 +354,21 @@ bool doPostParams(char* iRes, unsigned int iSize) {
        то тогда обнуляем время работы.
      *                                                                        *
      **************************************************************************/
+   #ifdef IS_DEBUG
     Serial.print(F("status: "));
     Serial.println(iRes);
-
+   #endif
   } else {
     sim900.getLastError(vError);
+   #ifdef IS_DEBUG
     Serial.print(F("error: "));
     Serial.println(vError);
+   #endif
 
   };
-
+  #ifdef IS_DEBUG
   Serial.flush();
+  #endif
 
   return vResult;
 
@@ -357,8 +385,8 @@ bool updateRemoteMeasure(int t1,  int h1, int t2, long p1) {
 
   gprs2 sim900(7, 8);
 
-  EEPROM.get(0, _connection);
 
+  EEPROM.get(0, _connection);
 
   sprintf_P(vParams, PSTR("r=%s&s=%s&t1=%d&h1=%d&t2=%d&p1=%ld&w1=%lu&l1=%lu&d=%lu"), _connection.siteLogin, _connection.sitePass, t1, h1, t2, p1, _water.duration, _light.duration, millis());
 
@@ -366,7 +394,9 @@ bool updateRemoteMeasure(int t1,  int h1, int t2, long p1) {
 
   vResult = sim900.postUrl(_connection.sitePoint, vParams, vRes, sizeof(vRes));
 
+  #ifdef IS_DEBUG
   Serial.print(F("Measurement "));
+  #endif
 
   if (vResult) {
     /**************************************************************************
@@ -375,8 +405,10 @@ bool updateRemoteMeasure(int t1,  int h1, int t2, long p1) {
        то тогда обнуляем время работы.
      *                                                                        *
      **************************************************************************/
+    #ifdef IS_DEBUG
     Serial.print(F("status: "));
     Serial.println(vRes);
+    #endif
 
     
     if (!_water.isWork) {
@@ -390,11 +422,12 @@ bool updateRemoteMeasure(int t1,  int h1, int t2, long p1) {
 
   } else {
     sim900.getLastError(vError);
+   #ifdef IS_DEBUG
     Serial.print(F("error: "));
     Serial.println(vError);
+   #endif
 
-  };
-
+  };  
   return vResult;
 }
 
@@ -412,16 +445,20 @@ bool beforeTaskUpdate(char* iStr) {
   if (_mstr.numEntries(iStr, vDelimiter) > 1) {    
 
     if (!_mstr.entry(1, iStr, vDelimiter, vCommand)) {
+      #ifdef IS_DEBUG
       Serial.println(F("E-N410"));
       Serial.flush();
+      #endif
       return false;
     };
 
     if (strcmp_P(vCommand, PSTR("C")) == 0) {
       if (_mstr.entry(2, iStr, vDelimiter, 4, vParam1)) {
+        #ifdef IS_DEBUG
         Serial.print(F("Sleep = "));
         Serial.println(atoi(vParam1));
         Serial.flush();
+        #endif
         setConnectPeriod(atoi(vParam1));
         return false;
       };
@@ -429,11 +466,13 @@ bool beforeTaskUpdate(char* iStr) {
 
     if (strcmp_P(vCommand, PSTR("O")) == 0) {
       if (_mstr.entry(2, iStr, vDelimiter, 4, vParam1) && _mstr.entry(3, iStr, vDelimiter, 4, vParam2)) {
+       #ifdef IS_DEBUG
         Serial.print(F("Set temp offline:"));
         Serial.print(vParam1);
         Serial.print(F("&"));
         Serial.println(vParam2);
         Serial.flush();
+       #endif
         setTempOffline(atoi(vParam1), atoi(vParam2));
         return false;
       };
@@ -467,7 +506,7 @@ byte workWithRes(char* iRes) {
 }
 
 bool updateRemoteParams() {
-  char vRes[150];
+  char vRes[250];
   byte vShouldReconnect = 1;
 
   while (vShouldReconnect == 1) {
@@ -511,22 +550,28 @@ void doJob() {
   };
 
   if (!isLightShouldWork && _light.isWork) {
+   #ifdef IS_DEBUG
     Serial.print(F("EL:"));
     Serial.println(secMidnight);
+   #endif
     _worker.stopLight();
     _light.isWork = false;
   };
 
   if (!isWaterShouldWork && _water.isWork) {
+    #ifdef IS_DEBUG
     Serial.print(F("EW:"));
     Serial.println(secMidnight);
+    #endif
     _worker.stopWater();
     _water.isWork = false;
   };
 
   if (isWaterShouldWork && !_water.isWork) {
+    #ifdef IS_DEBUG
     Serial.print(F("SW:"));
     Serial.println(secMidnight);
+    #endif
     _worker.startWater();
     _water.isWork = true;
     _water.startTime = secMidnight;
@@ -536,8 +581,10 @@ void doJob() {
 
 
   if (isLightShouldWork && !_light.isWork) {
+    #ifdef IS_DEBUG
     Serial.print(F("SL:"));
     Serial.println(secMidnight);
+    #endif
     _worker.startLight();
     _light.isWork = true;
     _light.startTime = secMidnight;
@@ -601,15 +648,17 @@ void setup() {
 
   
 
-
+  pinMode(4, OUTPUT);
   pinMode(13, OUTPUT);
   digitalWrite(13, LOW);    // turn the LED off by making the voltage LOW
 
   _worker.stopWater();
   _worker.stopLight();
-
+  
+  #ifdef IS_DEBUG
   Serial.begin(19200);
   Serial.println(F("Start"));
+  #endif
   Wire.begin();
 
 
@@ -621,8 +670,10 @@ void setup() {
 
 
   if (strcmp_P(_globals.version, PSTR("INI")) != 0) {
-  //  if (true) {
+    //if (true) {
+    #ifdef IS_DEBUG
     Serial.println(F("SET"));
+    #endif
 
     for (int vI = 0 ; vI < EEPROM.length() ; vI++) {
       EEPROM.write(vI, 0);
@@ -654,7 +705,9 @@ void setup() {
     interrupts();
 
     setTempOffline(-99, 99);
+    #ifdef IS_DEBUG
     Serial.println(F("END SET"));
+    #endif
   };
 
 
@@ -665,6 +718,55 @@ void setup() {
 
 }
 
+void sl() {
+  gprs2 sim900(7,8);
+  
+  #ifdef IS_DEBUG
+  Serial.println(F("SLP"));
+  Serial.flush();
+  #endif
+
+  sim900.sleep();
+  
+}
+
+bool wk() {
+ Connection _connection;
+  char vError[20];
+  bool vStatus;
+  byte vAttempt = 0;
+  gprs2 sim900(7,8);
+
+ EEPROM.get(0, _connection);
+ sim900.setInternetSettings(_connection.apnPoint, _connection.apnLogin, _connection.apnPass);
+ 
+  do {    
+   #ifdef IS_DEBUG
+    Serial.print(F("WKUP:"));
+    Serial.println(vAttempt);
+    Serial.flush();
+   #endif
+    sim900.wakeUp();    
+    delay(vAttempt * 5000);
+    vAttempt++;
+  } while (!(vStatus = sim900.canWork()) && vAttempt <3);
+ 
+  if (!vStatus) {
+    sim900.getLastError(vError);
+    #ifdef IS_DEBUG
+     Serial.print(F("WKE:"));
+     Serial.println(vError);
+     Serial.flush();
+    #endif    
+    return vStatus;
+  };
+
+  return true;
+
+
+  
+}
+
 void loop() {
 
   long p1;
@@ -673,7 +775,7 @@ void loop() {
   static bool          isFirstRun = true;
   static unsigned long vPrevTime1 = 0,
                        vPrevTime2 = 0;
-  static int           vSim900ErrorCount = 0;
+  static byte          vSim900ErrorCount = 0;
 
 
   unsigned long vCurrTime;
@@ -685,13 +787,15 @@ void loop() {
   /**************************************
       Проверяем СМС с паролем к сайту
    **************************************/
-
+/*
   if (vCurrTime - vPrevTime2 >= 60000 || isFirstRun) {
     digitalWrite(13, HIGH);    // turn the LED off by making the voltage LOW
+    digitalWrite(4,LOW);
     readSms();
+    digitalWrite(4,HIGH);
     digitalWrite(13, LOW);    // turn the LED off by making the voltage LOW
     vPrevTime2 = millis();
-  };
+  };*/
 
   /***************************************
      Выполняем основную работу.
@@ -699,12 +803,15 @@ void loop() {
 
   if (vCurrTime - vPrevTime1 >= connectPeriod() || isFirstRun) {                       
 
-  
+    #ifdef IS_DEBUG
     Serial.print(F("-Start: "));
     showDateTime();
     Serial.println(F(" -"));
+    #endif
     loadSensorInfo1(&t1, &h1, &t2, &p1);
- 
+
+    #ifdef IS_DEBUG
+  
     Serial.print(F("T_out:"));
     Serial.println(t1);
 
@@ -735,31 +842,54 @@ void loop() {
     Serial.println(F("-Stop-"));
     Serial.flush();
 
-    updateRemoteParams();
+    #endif 
 
-    if (updateRemoteMeasure(t1, h1, t2, p1)) {
-      vSim900ErrorCount = 0;
-    } else {
-      vSim900ErrorCount += 1;
-    };
+    digitalWrite(13, HIGH);    // turn the LED off by making the voltage LOW
 
+    if (wk()) {
+    
+      readSms();
+    
+
+      updateRemoteParams();
+
+
+      if (updateRemoteMeasure(t1, h1, t2, p1)) {
+        vSim900ErrorCount = 0;
+      } else {
+        vSim900ErrorCount += 1;
+      };
+   
 
     /***************************************************
      * Если при попытке отправить данные               *
      * возникло более 3х ошибок, то перезагружаем      *
      *  модем.                                         *
      ***************************************************/
-    if (vSim900ErrorCount > 2) {
-      restartModem();
-      vSim900ErrorCount = 0;
-    };
 
+      if (vSim900ErrorCount > 2) {
+        restartModem();
+        vSim900ErrorCount = 0;
+      };
 
-    vPrevTime1 = millis();
+      sl();
 
+      vPrevTime1 = millis();
+
+    }  else {
+      #ifdef IS_DEBUG
+         Serial.println(F("I can't WKUP"));
+         Serial.flush();
+      #endif
+     };
+
+     digitalWrite(13, LOW);    
   };
-
-
+  
+  if (vCurrTime - vPrevTime2 >= PERIOD_MODEM_SLEEP || isFirstRun) {
+    sl();
+    vPrevTime2 = millis();   
+  };
   isFirstRun = false;
   delay(5000);
 }

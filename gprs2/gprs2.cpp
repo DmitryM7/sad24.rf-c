@@ -2,7 +2,8 @@
 #include <SoftwareSerial.h>
 #include <gprs2.h>
 #include <mstr.h>
-
+#define IS_DEBUG10
+#define WAIT_ANSWER_TIME 45000
 
 
 const char OK_M[] PROGMEM = "OK";
@@ -102,20 +103,46 @@ bool gprs2::_getAnswer3(char* oRes,unsigned int iSize,bool saveCRLF,bool showAns
   return false;         
 }                                     
 
+bool gprs2::_getAnswerWait(char* oRes,unsigned int iSize,char* iNeedStr) {
+     long vCurrTime;
+     bool vStatus;
 
+     mstr _mstr;
+
+     vCurrTime = millis();
+     do {
+        getAnswer3(oRes,iSize);  
+        #ifdef IS_DEBUG1
+          Serial.print(F(">"));
+          Serial.flush();
+          Serial.print(oRes);
+          Serial.flush();
+          Serial.print(F(":"));
+          Serial.flush();
+          Serial.println(millis() - vCurrTime);
+          Serial.flush();
+        #endif
+        delay(1000);
+
+     }  while ((vStatus=_mstr.indexOf(oRes,iNeedStr)==-1) && millis() - vCurrTime < WAIT_ANSWER_TIME);
+
+   return vStatus;
+}
 
  bool gprs2::isPowerUp() {
      char vTmpStr[3],
           vRes[10];
+     bool vStatus;
+ 
      mstr _mstr;
 
   
     _doCmd(F("AT"));
-    getAnswer3(vRes,sizeof(vRes));
 
-    strcpy_P(vTmpStr, (char*)OK_M);
+     strcpy_P(vTmpStr, (char*)OK_M);
+     vStatus = _getAnswerWait(vRes,sizeof(vRes),vTmpStr);
 
-    if (_mstr.indexOf(vRes,vTmpStr)==-1) {
+    if (vStatus) {
       _setLastError(__LINE__,vRes);
       return false;
     };
@@ -125,13 +152,11 @@ bool gprs2::_getAnswer3(char* oRes,unsigned int iSize,bool saveCRLF,bool showAns
 
  bool gprs2::hasGprs() {
     char  vRes[12], vTmpStr[5];
-    mstr _mstr;
-    _doCmd(F("AT+CGATT?"));
-    getAnswer3(vRes,sizeof(vRes));
 
-    strcpy_P(vTmpStr, PSTR(": 1")); 
-
-    if (_mstr.indexOf(vRes,vTmpStr) == -1) {
+     _doCmd(F("AT+CGATT?"));
+     strcpy_P(vTmpStr, PSTR(": 1")); 
+     
+    if (_getAnswerWait(vRes,sizeof(vRes),vTmpStr)) {
       _setLastError(__LINE__,vRes);      
       return false;
     };
@@ -140,19 +165,17 @@ bool gprs2::_getAnswer3(char* oRes,unsigned int iSize,bool saveCRLF,bool showAns
  }
 
  bool gprs2::isGprsUp() {
-    char  vRes[15],vTmpStr[7];
-    mstr _mstr;
-    _doCmd(F("AT+SAPBR=2,1"));
-    getAnswer3(vRes,sizeof(vRes));
+    char  vRes[35],vTmpStr[7];
 
-    
     /********************************
      * Hasn't  status info          *
      ********************************/
-     strcpy_P(vTmpStr, PSTR(": 1,1")); 
 
-    if (_mstr.indexOf(vRes,vTmpStr)==-1) {
-      _setLastError(__LINE__,vRes);
+    _doCmd(F("AT+SAPBR=2,1"));
+    strcpy_P(vTmpStr, PSTR(": 1,1")); 
+
+    if (_getAnswerWait(vRes,sizeof(vRes),vTmpStr)) {
+      _setLastError(__LINE__,vRes);      
       return false;
     };
 
@@ -163,81 +186,66 @@ bool gprs2::_getAnswer3(char* oRes,unsigned int iSize,bool saveCRLF,bool showAns
 bool gprs2::gprsUp() {
 
      char vRes[25],vTmpStr[25];
-     long int vCurrTime = millis();
-     bool vStatus;
      mstr _mstr;
 
-    while (!(vStatus = hasGprs()) && millis() - vCurrTime < 15000) {
-      delay(1000);
-    };
+   strcpy_P(vTmpStr, (char*)OK_M);
 
-    if (!vStatus) {
-      return false;
-    };
+   if (!hasGprs()) {
+     _doCmd(F("AT+CGATT=1"));
 
+      if (_getAnswerWait(vRes,sizeof(vRes),vTmpStr)) {
+       _setLastError(__LINE__,vRes);      
+        return false;
+      };
+
+   };
+    
    if (isGprsUp()) {
       return true;
     };
 
+
     _doCmd(F("AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\""));
-    getAnswer3(vRes,sizeof(vRes));
-    strcpy_P(vTmpStr, (char*)OK_M);
 
-    if (_mstr.indexOf(vRes,vTmpStr)==-1) {
+    if (_getAnswerWait(vRes,sizeof(vRes),vTmpStr)) {
      _setLastError(__LINE__,vRes);
       return false;
     };
 
-    _modem.print(F("AT+SAPBR=3,1,\"APN\",\""));
-    _modem.print(_apn);
-    _modem.println(F("\""));
-    _modem.flush();
-    getAnswer3(vRes,sizeof(vRes));
+    _doCmd3(F("AT+SAPBR=3,1,\"APN\",\""),_apn,F("\""));
     
-   strcpy_P(vTmpStr, (char*)OK_M);
-    if (_mstr.indexOf(vRes,vTmpStr)==-1) {
+    if (_getAnswerWait(vRes,sizeof(vRes),vTmpStr)) {
      _setLastError(__LINE__,vRes);
       return false;
     };
 
-    _modem.print(F("AT+SAPBR=3,1,\"USER\",\""));
-    _modem.print(_login);
-    _modem.println(F("\""));
-    _modem.flush();
-    getAnswer3(vRes,sizeof(vRes));
+    _doCmd3(F("AT+SAPBR=3,1,\"USER\",\""),_login,F("\""));
 
-
-    strcpy_P(vTmpStr, (char*)OK_M);
-    if (_mstr.indexOf(vRes,vTmpStr)==-1) {
+    if (_getAnswerWait(vRes,sizeof(vRes),vTmpStr)) {
      _setLastError(__LINE__,vRes);
       return false;
     };
 
-    _modem.print(F("AT+SAPBR=3,1,\"PWD\",\""));
-    _modem.print(_pass);
-    _modem.println(F("\""));
-    _modem.flush();
-    getAnswer3(vRes,sizeof(vRes));
+    _doCmd3(F("AT+SAPBR=3,1,\"PWD\",\""),_pass,F("\""));
 
-
-    strcpy_P(vTmpStr, (char*)OK_M);
-    if (_mstr.indexOf(vRes,vTmpStr)==-1) {
+    if (_getAnswerWait(vRes,sizeof(vRes),vTmpStr)) {
      _setLastError(__LINE__,vRes);
       return false;
-
     };
 
     _doCmd(F("AT+SAPBR=1,1"));
-    getAnswer3(vRes,sizeof(vRes));
+    _getAnswerWait(vRes,sizeof(vRes),vTmpStr);
+
     
     return isGprsUp();
 }
 
 
 void gprs2::_sendTermCommand() {
-     char vRes[20];
+     char vRes[20],vTmpStr[5];
      _doCmd(F("AT+HTTPTERM"));
-     getAnswer3(vRes,sizeof(vRes));
+      strcpy_P(vTmpStr, (char*)OK_M);
+     _getAnswerWait(vRes,sizeof(vRes),vTmpStr);
 };
 
 bool gprs2::isConnect() {
@@ -246,12 +254,10 @@ bool gprs2::isConnect() {
      mstr _mstr;
      _emptyBuffer(vRes,sizeof(vRes));
 
-     _doCmd(F("AT+CREG?"));
-     getAnswer3(vRes,sizeof(vRes));
-
      strcpy_P(vTmpStr, PSTR("0,1")); 
+     _doCmd(F("AT+CREG?"));
 
-     if (_mstr.indexOf(vRes,vTmpStr)==-1) {
+     if (_getAnswerWait(vRes,sizeof(vRes),vTmpStr)) {
        _setLastError(__LINE__,vRes);
         return false;
      };
@@ -259,27 +265,16 @@ bool gprs2::isConnect() {
    return true;
  }
 
- bool gprs2::powerUp() {
-   char vRes[30];
-   _modem.println(F("AT+CFUN=1"));
-   _modem.flush();
-   getAnswer3(vRes,sizeof(vRes));   
-   return isPowerUp();
-  }
 
- bool gprs2::powerDown() {
-   char vRes[30];
-   _modem.println(F("AT+CFUN=0"));
-   _modem.flush();
-   getAnswer3(vRes,sizeof(vRes));
-
-    return isPowerUp();
-  }
-
-
-
-bool gprs2::canDoPostUrl() {
-   return isReady() && hasNetwork(3) && gprsUp();
+bool gprs2::ch(byte iByte) {
+  #ifdef IS_DEBUG
+   Serial.println(iByte);
+   Serial.flush();
+  #endif
+   return true;
+};
+bool gprs2::canWork() {
+   return ch(1) && isPowerUp() && ch(2) && isConnect() && ch(3) && hasNetwork() && ch(4) && gprsUp() && ch(5);
 };
 
   bool gprs2::postUrl(char* iUrl, char* iPar, char* oRes) {
@@ -290,9 +285,12 @@ bool gprs2::canDoPostUrl() {
       unsigned int vFactSize  = 0,
                   vFirstSpace = 0;
       unsigned long vCurrTime = 0;
+      bool vStatus;
       mstr _mstr;
 
-      Serial.println(iUrl);
+      #ifdef IS_DEBUG
+        Serial.println(iUrl);
+      #endif
 
        if (iResLength < 35) {
           _setSizeParamError(__LINE__);
@@ -301,44 +299,74 @@ bool gprs2::canDoPostUrl() {
           return false;
        };
 
-	if (!canDoPostUrl()) {
-             /*************************************************************
-              * Здесь не следует ставить, сохранение информации об ошибке.*
-              * Она будет уже заполнена в предыдущих полях.               *
-              *************************************************************/
-             _emptyBuffer(oRes,iResLength);
-	     return false;
-	};
-
-
         vFactSize = strlen(iPar);
-        Serial.println(iPar);
+        #ifdef IS_DEBUG
+         Serial.println(iPar);
+        #endif
+
+        strcpy_P(_tmpStr, (char*)OK_M);
+
+
 	_doCmd(F("AT+HTTPINIT"));
-        getAnswer3(oRes,iResLength);
+        if(_getAnswerWait(oRes,iResLength,_tmpStr)) {
+             _sendTermCommand();
+
+	       _doCmd(F("AT+HTTPINIT"));
+	       if(_getAnswerWait(oRes,iResLength,_tmpStr)) {
+	            _setLastError(__LINE__,oRes);
+	            _emptyBuffer(oRes,iResLength);
+	            return false;
+                };
+
+        };
+
         _doCmd(F("AT+HTTPPARA=\"CID\",1"));
-        getAnswer3(oRes,iResLength);
+        if(_getAnswerWait(oRes,iResLength,_tmpStr)) {
+             _setLastError(__LINE__,oRes);
+             _sendTermCommand();
+             _emptyBuffer(oRes,iResLength);
+             return false;
+        };
+
         _doCmd(F("AT+HTTPPARA=\"CONTENT\",\"application/x-www-form-urlencoded\""));
-        getAnswer3(oRes,iResLength);
+        if(_getAnswerWait(oRes,iResLength,_tmpStr)) {
+             _setLastError(__LINE__,oRes);
+             _sendTermCommand();
+             _emptyBuffer(oRes,iResLength);
+             return false;
+        };
 
-        _modem.print(F("AT+HTTPPARA=\"URL\",\""));
-        _modem.print(iUrl);
-        _modem.println(F("\""));
-        _modem.flush();
-        getAnswer3(oRes,iResLength);
+
+	_doCmd3(F("AT+HTTPPARA=\"URL\",\""),iUrl,F("\""));
+        if(_getAnswerWait(oRes,iResLength,_tmpStr)) {
+             _setLastError(__LINE__,oRes);
+             _sendTermCommand();
+             _emptyBuffer(oRes,iResLength);
+             return false;
+        };
 
 
-        _modem.println(F("AT+HTTPPARA=\"REDIR\",0"));
-        _modem.flush();
-        getAnswer3(oRes,iResLength);
+        _doCmd(F("AT+HTTPPARA=\"REDIR\",0"));
+        if(_getAnswerWait(oRes,iResLength,_tmpStr)) {
+             _setLastError(__LINE__,oRes);
+             _sendTermCommand();
+             _emptyBuffer(oRes,iResLength);
+             return false;
+        };
 
         /***************************
          *AT+HTTPDATA=%u,30000     *
          ***************************/
        if (vFactSize>0) {
-           _modem.print(F("AT+HTTPDATA="));
+           sprintf(_tmpStr,"%u",vFactSize);
+/*           _modem.print(F("AT+HTTPDATA="));
            _modem.print(vFactSize);
-           _modem.println(F(",3000"));
-           _modem.flush();
+           _modem.println(F(",9000"));
+           _modem.flush();*/
+           _doCmd3(F("AT+HTTPDATA="),_tmpStr,F(",3000"));
+
+           strcpy_P(_tmpStr, PSTR("DOWNLOAD")); 
+
            getAnswer3(oRes,iResLength);
            strcpy_P(_tmpStr, PSTR("DOWNLOAD")); 
 
@@ -348,6 +376,15 @@ bool gprs2::canDoPostUrl() {
              _emptyBuffer(oRes,iResLength);
              return false;
            }; 
+
+//           vStatus = _getAnswerWait(oRes,sizeof(oRes),_tmpStr);
+
+ /*          if (vStatus) {
+             _setLastError(__LINE__,oRes);
+             _sendTermCommand();
+             _emptyBuffer(oRes,iResLength);
+             return false;
+           }; */
 
          _doCmd(iPar);
          getAnswer3(oRes,iResLength);
@@ -361,17 +398,22 @@ bool gprs2::canDoPostUrl() {
          };
        };
 
-     _doCmd(F("AT+HTTPACTION=1"));
+      _doCmd(F("AT+HTTPACTION=1"));
       getAnswer3(oRes,iResLength);
+      strcpy_P(_tmpStr,PSTR("+HTTPACTION")); 
+
+      
        vCurrTime = millis();
-       strcpy_P(_tmpStr,PSTR("+HTTPACTION")); 
-
-       while (_mstr.indexOf(oRes,_tmpStr)==-1 && millis() - vCurrTime < 30000) {
+       do {
         getAnswer3(oRes,iResLength);
-       }; 
-
-
-
+        #ifdef IS_DEBUG1
+           Serial.print(oRes);
+           Serial.print(F(":"));
+           Serial.println(millis() - vCurrTime);
+           Serial.flush();
+       #endif
+        delay(1000);
+       } while (_mstr.indexOf(oRes,_tmpStr)==-1 && millis() - vCurrTime < WAIT_ANSWER_TIME) ; 
 
 
 
@@ -390,6 +432,10 @@ bool gprs2::canDoPostUrl() {
                         *********************************************************/
                         strcpy_P(_tmpStr, PSTR("+HTTPACTION: 1,500"));             
 
+		      #ifdef IS_DEBUG
+                        Serial.print(oRes);
+		      #endif
+
                         if (_mstr.indexOf(oRes,_tmpStr)>0) {
                           _setLastError(__LINE__,oRes);
                         } else {
@@ -402,7 +448,10 @@ bool gprs2::canDoPostUrl() {
             } else {
                   _doCmd(F("AT+HTTPREAD"));
                   getAnswer3(oRes,iResLength);
+
+	      #ifdef IS_DEBUG
                   Serial.println(oRes);
+	      #endif
                   strcpy_P(_tmpStr, PSTR("302 redirect"));             
                  _setLastError(__LINE__,_tmpStr);
                   _sendTermCommand();
@@ -532,6 +581,7 @@ bool gprs2::deleteSms(byte iSms) {
    mstr _mstr;
 
   _modem.print(F("AT+CMGD="));
+    _modem.flush();
   _modem.println((int)iSms);
   _modem.flush();
   getAnswer3(vRes,sizeof(vRes));
@@ -546,51 +596,30 @@ strcpy_P(_tmpStr, (char*)OK_M);
 
 };
 
-bool gprs2::hasNetwork(byte iWaitAttempt) {
-     char vTmpStr[20],
-          vRes[20];
-
-     byte vAttempt;
+bool gprs2::hasNetwork() {
+     char vTmpStr[6],vRes[20];
      mstr _mstr;
-                                       
-    strcpy_P(vTmpStr, PSTR(" 0,0"));  // Пробел обязателен. Без пробела под ошибку попадет 20,0
 
-    for (vAttempt = 0; vAttempt < iWaitAttempt; vAttempt++) {
-          delay(vAttempt * 5000);
-         _doCmd(F("AT+CSQ"));
-         getAnswer3(vRes,sizeof(vRes));  
 
-       if (_mstr.indexOf(vRes,vTmpStr)==-1) {
-         return true;
+    _doCmd(F("AT+CSQ"));
+
+     strcpy_P(vTmpStr, PSTR("+CSQ:")); 
+
+       if (_getAnswerWait(vRes,sizeof(vRes),vTmpStr)) {
+         _setLastError(__LINE__,vRes);
+         return false;
        };      
-    };
-      _setLastError(__LINE__,vRes);
-      return false;
+
+       strcpy_P(vTmpStr, PSTR(" 0,0")); // Ведущий пробел обязателен. Без пробела под ошибку попадет 20,0
+
+       if (_mstr.indexOf(vRes,vTmpStr)>-1) {
+        strcpy_P(vTmpStr, PSTR("- NET"));
+        _setLastError(__LINE__,vTmpStr);
+         return false;
+       };
+
+      return true;
 }
-bool gprs2::isReady() {
-  unsigned long vCurrTime;
-  bool vStatus;
-
-  vCurrTime = millis();           
-  while (!(vStatus = isPowerUp()) && millis() - vCurrTime < 15000) {
-    delay(1000);
-  };
-
-  if (!vStatus) {
-    return false;
-  };
-
-  vCurrTime = millis();
-  while (!(vStatus = isConnect()) && millis() - vCurrTime < 15000) {
-    delay(1000);
-  };
-
-  if (!vStatus) {
-    return false;
-  };
-      
- return true;
-};
 
 bool gprs2::sendSms(char* iPhone,char* iText) {
   char vTmpStr[8],vRes[20];
@@ -598,7 +627,9 @@ bool gprs2::sendSms(char* iPhone,char* iText) {
 
 
   _modem.print(F("AT+CMGS=\""));
+    _modem.flush();
   _modem.print(iPhone);
+    _modem.flush();
   _modem.println("\"");
   _modem.flush();
   getAnswer3(vRes,sizeof(vRes));
@@ -656,11 +687,11 @@ int gprs2::_freeRam () {
     _onSmsRead = iSmsEvent;
  }
 
- void gprs2::readSms() {
-      readSms(false);
+ bool gprs2::readSms() {
+	return readSms(false);
  };
 
- void gprs2::readSms(bool deleteAfterRead) {
+ bool gprs2::readSms(bool deleteAfterRead) {
   char vRes[200],vCommand[100];   
   mstr _mstr;
 
@@ -676,11 +707,13 @@ int gprs2::_freeRam () {
             continue;
          };
 
+        #ifdef IS_DEBUG
         Serial.print(F("-SMS "));
         Serial.print(vI);
         Serial.print(F(": "));
         Serial.println(vRes);
         Serial.println(F("-"));
+        #endif
 
         _getSmsBody(vRes,vCommand,sizeof(vCommand));
 
@@ -699,7 +732,7 @@ int gprs2::_freeRam () {
 
    };
 
-
+  return true;
  }
 
 void gprs2::_getSmsBody(char* vRes,char* vCommand,unsigned int iMaxSmsBodyLength) {
@@ -727,12 +760,36 @@ void gprs2::_getSmsBody(char* vRes,char* vCommand,unsigned int iMaxSmsBodyLength
 }
 
 void gprs2::_doCmd(char* iStr) {
+  #ifdef IS_DEBUG1
+    Serial.println(iStr);
+    Serial.flush();
+  #endif
   _modem.println(iStr);
   _modem.flush();
 };
 
+
 void gprs2::_doCmd(const __FlashStringHelper *iStr) {
+  #ifdef IS_DEBUG1
+    Serial.println(iStr);
+    Serial.flush();
+  #endif
   _modem.println(iStr);
+  _modem.flush();
+}
+
+void gprs2::_doCmd3(const __FlashStringHelper *iStr1,char* iStr2,const __FlashStringHelper *iStr3) {
+  #ifdef IS_DEBUG1
+    Serial.print(iStr1);
+    Serial.print(iStr2);
+    Serial.println(iStr3);
+    Serial.flush();
+  #endif
+  _modem.print(iStr1);
+  _modem.flush();
+  _modem.print(iStr2);
+  _modem.flush();
+  _modem.println(iStr3);
   _modem.flush();
 }
 
@@ -740,12 +797,18 @@ void gprs2::softRestart() {
     char vRes[20],vTmpStr[5];
     mstr _mstr;
 
-    Serial.print(F("*REST* : "));
+    #ifdef IS_DEBUG
+      Serial.print(F("*REST* : "));
+    #endif
+
    _doCmd(F("AT+CFUN=1,1"));
     getAnswer3(vRes,sizeof(vRes));
+
+    #ifdef IS_DEBUG
     Serial.print(vRes);
     Serial.println(F("*"));
     Serial.flush();
+    #endif
 
     strcpy_P(vTmpStr, (char*)OK_M);
 
@@ -761,17 +824,17 @@ void gprs2::softRestart() {
      char vRes[50],vUnit[10],vTmpStr[15];
      mstr _mstr;
 
-    _doCmd(F("AT+CIPGSMLOC=1,1"));
-    getAnswer3(vRes,sizeof(vRes));
-
     _emptyBuffer(oLongitude,10);
     _emptyBuffer(oLatitdue,10);
 
+    _doCmd(F("AT+CIPGSMLOC=1,1"));
 
-    strcpy_P(vTmpStr,PSTR("+CIPGSMLOC: 0"));
-    if (_mstr.indexOf(vRes,vTmpStr)==-1) {
+     strcpy_P(vTmpStr, PSTR("+CIPGSMLOC: 0"));
+
+
+     if (_getAnswerWait(vRes,sizeof(vRes),vTmpStr)) {
        return false;
-    };
+     };
 
     strcpy_P(vTmpStr, (char*)COMMA_M);
     if (_mstr.numEntries(vRes,vTmpStr)<=0) {
@@ -785,3 +848,56 @@ void gprs2::softRestart() {
 
       return true;
  };
+
+
+bool gprs2::wakeUp() {   
+     char vRes[20],
+          vTmpStr[15];
+
+      #ifdef IS_DEBUG
+      Serial.print(F("wake up:"));
+      #endif
+
+      pinMode(4,OUTPUT);
+      digitalWrite(4,LOW);
+      delay(1000);
+
+
+      _doCmd(F("AT+CSCLK=0"));
+
+
+      strcpy_P(vTmpStr, (char*)OK_M);
+      _getAnswerWait(vRes,sizeof(vRes),vTmpStr);
+
+     #ifdef IS_DEBUG
+      Serial.println(vRes);
+     #endif
+
+      pinMode(4,INPUT);
+
+ return true;
+};
+
+void gprs2::sleep() {   
+     char vRes[20],
+          vTmpStr[5];
+                    
+     pinMode(4,INPUT);
+
+     #ifdef IS_DEBUG
+      Serial.print(F("GO sleep:"));
+     #endif
+
+     _doCmd(F("AT+CSCLK=1"));
+     strcpy_P(vTmpStr, (char*)OK_M);
+
+     _getAnswerWait(vRes,sizeof(vRes),vTmpStr);
+
+     #ifdef IS_DEBUG
+      Serial.println(vRes);
+     #endif
+
+
+ return false;
+
+};

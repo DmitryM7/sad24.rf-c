@@ -81,8 +81,9 @@ void worker::setTask2(unsigned int iAddress,char* iStr) {
         if (_mstr.numEntries(iStr,vDelimiter)!=3) {
            return;
         };
-
-        Serial.println(iStr);
+        #ifdef IS_DEBUG
+          Serial.println(iStr);
+        #endif
 
 
         _mstr.entry(2,iStr,vDelimiter,vStr);
@@ -96,13 +97,14 @@ void worker::setTask2(unsigned int iAddress,char* iStr) {
         noInterrupts();
 	EEPROM.put(vFactAddress,_task);
 	interrupts();
-
+	#ifdef IS_DEBUG
         Serial.print(iAddress);
         Serial.print(F(" = "));
         Serial.print(_task.startCode);
         Serial.print(F(" -> "));
         Serial.print(_task.duration);
         Serial.println(F(" write OK"));
+        #endif
 
 }
 
@@ -167,7 +169,7 @@ void worker::showDateTime() {
   year  = (int)Clock.getYear();
   hours = (int)Clock.getHour(H12, PM);
   minutes = (int)Clock.getMinute();
-
+  #ifdef IS_DEBUG
   Serial.print(day);
   Serial.print(F("-"));
   Serial.print(month);
@@ -180,6 +182,7 @@ void worker::showDateTime() {
   Serial.print(F(" ")); 
   Serial.print(getDayOfWeek());
   Serial.flush();
+  #endif
  };
 
  long worker::getSecMidnight() {
@@ -226,13 +229,6 @@ byte worker::shouldTaskWork2(unsigned int iAddress,
   vS   = lowByte((_task.startCode & 16128)     >> 8);
 
   secTaskBeg    =  (long)vH * 3600 + (long)vM * 60 + (long)vS;
-
-/*
-  Serial.println(F("---"));
-  Serial.print(iAddress); Serial.print(F(" : ")); Serial.print(vH); Serial.print(F(" : ")); Serial.print(vM); Serial.print(F(" : ")); Serial.println(vS);
-  Serial.print(iAddress); Serial.print(F(" : ")); Serial.print(iSecMidnight); Serial.print(F(" : ")); Serial.print(secTaskBeg); Serial.print(F(" : ")); Serial.println(_task.duration);
-  Serial.flush();
-*/
 
 
   secTaskEnd    = min(secTaskBeg + _task.duration, 86400);
@@ -285,20 +281,21 @@ void worker::setTime(char* vCommand) {
 
    _mstr.substr(vTimeStr,10,2,vUnit);
    vSec = byte(atoi(vUnit));
-
-   Serial.print(F("Set Time:"));
-   Serial.print(vYear);
-   Serial.print(F("-"));
-   Serial.print(vMonth);
-   Serial.print(F("-"));
-   Serial.print(vDay);
-   Serial.print(F(" "));
-   Serial.print(vHour);
-   Serial.print(F(":"));
-   Serial.print(vMinutes);
-   Serial.print(F(":"));
-   Serial.println(vSec);
-   Serial.flush();
+   #ifdef IS_DEBUG
+    Serial.print(F("Set Time:"));
+    Serial.print(vYear);
+    Serial.print(F("-"));
+    Serial.print(vMonth);
+    Serial.print(F("-"));
+    Serial.print(vDay);
+    Serial.print(F(" "));
+    Serial.print(vHour);
+    Serial.print(F(":"));
+    Serial.print(vMinutes);
+    Serial.print(F(":"));
+    Serial.println(vSec);
+    Serial.flush();
+  #endif
 
  _setDateTime(vYear,vMonth,vDay,vHour,vMinutes,vSec);
   

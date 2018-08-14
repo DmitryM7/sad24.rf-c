@@ -13,14 +13,13 @@ class gprs2
     bool postUrl(char* iUrl,char* iPar,char* oRes);
     bool postUrl(char* iUrl, char* iPar, char* oRes,unsigned int iResLength);
     void setInternetSettings(char* vApn,char* vLogin,char* vPass);
-    bool powerUp();
-    bool powerDown();
     bool gprsUp();
     bool hasGprs();
     bool isGprsUp();
     bool isPowerUp();
     bool isConnect();
-    bool canDoPostUrl();
+    bool ch(byte iB);
+    bool canWork();
     void getLastError(char* oLastError);
     uint8_t getLastErrorNum();
     bool saveOnSms();
@@ -29,15 +28,16 @@ class gprs2
     bool deleteSms(byte iSms);
     void doCmd(const __FlashStringHelper *iStr,char* oRes,int iSize);
     void doCmd(char* iStr,char* oRes,int iSize);
-    bool isReady();
     int getSmsCount();
     bool sendSms(char* iPhone,char* iText);
-    void readSms(bool deleteAfterRead);
-    void readSms();
+    bool readSms(bool deleteAfterRead);
+    bool readSms();
     bool setOnSms(bool (*_mSmsEvent)(byte iSms, char* oStr));
-    bool hasNetwork(byte iWaitAttempt);
+    bool hasNetwork();
     void softRestart();
     bool getCoords(char* iLongitude,char* iLatitdue);
+    bool wakeUp();
+    void sleep();
 
   private:
     SoftwareSerial _modem;
@@ -49,6 +49,7 @@ class gprs2
     bool   getAnswer3(char* oRes,unsigned int iSize);
     bool   _getAnswer3(char* oRes,unsigned int iSize,bool saveCRLF);
     bool   _getAnswer3(char* oRes,unsigned int iSize,bool saveCRLF,bool showAnswer);
+    bool  _getAnswerWait(char* oRes,unsigned int iSize,char* iPattern);
     void _setLastError(unsigned int iErrorNum,char* iErrorText);
     void _emptyBuffer(char* oBuff,int iSize);
     void _sendTermCommand();
@@ -58,6 +59,7 @@ class gprs2
     bool (*_onSmsRead)(byte iSms,char* oStr);
     void _doCmd(char* iStr);
     void _doCmd(const __FlashStringHelper *iStr);        
+    void _doCmd3(const __FlashStringHelper *iStr1,char* iStr2, const __FlashStringHelper *iStr3);        
     void _setSizeParamError(unsigned int iErrorNum);
 };
 
