@@ -24,7 +24,7 @@ void (*TimerOne::isrCallback)() = TimerOne::isrDefaultUnused;
 
 // interrupt service routine that wraps a user defined function supplied by attachInterrupt
 #if defined(__AVR__)
-ISR(TIMER1_OVF_vect,ISR_NOBLOCK)
+ISR(TIMER1_OVF_vect,ISR_NOBLOCK) //Maslov D.A. edited
 {
   Timer1.isrCallback();
 }

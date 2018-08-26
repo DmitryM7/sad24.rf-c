@@ -27,5 +27,7 @@ class mstr
     bool begins(char* iStr,char* iPattern);
     void substr(char* iStr,int iStartPos,int iLength,char* oStr);
 
+    void leftShift(char* iStr,size_t iSymbols);
+
 };
 #endif

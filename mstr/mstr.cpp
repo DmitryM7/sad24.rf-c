@@ -149,7 +149,11 @@ int mstr::indexOf(char* iStr, char* iPattern) {
 };
 
 int mstr::indexOf(char* iStr, char* iPattern,int iStartPosition) {
-   char* pch;
+       char* pch;
+
+       if (strlen(iStr)==0 || strlen(iPattern)==0) {
+        return -1;
+       };
 
        if (strlen(iStr)<iStartPosition || strlen(iStr)<strlen(iPattern)) {
            return -1;
@@ -157,7 +161,7 @@ int mstr::indexOf(char* iStr, char* iPattern,int iStartPosition) {
 
        pch = strstr(iStr + iStartPosition,iPattern);
 
-      if (pch >= iStr) {
+      if (pch >= iStr) {      
         return pch - iStr;
       };
 
@@ -180,3 +184,15 @@ void mstr::substr(char* iStr,int iStartPos,int iLength,char* oStr) {
   strncpy(oStr,iStr + iStartPos,iLength);
   oStr[iLength]='\0';
 };
+
+void mstr::leftShift(char* iStr,size_t iShift) { 
+   unsigned int vStrLen=strlen(iStr);
+
+   for (size_t vI=iShift;vI<vStrLen;vI++) {
+       iStr[vI-iShift]=iStr[vI];
+   };
+
+  for (size_t vI=vStrLen-1;vI>iShift;vI--) {
+       iStr[vI]='\0';
+  };
+}

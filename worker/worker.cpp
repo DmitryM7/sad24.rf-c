@@ -2,7 +2,7 @@
 #include <worker.h>
 #include <mstr.h>
 #include <EEPROM.h>
-
+#include <debug.h>
 
 
 
@@ -81,7 +81,7 @@ void worker::setTask2(unsigned int iAddress,char* iStr) {
         if (_mstr.numEntries(iStr,vDelimiter)!=3) {
            return;
         };
-        #ifdef IS_DEBUG
+        #if IS_DEBUG>1
           Serial.println(iStr);
         #endif
 
@@ -97,7 +97,7 @@ void worker::setTask2(unsigned int iAddress,char* iStr) {
         noInterrupts();
 	EEPROM.put(vFactAddress,_task);
 	interrupts();
-	#ifdef IS_DEBUG
+	#if IS_DEBUG>1
         Serial.print(iAddress);
         Serial.print(F(" = "));
         Serial.print(_task.startCode);
@@ -169,7 +169,7 @@ void worker::showDateTime() {
   year  = (int)Clock.getYear();
   hours = (int)Clock.getHour(H12, PM);
   minutes = (int)Clock.getMinute();
-  #ifdef IS_DEBUG
+
   Serial.print(day);
   Serial.print(F("-"));
   Serial.print(month);
@@ -182,21 +182,28 @@ void worker::showDateTime() {
   Serial.print(F(" ")); 
   Serial.print(getDayOfWeek());
   Serial.flush();
-  #endif
  };
 
- long worker::getSecMidnight() {
+ unsigned long worker::getSecMidnight() {
   bool H12 = false, 
        PM;
-  long h,m,s,ret1;
+  unsigned long ret1;
+  byte h,m,s;
 
   DS3231 Clock;
-  h = long(Clock.getHour(H12, PM));
-  m = long(Clock.getMinute());
-  s = long(Clock.getSecond());
-  ret1 = h * 3600  + m * 60 + s;
+
+  h = Clock.getHour(H12, PM);
+  m = Clock.getMinute();
+  s = Clock.getSecond();
+
+  ret1 = h * 3600UL + m * 60UL + (unsigned int)s;
+
   return ret1;
 };
+
+void worker::getSecMidnight2(unsigned long *oT) {
+  *oT=getSecMidnight();
+}
 
 void worker::_setDateTime(byte iYear,byte iMonth,byte iDay,byte iHour,byte iMinutes,byte iSec) {
   DS3231 Clock;  
@@ -207,17 +214,18 @@ void worker::_setDateTime(byte iYear,byte iMonth,byte iDay,byte iHour,byte iMinu
   Clock.setMinute(iMinutes);
   Clock.setSecond(iSec);
 }
+
+
 void worker::setBeforeTaskUpdate(bool (*iEvent)(char* oStr)) {
   _beforeTaskUpdate = iEvent;  
 }
 
 
-byte worker::shouldTaskWork2(unsigned int iAddress,
-                             unsigned long iSecMidnight,
-                             byte iDayOfWeek
+byte worker::shouldTaskWork2(byte iAddress,
+                             unsigned long iSecMidnight
                             ) {
-  unsigned long secTaskBeg, secTaskEnd;
-  byte  vH, vM, vS;
+  unsigned long secTaskBeg, secTaskEnd,vH1,vM1,vS1;
+  byte  vH, vM, vS, currDayOfWeek = getDayOfWeek();
   bool isCurrWeekDay,isInTime;
   task _task;  
 
@@ -228,12 +236,17 @@ byte worker::shouldTaskWork2(unsigned int iAddress,
   vM   = lowByte((_task.startCode & 1032192)   >> 14);
   vS   = lowByte((_task.startCode & 16128)     >> 8);
 
-  secTaskBeg    =  (long)vH * 3600 + (long)vM * 60 + (long)vS;
+  vH1  = (unsigned long)vH;
+  vM1  = (unsigned long)vM;
+  vS1  = (unsigned long)vS;
 
 
-  secTaskEnd    = min(secTaskBeg + _task.duration, 86400);
+  secTaskBeg    =  vH1 * 3600 + vM1 * 60 + vS;
 
-  isCurrWeekDay = bitRead(_task.startCode,32 - iDayOfWeek);
+  secTaskEnd    = secTaskBeg + _task.duration;
+  secTaskEnd    = min(secTaskEnd, 86400);
+
+  isCurrWeekDay = bitRead(_task.startCode,32 - currDayOfWeek);
   isInTime      = secTaskBeg <= iSecMidnight && iSecMidnight <= secTaskEnd;
 
 
@@ -244,6 +257,8 @@ byte worker::shouldTaskWork2(unsigned int iAddress,
     return 0;
 
 };
+
+
 
 void worker::setTime(char* vCommand) {
    mstr _mstr;
@@ -281,7 +296,7 @@ void worker::setTime(char* vCommand) {
 
    _mstr.substr(vTimeStr,10,2,vUnit);
    vSec = byte(atoi(vUnit));
-   #ifdef IS_DEBUG
+   #if IS_DEBUG>1
     Serial.print(F("Set Time:"));
     Serial.print(vYear);
     Serial.print(F("-"));
@@ -304,3 +319,59 @@ void worker::setTime(char* vCommand) {
    void worker::setDateTime(byte iYear,byte iMonth,byte iDay,byte iHour,byte iMinutes,byte iSec) {
      _setDateTime(iYear,iMonth,iDay,iHour,iMinutes,iSec);
    };
+
+unsigned long worker::getNearestTaskTime() {
+   byte vCurrDay = getDayOfWeek(),
+        vNum=0;
+   unsigned long secTaskBeg,
+        secNow=getSecMidnight(),
+        vSch[7],
+        vTmpSec;
+   task _task;  
+
+   
+   for (byte vI=0;vI<maxTaskCount;vI++) {
+
+        EEPROM.get(_startAddress + vI * sizeof(task),_task);
+
+           if (_isCurrWeekDay(_task)) {  
+
+              secTaskBeg = _getTaskStart(_task);
+
+              if (secTaskBeg<=secNow) {
+                 continue;
+              };
+              vSch[vNum++] = secTaskBeg;
+           };
+   };
+   vSch[vNum++] = 85000;
+
+   vTmpSec = vSch[0];
+
+   for (byte vI=0;vI<vNum;vI++) {
+      if (vSch[vI]<vTmpSec) { vTmpSec = vSch[vI]; };
+   };
+
+  return vTmpSec;
+
+};
+
+unsigned long worker::_getTaskStart(task iTask) {
+  byte vH,vM,vS;
+  unsigned long secTaskBeg;
+
+  vH   = lowByte((iTask.startCode & 32505856)  >> 20);
+  vM   = lowByte((iTask.startCode & 1032192)   >> 14);
+  vS   = lowByte((iTask.startCode & 16128)     >> 8);
+
+  secTaskBeg    =  (unsigned long)vH * 3600 + (unsigned long)vM * 60 + (unsigned long)vS;
+
+  return secTaskBeg;
+};
+
+bool worker::_isCurrWeekDay(task iTask) {
+    bool isCurrWeekDay;
+
+    isCurrWeekDay = bitRead(iTask.startCode,32 - getDayOfWeek());
+    return isCurrWeekDay;
+};
