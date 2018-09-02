@@ -159,15 +159,19 @@ return dow;
 
 void worker::showDateTime() {
   DS3231 Clock;
-  bool H12 = false;
-  bool PM;
-  bool century = false;
   int day, month, year, hours, minutes;  
 
   day   = (int)Clock.getDate();
+{
+  bool century = false;
   month = (int)Clock.getMonth(century);
+};
+
   year  = (int)Clock.getYear();
+{
+  bool H12 = false, PM;
   hours = (int)Clock.getHour(H12, PM);
+};
   minutes = (int)Clock.getMinute();
 
   Serial.print(day);
@@ -185,16 +189,16 @@ void worker::showDateTime() {
  };
 
  unsigned long worker::getSecMidnight() {
-  bool H12 = false, 
-       PM;
   unsigned long ret1;
   byte h,m,s;
 
   DS3231 Clock;
-
+{
+  bool H12 = false, PM;
   h = Clock.getHour(H12, PM);
   m = Clock.getMinute();
   s = Clock.getSecond();
+};
 
   ret1 = h * 3600UL + m * 60UL + (unsigned int)s;
 
@@ -224,7 +228,7 @@ void worker::setBeforeTaskUpdate(bool (*iEvent)(char* oStr)) {
 byte worker::shouldTaskWork2(byte iAddress,
                              unsigned long iSecMidnight
                             ) {
-  unsigned long secTaskBeg, secTaskEnd,vH1,vM1,vS1;
+  unsigned long secTaskBeg, secTaskEnd;
   byte  vH, vM, vS, currDayOfWeek = getDayOfWeek();
   bool isCurrWeekDay,isInTime;
   task _task;  
@@ -236,12 +240,7 @@ byte worker::shouldTaskWork2(byte iAddress,
   vM   = lowByte((_task.startCode & 1032192)   >> 14);
   vS   = lowByte((_task.startCode & 16128)     >> 8);
 
-  vH1  = (unsigned long)vH;
-  vM1  = (unsigned long)vM;
-  vS1  = (unsigned long)vS;
-
-
-  secTaskBeg    =  vH1 * 3600 + vM1 * 60 + vS;
+  secTaskBeg    =  vH * 3600UL + vM * 60UL + (unsigned long) vS;
 
   secTaskEnd    = secTaskBeg + _task.duration;
   secTaskEnd    = min(secTaskEnd, 86400);
@@ -262,7 +261,7 @@ byte worker::shouldTaskWork2(byte iAddress,
 
 void worker::setTime(char* vCommand) {
    mstr _mstr;
-   char vDelimiter[2],vTimeStr[15],vUnit[2];
+   char vDelimiter[2],vTimeStr[15],vUnit[3];
    byte vYear,vMonth,vDay,vHour,vMinutes,vSec;
 
    if (strlen(vCommand)!=14) {
@@ -289,13 +288,12 @@ void worker::setTime(char* vCommand) {
    _mstr.substr(vTimeStr,6,2,vUnit);
    vHour = byte(atoi(vUnit));
 
-
-
    _mstr.substr(vTimeStr,8,2,vUnit);
    vMinutes = byte(atoi(vUnit));
 
    _mstr.substr(vTimeStr,10,2,vUnit);
    vSec = byte(atoi(vUnit));
+
    #if IS_DEBUG>1
     Serial.print(F("Set Time:"));
     Serial.print(vYear);
@@ -364,7 +362,7 @@ unsigned long worker::_getTaskStart(task iTask) {
   vM   = lowByte((iTask.startCode & 1032192)   >> 14);
   vS   = lowByte((iTask.startCode & 16128)     >> 8);
 
-  secTaskBeg    =  (unsigned long)vH * 3600 + (unsigned long)vM * 60 + (unsigned long)vS;
+  secTaskBeg    =  vH * 3600UL + vM * 60UL + (unsigned long)vS;
 
   return secTaskBeg;
 };

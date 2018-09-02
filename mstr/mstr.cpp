@@ -113,34 +113,6 @@ bool mstr::entry(unsigned int iField,char* iStr,char iDelimiter,int iMaxEntrySiz
    
    
    return false;   
-/*
-   int vCurrPosEntry = 1,vSize = strlen(iStr);   
-   char vTmpStr[vSize]; 
-   char* str1; 
-
-   strncpy(vTmpStr,iStr,vSize);
-
-   char* pdata1 = vTmpStr;
-
-
-
- Serial.println(F("---")); 
-  Serial.print(vTmpStr);
-  Serial.println(F("*"));
- Serial.println(F("---")); 
-        
-   while ((str1 = strtok_r(pdata1,iDelimiter,&pdata1 ))!=NULL) {
-
-
-     if (vCurrPosEntry == iField) {
-        if (strlen(str1) > iMaxEntrySize) { return false; } else { strcpy(oRes,str1); return true; };
-     };
-
-      vCurrPosEntry++;
-
-   };
-   
-   return false;   */
 }
 
 
