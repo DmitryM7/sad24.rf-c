@@ -4,9 +4,13 @@
 #include <EEPROM.h>
 #include <debug.h>
 
+#define NEAREST_TIME_BORDER 900000
+#define NEAREST_TIME_MULT 100000
+
 
 
 worker::worker(unsigned int iStartAddress) {
+ Wire.begin();
  _startAddress = iStartAddress;
  pinMode(11, OUTPUT);
  pinMode(12, OUTPUT);
@@ -81,7 +85,7 @@ void worker::setTask2(unsigned int iAddress,char* iStr) {
         if (_mstr.numEntries(iStr,vDelimiter)!=3) {
            return;
         };
-        #if IS_DEBUG>1
+        #if IS_DEBUG>0
           Serial.println(iStr);
         #endif
 
@@ -97,13 +101,14 @@ void worker::setTask2(unsigned int iAddress,char* iStr) {
         noInterrupts();
 	EEPROM.put(vFactAddress,_task);
 	interrupts();
-	#if IS_DEBUG>1
-        Serial.print(iAddress);
-        Serial.print(F(" = "));
-        Serial.print(_task.startCode);
-        Serial.print(F(" -> "));
-        Serial.print(_task.duration);
-        Serial.println(F(" write OK"));
+
+	#if IS_DEBUG>0
+         Serial.print(iAddress);
+         Serial.print(F(" = "));
+         Serial.print(_task.startCode);
+         Serial.print(F(" -> "));
+         Serial.print(_task.duration);
+         Serial.println(F(" write OK"));
         #endif
 
 }
@@ -172,6 +177,7 @@ void worker::showDateTime() {
   bool H12 = false, PM;
   hours = (int)Clock.getHour(H12, PM);
 };
+
   minutes = (int)Clock.getMinute();
 
   Serial.print(day);
@@ -189,20 +195,19 @@ void worker::showDateTime() {
  };
 
  unsigned long worker::getSecMidnight() {
-  unsigned long ret1;
   byte h,m,s;
 
   DS3231 Clock;
 {
   bool H12 = false, PM;
   h = Clock.getHour(H12, PM);
+};
   m = Clock.getMinute();
   s = Clock.getSecond();
-};
 
-  ret1 = h * 3600UL + m * 60UL + (unsigned int)s;
 
-  return ret1;
+
+  return h * 3600UL + m * 60UL + (unsigned long)s;
 };
 
 void worker::getSecMidnight2(unsigned long *oT) {
@@ -318,58 +323,63 @@ void worker::setTime(char* vCommand) {
      _setDateTime(iYear,iMonth,iDay,iHour,iMinutes,iSec);
    };
 
-unsigned long worker::getNearestTaskTime() {
-   byte vCurrDay = getDayOfWeek(),
-        vNum=0;
-   unsigned long secTaskBeg,
-        secNow=getSecMidnight(),
-        vSch[7],
-        vTmpSec;
-   task _task;  
+unsigned long worker::getSleepTime() {
+   unsigned long vNextTime,
+                 vCurrTime = getSecMidnight();
+   byte vCurrDayOfWeek = getDayOfWeek();
 
-   
-   for (byte vI=0;vI<maxTaskCount;vI++) {
+   vNextTime = _getMinTaskTime(vCurrDayOfWeek,vCurrTime);
 
-        EEPROM.get(_startAddress + vI * sizeof(task),_task);
+   if (vNextTime == NEAREST_TIME_BORDER) { return 0; };
 
-           if (_isCurrWeekDay(_task)) {  
+  {
+     byte vNextDayOfWeek;
+     vNextDayOfWeek   = (byte) (vNextTime / NEAREST_TIME_MULT);
+     vNextTime = vNextTime - vNextDayOfWeek * NEAREST_TIME_MULT;
 
-              secTaskBeg = _getTaskStart(_task);
+     if (vNextDayOfWeek < vCurrDayOfWeek || (vNextDayOfWeek==vCurrDayOfWeek && vCurrTime > vNextTime)) { vNextTime = 86400 - vCurrTime + (7 - vCurrDayOfWeek) * 86400 + (vNextDayOfWeek - 1) * 86400 + vNextTime;   };
 
-              if (secTaskBeg<=secNow) {
-                 continue;
-              };
-              vSch[vNum++] = secTaskBeg;
-           };
-   };
-   vSch[vNum++] = 85000;
+     if (vNextDayOfWeek > vCurrDayOfWeek || (vNextDayOfWeek==vCurrDayOfWeek && vCurrTime < vNextTime)) { vNextTime = vNextTime + (vNextDayOfWeek - vCurrDayOfWeek) * 86400 - vCurrTime; };
 
-   vTmpSec = vSch[0];
 
-   for (byte vI=0;vI<vNum;vI++) {
-      if (vSch[vI]<vTmpSec) { vTmpSec = vSch[vI]; };
-   };
+  };
 
-  return vTmpSec;
-
+  return vNextTime;
 };
 
 unsigned long worker::_getTaskStart(task iTask) {
   byte vH,vM,vS;
-  unsigned long secTaskBeg;
 
   vH   = lowByte((iTask.startCode & 32505856)  >> 20);
   vM   = lowByte((iTask.startCode & 1032192)   >> 14);
   vS   = lowByte((iTask.startCode & 16128)     >> 8);
 
-  secTaskBeg    =  vH * 3600UL + vM * 60UL + (unsigned long)vS;
-
-  return secTaskBeg;
+  return   vH * 3600UL + vM * 60UL + (unsigned long)vS;
 };
 
-bool worker::_isCurrWeekDay(task iTask) {
-    bool isCurrWeekDay;
 
-    isCurrWeekDay = bitRead(iTask.startCode,32 - getDayOfWeek());
-    return isCurrWeekDay;
+unsigned long worker::_getMinTaskTime(byte iCurrDayOfWeek,unsigned long iCurrTime) {
+   unsigned long vTimeRight = NEAREST_TIME_BORDER,
+                 vTimeLeft  = NEAREST_TIME_BORDER;
+   
+   for (byte vI=0;vI<maxTaskCount;vI++) {
+        task vTask = _getTask(vI);      
+            for (byte vJ=31;vJ>24;vJ--) {
+                
+                byte vIsWorkDay = bitRead(vTask.startCode,vJ);
+                unsigned long vStartTask = vIsWorkDay == 0 ? NEAREST_TIME_BORDER : (32-vJ) * NEAREST_TIME_MULT + _getTaskStart(vTask);
+
+                   {
+                      unsigned long vStartCurr = iCurrDayOfWeek * NEAREST_TIME_MULT + iCurrTime;
+                      if (vStartTask > vStartCurr && vStartTask<vTimeRight) {
+                         vTimeRight = vStartTask;
+                      };                       
+                      if (vStartTask<vTimeLeft) {
+                         vTimeLeft  = vStartTask;
+                      };
+                   };
+            };
+   };
+  
+  return  vTimeRight != NEAREST_TIME_BORDER ? vTimeRight : vTimeLeft;
 };

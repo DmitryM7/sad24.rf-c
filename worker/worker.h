@@ -35,17 +35,18 @@ class worker
    byte shouldTaskWork2(byte iAddress,unsigned long iSecMidnight);
    void setTime(char* vCommand);
    void setDateTime(byte iYear,byte iMonth,byte iDay,byte iHour,byte iMinutes,byte iSec);
-   unsigned long getNearestTaskTime();
-    
+   unsigned long getSleepTime();
 
   private:
    task _getTask(int iAddress);   
    unsigned long _getTaskStart(task iTask);
-   bool _isCurrWeekDay(task iTask);
    void _setDateTime(byte iYear,byte iMonth,byte iDay,byte iHour,byte iMinutes,byte iSec);
    byte _DayOfWeek(int y,byte m,byte d);
+   unsigned long _getMinTaskTime(byte iCurrDayOfWeek,unsigned long iCurrTime);    
    
    unsigned int _startAddress = 0;
+
+
 
    bool (*_beforeTaskUpdate)(char* oStr);
 

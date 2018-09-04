@@ -55,33 +55,6 @@ workerInfo _light;
    Геттеры и сеттеры.
  **********************************************************/
 
-
-bool setSleepTime(int iSleepTime) {
-  Globals _globals;
-
-  /**************************************************
-     Проверяю на разумность переданных значений.
-   **************************************************/
-  if (iSleepTime < 5 || iSleepTime > 600) {
-    return false;
-  };
-
-  EEPROM.get(sizeof(Connection), _globals);
-  _globals.sleepTime = iSleepTime;
-
-  noInterrupts();
-  EEPROM.put(sizeof(Connection), _globals);
-  interrupts();
-
-
-};
-
-int  getSleepTime() {
-  Globals _globals;
-  EEPROM.get(sizeof(Connection), _globals);
-  return _globals.sleepTime;
-}
-
 int getCurrTempOut() {
   return mCurrTempOut;
 }
@@ -161,6 +134,8 @@ void loadSensorInfo1(int *oT1, int *oH1, int *oT2, long *oP1) {
   unsigned long vCurrTime;
   int32_t  t2 = -100;
 
+  Wire.begin();
+
   BMP085   dps = BMP085();
   DHT dht(2, DHT22);
 
@@ -230,9 +205,9 @@ unsigned long getSecMidnight() {
   return _worker.getSecMidnight();
 }
 
-unsigned long getNextWakeUp() {
+unsigned long getSleepTime() {
   worker _worker(mWorkerStart);
-  return _worker.getNearestTaskTime();
+  return _worker.getSleepTime();
 }
 
 /**************************************************************
@@ -359,11 +334,6 @@ bool wk() {
   sim900.setInternetSettings(_connection.apnPoint, _connection.apnLogin, _connection.apnPass);
 
   do {
-    #ifdef IS_DEBUG
-      Serial.print(F("WKUP:"));
-      Serial.println(vAttempt);
-      Serial.flush();
-    #endif
     vStatus = sim900.wakeUp() && sim900.canWork();
     delay(vAttempt * 5000);
     vAttempt++;
@@ -385,11 +355,6 @@ bool wk() {
 
 void sl() {
   gprs2 sim900(7, 8);
-
-#ifdef IS_DEBUG
-  Serial.println(F("SLP"));
-  Serial.flush();
-#endif
   sim900.sleep();
 }
 
@@ -642,6 +607,12 @@ void Timer1_doJob(void) {
 
   secMidnight=_worker.getSecMidnight();
 
+  Serial.print(F("Mid:"));
+  Serial.println(secMidnight);
+  Serial.print(F("Mem:"));
+  Serial.println(freeMemory());
+  Serial.flush();
+
   isLightShouldWork = getCurrTempOut() <= getTempUpLight();
   isWaterShouldWork = getCurrTempIn()  >= getTempUpWater();
 
@@ -659,6 +630,7 @@ void Timer1_doJob(void) {
 #ifdef IS_DEBUG
     Serial.print(F("EL:"));
     Serial.println(secMidnight);
+    Serial.flush();
 #endif
     _worker.stopLight();
     _light.isWork = false;    
@@ -668,6 +640,7 @@ void Timer1_doJob(void) {
 #ifdef IS_DEBUG
     Serial.print(F("EW:"));
     Serial.println(secMidnight);
+    Serial.flush();
 #endif
     _worker.stopWater();
     _water.isWork = false;
@@ -677,6 +650,7 @@ void Timer1_doJob(void) {
 #ifdef IS_DEBUG
     Serial.print(F("SW:"));
     Serial.println(secMidnight);
+    Serial.flush();
 #endif
     _worker.startWater();
     _water.isWork = true;
@@ -690,6 +664,7 @@ void Timer1_doJob(void) {
 #ifdef IS_DEBUG
     Serial.print(F("SL:"));
     Serial.println(secMidnight);
+    Serial.flush();
 #endif
     _worker.startLight();
     _light.isWork = true;
@@ -753,8 +728,7 @@ void setup() {
   
 #ifdef IS_DEBUG
   Serial.begin(19200);
-#endif
-  Wire.begin();
+#endif  
 
 
   _water.isWork = false;
@@ -812,57 +786,33 @@ void setup() {
 
 
   Timer1.initialize(3000000);
-  Timer1.stop();
   Timer1.attachInterrupt(Timer1_doJob);
 
 #ifdef WDT_ENABLE
   wdt_enable (WDTO_8S);
 #endif
 
+/*{
+  worker _worker(mWorkerStart);
+  _worker.setDateTime(18,9,4,21,45,0);
+}*/
+
 }
 
 
 void loop() 
 {
-  long vTimeDiff   = 0;  
   bool isModemWork = false;   
 
 
-  delay(1000);
-
-                        
-                       
-  Serial.print(F("vTimeDiff="));
-  Serial.println(getSecMidnight());
-  Serial.print(F("vPrevTime1="));
-  Serial.println(vPrevTime1);
-
-  vTimeDiff = getSecMidnight() - vPrevTime1;  
-  vTimeDiff = abs(vTimeDiff);
-  Serial.print(F("vTimeDiff="));
-  Serial.println(vTimeDiff);
-
-  Serial.print(F("connectPeriod="));
-  Serial.println(connectPeriod());
-  
-  Serial.print(F("isFirstRun="));
-  Serial.println(isFirstRun);
-  Serial.flush();
-  
-  
- 
-
-  Timer1.start();
-
-  
-
-if (vTimeDiff >= connectPeriod() || isFirstRun) {
+if (vPrevTime1 + connectPeriod() < getSecMidnight() || isFirstRun) {
 
 digitalWrite(13, HIGH);    // turn the LED off by making the voltage LOW
   
    #ifdef IS_DEBUG
-    Serial.print(F("-Start: "));
+    Serial.println(F("******"));
     showDateTime();
+    Serial.println();    
     Serial.flush();
    #endif
 
@@ -920,8 +870,7 @@ if (isModemWork) {
 
     Serial.print(F("Con.per.: "));
     Serial.println(connectPeriod());
-
-    Serial.println(F("-Stop-"));
+    
     Serial.flush();
   #endif
  
@@ -939,21 +888,13 @@ if (isModemWork) {
 };      
      
     vPrevTime1 = getSecMidnight();
-    sl();
-    digitalWrite(13, LOW);
+  
+digitalWrite(13, LOW);
 };
 
   isFirstRun = false;
 
-{
-  unsigned long  vNextWakeUp  = 0, 
-                 vNextModem   = 0,
-                 vPeriodSleep = 0,
-                 vFirstLoop   = 0,
-                 vSecondLoop  = 0,
-                 vCurrTime    = 0;
-
- {
+   {
    bool vCanGoSleep;
    noInterrupts();
    vCanGoSleep=mCanGoSleep;
@@ -964,18 +905,37 @@ if (isModemWork) {
    };
  }
 
-  
+{
+  unsigned long  vSleepTime   = 0, 
+                 vNextModem   = 0,
+                 vPeriodSleep = 0,
+                 vFirstLoop   = 0,
+                 vSecondLoop  = 0,
+                 vCurrTime    = 0;
+
+  byte vWaitTime=0;                 
+
+ 
     vCurrTime    = getSecMidnight();
-    vNextWakeUp  = getNextWakeUp();
-    vNextModem   = vPrevTime1 + connectPeriod() > 86400UL ? vPrevTime1 + connectPeriod() - 86400UL : vPrevTime1 + connectPeriod();
-    vNextWakeUp  = min(vNextModem, vNextWakeUp);
+    vSleepTime   = getSleepTime();
+    
+    #ifdef IS_DEBUG
+    Serial.print(F("vSleepTime: "));
+    Serial.println(vSleepTime);
+    #endif
+
+    vNextModem   = vPrevTime1 + connectPeriod();
+    vNextModem   = max(0,vNextModem - vCurrTime);
+
+    vSleepTime   = min(vNextModem, vSleepTime);
 
     /****************************************************
      * Если перекатываемся через полночь,               *
      * то время следующего старта будет меньше,         *
      * чем текущее время.                               *
      ****************************************************/
-    vPeriodSleep = (unsigned int)( (vCurrTime > vNextWakeUp ? 86400UL - vCurrTime + vNextWakeUp : vNextWakeUp - vCurrTime) / 8UL);
+    vPeriodSleep = (unsigned int)(vSleepTime / 8UL);
+    vWaitTime    = vSleepTime % vPeriodSleep;
     
     vFirstLoop   = (unsigned int)  vPeriodSleep / 37;
     vSecondLoop  = vPeriodSleep % 37;
@@ -985,11 +945,14 @@ if (isModemWork) {
     Serial.print(F("vCurrTime: "));
     Serial.println(vCurrTime);
 
-    Serial.print(F("vModemSleep: "));
+    Serial.print(F("vNextModem:"));
+    Serial.println(vNextModem);
+
+    Serial.print(F("vPrevTime1: "));
     Serial.println(vPrevTime1);
 
-    Serial.print(F("Next wakeup: "));
-    Serial.println(vNextWakeUp);
+    Serial.print(F("Sleep time: "));
+    Serial.println(vSleepTime);
 
     Serial.print(F("Sleep period: "));
     Serial.println(vPeriodSleep);
@@ -1000,12 +963,15 @@ if (isModemWork) {
 
     Serial.print(F("Second Loop: "));
     Serial.println(vSecondLoop);
+
+    Serial.print(F("vWaitTime: "));
+    Serial.println(vWaitTime);
     Serial.flush();
 
 #endif
 
 
-   
+  sl(); 
   Timer1.stop();
         
   for (unsigned int vJ = 0; vJ < vFirstLoop; vJ++) {      
@@ -1017,7 +983,19 @@ if (isModemWork) {
 
   for (unsigned int vJ = 0; vJ < vSecondLoop; vJ++) {
         LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);    
-  };      
+  };     
+   
+ #ifdef IS_DEBUG
+   Serial.println(F("... wait ..."));
+   Serial.flush();
+ #endif 
+ /**************************************************
+  * Гарантировано даем включиться исполнителям.
+  * 
+  **************************************************/
+  Timer1.start();
+  delay(vWaitTime * 1000 + 3000);
+
 };
 
  
