@@ -102,7 +102,7 @@ void worker::setTask2(unsigned int iAddress,char* iStr) {
 	EEPROM.put(vFactAddress,_task);
 	interrupts();
 
-	#if IS_DEBUG>0
+	#if IS_DEBUG>1
          Serial.print(iAddress);
          Serial.print(F(" = "));
          Serial.print(_task.startCode);
@@ -202,17 +202,12 @@ void worker::showDateTime() {
   bool H12 = false, PM;
   h = Clock.getHour(H12, PM);
 };
+
   m = Clock.getMinute();
   s = Clock.getSecond();
 
-
-
-  return h * 3600UL + m * 60UL + (unsigned long)s;
+  return h * 3600UL + m * 60UL + (unsigned long) s;
 };
-
-void worker::getSecMidnight2(unsigned long *oT) {
-  *oT=getSecMidnight();
-}
 
 void worker::_setDateTime(byte iYear,byte iMonth,byte iDay,byte iHour,byte iMinutes,byte iSec) {
   DS3231 Clock;  

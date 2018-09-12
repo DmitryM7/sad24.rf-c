@@ -31,7 +31,7 @@ class gprs2
 
     bool getCoords(char* iLongitude,char* iLatitdue);
 
-    void setInternetSettings(char* vApn,char* vLogin,char* vPass);
+    void setInternetSettings(char* iApn,char* iLogin,char* iPass);
     bool postUrl(char* iUrl,char* iPar,char* oRes);
     bool postUrl(char* iUrl, char* iPar, char* oRes,unsigned int iResLength);
 
@@ -54,10 +54,9 @@ class gprs2
 
   private:
     SoftwareSerial _modem;
-    char  _apn[35];
-    char  _login[11];
-    char  _pass[11];
-    char  _lastError[20]; 
+//    char  _apn[35], _login[11], _pass[11];
+    String _apn, _login, _pass,_lastError;
+//    char  _lastError[20]; 
     uint8_t _lastErrorNum;
     bool   getAnswer3(char* oRes,size_t iSize);
     bool   _getAnswer3(char* oRes,size_t iSize,bool saveCRLF);
@@ -73,6 +72,7 @@ class gprs2
     void _doCmd(char* iStr);
     void _doCmd(const __FlashStringHelper *iStr);        
     void _doCmd3(const __FlashStringHelper *iStr1,char* iStr2, const __FlashStringHelper *iStr3);        
+    void _doCmd3(const __FlashStringHelper *iStr1,String iStr2, const __FlashStringHelper *iStr3);        
 };
 
 #endif

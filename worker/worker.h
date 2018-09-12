@@ -30,7 +30,6 @@ class worker
    byte getDayOfWeek();
    void showDateTime();
    unsigned long getSecMidnight();
-   void worker::getSecMidnight2(unsigned long *oT);
    void setBeforeTaskUpdate(bool (*_mEvent)(char* oStr));
    byte shouldTaskWork2(byte iAddress,unsigned long iSecMidnight);
    void setTime(char* vCommand);

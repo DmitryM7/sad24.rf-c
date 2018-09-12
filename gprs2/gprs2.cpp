@@ -13,19 +13,21 @@ const char COMMA_M[] PROGMEM = ",";
 
 
 gprs2::gprs2(int pin1,int pin2):_modem(pin1,pin2) {
-// Module revision Revision:1137B06SIM900M64_ST_ENHANCE
+   // Module revision Revision:1137B06SIM900M64_ST_ENHANCE
    _modem.begin(19200); 
-   _emptyBuffer(_lastError,20);
 };
 
 
-void gprs2::setInternetSettings(char* vApn,char* vLogin,char* vPass) {
-   strncpy(_apn,vApn,35);
+void gprs2::setInternetSettings(char* iApn,char* iLogin,char* iPass) {
+     _apn   = String(iApn);
+     _login = String(iLogin);
+     _pass  = String(iPass);
+/*   strncpy(_apn,vApn,35);
    _apn[34]='\0';
    strncpy(_login,vLogin,11);
    _login[10]='\0';
    strncpy(_pass,vPass,11);
-   _pass[10]='\0';
+   _pass[10]='\0';*/
 }
 
 
@@ -573,14 +575,16 @@ void gprs2::getSmsText(unsigned int iNum,char* oRes,unsigned int iSmsSize) {
 
 
 void gprs2::_setLastError(unsigned int iErrorNum,char* iErrorText) {
-    _emptyBuffer(_lastError,20);  
+//    _emptyBuffer(_lastError,20);  
 
     if (strlen(iErrorText)>2) {     
-       strncpy(_lastError,iErrorText,19);
+//       strncpy(_lastError,iErrorText,19);
+         _lastError=String(iErrorText);
     } else {
-      sprintf_P(_lastError,PSTR("N %d"),iErrorNum);
+//      sprintf_P(_lastError,PSTR("N %d"),iErrorNum);
+         _lastError=String(iErrorNum);
     };
-  _lastError[19] = '\0';
+//  _lastError[19] = '\0';
   _lastErrorNum  = iErrorNum;
 
 }
@@ -588,8 +592,9 @@ void gprs2::_setLastError(unsigned int iErrorNum,char* iErrorText) {
 
 
 void gprs2::getLastError(char* oRes) {
-      strncpy(oRes,_lastError,20);
-      oRes[19] = '\0';
+//      strncpy(oRes,_lastError,20);
+//      oRes[19] = '\0';
+        _lastError.toCharArray(oRes,20);
  }
 
 uint8_t gprs2::getLastErrorNum() {
@@ -863,6 +868,27 @@ void gprs2::_doCmd3(const __FlashStringHelper *iStr1,char* iStr2,const __FlashSt
   interrupts();
 }
 
+void gprs2::_doCmd3(const __FlashStringHelper *iStr1,String iStr2,const __FlashStringHelper *iStr3) {
+
+  #if IS_DEBUG>1
+  Serial.print(iStr1);
+  Serial.flush();
+  Serial.print(iStr2);
+  Serial.flush();
+  Serial.println(iStr3);      	
+  Serial.flush();
+ #endif
+  noInterrupts();
+  _modem.print(iStr1);
+  _modem.flush();
+  _modem.print(iStr2);
+  _modem.flush();
+  _modem.println(iStr3);
+  _modem.flush();
+  interrupts();
+}
+
+
 void gprs2::softRestart() {
     char vRes[20],vTmpStr[5];
     mstr _mstr;
@@ -901,7 +927,7 @@ void gprs2::softRestart() {
 
     strcpy_P(vTmpStr, PSTR("+CIPGSMLOC:"));
 
-    if (_getAnswerWait(vRes,sizeof(vRes),vTmpStr,false,true)) {
+    if (_getAnswerWait(vRes,sizeof(vRes),vTmpStr)) {
        _setLastError(__LINE__,vRes);
        return false;
     };
