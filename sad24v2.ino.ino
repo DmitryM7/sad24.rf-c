@@ -205,10 +205,6 @@ unsigned long getSecMidnight() {
   return _worker.getSecMidnight();
 }
 
-unsigned long getSleepTime() {
-  worker _worker(mWorkerStart);
-  return _worker.getSleepTime();
-}
 
 /**************************************************************
    Конец доп.методов
@@ -362,12 +358,115 @@ void sl() {
 
 void restartModem() {
   gprs2 sim900(7, 8);
+  #ifdef IS_DEBUG
+    Serial.println(F("*REST*"));
+    Serial.flush();
+  #endif
   sim900.softRestart();
   delay(60000);
 };
 /**************************************************************************
     Конец методов работы с модемом
  *************************************************************************/
+
+
+byte goSleep(byte iMode,unsigned long iPrevTime1) {
+  unsigned long  vSleepTime   = 0, 
+                 vNextModem   = 0,
+                 vPeriodSleep = 0,
+                 vFirstLoop   = 0,
+                 vSecondLoop  = 0,
+                 vCurrTime    = 0;
+
+  byte vWaitTime=0;                 
+
+ 
+    vCurrTime    = getSecMidnight();
+{
+    worker _worker(mWorkerStart);    
+    vSleepTime   = _worker.getSleepTime();
+};
+    
+ 
+
+    //При переходе через сутки vCurrTime будет меньше, чем iPrevTime1 поэтому докидываем этой переменной до суток.
+    vNextModem   = iPrevTime1 + connectPeriod() - (vCurrTime < iPrevTime1 ? vCurrTime + 86400: vCurrTime);
+
+#ifdef IS_DEBUG
+
+    Serial.print(F("vCurrTime: "));
+    Serial.println(vCurrTime);
+
+    Serial.print(F("vNextModem:"));
+    Serial.println(vNextModem);
+
+    Serial.print(F("iPrevTime1: "));
+    Serial.println(iPrevTime1);
+
+    vSleepTime   = min(vNextModem, vSleepTime);
+    Serial.print(F("Sleep time:"));
+    Serial.println(vSleepTime);
+    
+    vSleepTime   = (unsigned long) vSleepTime * iMode / 100;
+    Serial.print(F("Sleep time * "));
+    Serial.print(iMode);
+    Serial.print(F("%:"));
+    Serial.println(vSleepTime);
+
+    /****************************************************
+     * Если перекатываемся через полночь,               *
+     * то время следующего старта будет меньше,         *
+     * чем текущее время.                               *
+     ****************************************************/
+    vPeriodSleep = (unsigned int)(vSleepTime / 8UL);        
+    
+    
+    vFirstLoop   = (unsigned int)  vPeriodSleep / 37;
+    vSecondLoop  = vPeriodSleep % 37;
+
+    vWaitTime    = vSleepTime - vFirstLoop*37*8 - vSecondLoop * 8;
+
+
+    Serial.print(F("Sleep period:"));
+    Serial.println(vPeriodSleep);
+
+    Serial.print(F("First Loop: "));
+    Serial.println(vFirstLoop);
+
+    Serial.print(F("Second Loop: "));
+    Serial.println(vSecondLoop);
+
+    Serial.print(F("vWaitTime: "));
+    Serial.println(vWaitTime);
+    Serial.flush();
+
+#endif
+        
+  for (unsigned int vJ = 0; vJ < vFirstLoop; vJ++) {      
+     sl();
+     for (unsigned int vK = 0; vK < 37; vK++) {
+       LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);    
+     };      
+  };
+
+
+  sl();  //Первый цикл может быть пропущен поэтому необходимо модем отправить в сон.
+  
+  for (unsigned int vJ = 0; vJ < vSecondLoop; vJ++) {
+        LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);    
+  };     
+   
+ #ifdef IS_DEBUG
+   Serial.print(F(". wait-2. "));
+   Serial.println(getSecMidnight());
+   Serial.flush();
+ #endif 
+
+ return vWaitTime; 
+
+};
+
+ 
 
 bool doPostParams(char* iRes, unsigned int iSize) {
   char vParams[70];
@@ -386,7 +485,7 @@ bool doPostParams(char* iRes, unsigned int iSize) {
     char vError[20];
     sim900.getLastError(vError);
     #ifdef IS_DEBUG
-    Serial.print(F("error: "));
+    Serial.print(F("CInet error: "));
     Serial.println(vError);
     #endif
     return false;
@@ -457,7 +556,7 @@ bool updateRemoteMeasure(int t1,  int h1, int t2, long p1) {
     char vError[20];
     sim900.getLastError(vError);
     #ifdef IS_DEBUG
-      Serial.print(F("error: "));
+      Serial.print(F("CInet error: "));
       Serial.println(vError);
       Serial.flush();
     #endif
@@ -607,17 +706,20 @@ void Timer1_doJob(void) {
   wdt_reset();
 #endif
 
-  #ifdef IS_DEBUG
-    Serial.print(F("Mem:"));
-    Serial.println(freeMemory());
-    Serial.flush();
-  #endif
   worker _worker(mWorkerStart);
   unsigned long secMidnight=0;
   bool isWaterShouldWork = false,
        isLightShouldWork = false;
 
   secMidnight=_worker.getSecMidnight();
+
+    #ifdef IS_DEBUG
+    Serial.print(F("Mem:"));
+    Serial.print(freeMemory());
+    Serial.print(F(" & "));
+    Serial.println(secMidnight);
+    Serial.flush();
+  #endif
 
      
   isLightShouldWork = getCurrTempOut() <= getTempUpLight();
@@ -717,7 +819,7 @@ void Timer1_doJob(void) {
 }
 
 unsigned long getNextTimeConnect(unsigned long iPrevTime1) {
-  return iPrevTime1 + connectPeriod() >= 86400 ? 86400 - iPrevTime1 + connectPeriod() : iPrevTime1 + connectPeriod();
+  return iPrevTime1 + connectPeriod() >= 86400 ? connectPeriod() - (86400 - iPrevTime1)  : iPrevTime1 + connectPeriod();
 }
 
 void setup() {
@@ -732,6 +834,7 @@ void setup() {
   Globals _globals;
 
   worker _worker(mWorkerStart);
+ 
 
 
 
@@ -800,6 +903,7 @@ void setup() {
 
   Timer1.initialize(3000000);
   Timer1.attachInterrupt(Timer1_doJob);
+  Timer1.start();
 
 #ifdef WDT_ENABLE
   wdt_enable (WDTO_8S);
@@ -812,7 +916,7 @@ void loop()
 {
   bool isModemWork = false;   
 
-    delay(1000); //Обязательно оставить, иначе слишком быстро дергаются часы и из-за этого через некоторое время сбрасываются
+   delay(1000); //Обязательно оставить, иначе слишком быстро дергаются часы и из-за этого через некоторое время сбрасываются
 
   if (getNextTimeConnect(vPrevTime1) < getSecMidnight() || isFirstRun) {
 
@@ -842,7 +946,10 @@ if (isModemWork) {
          
          vAttempt++;
       } while (!vStatus && vAttempt < 3);
-};
+} else {
+  Serial.println(F("*Modem not work"));
+  Serial.flush();
+}
 
 
 if (isModemWork) {
@@ -894,14 +1001,18 @@ if (isModemWork) {
         vAttempt++;
       } while (!vStatus && vAttempt < 3);
 
-};      
+} else {
+  Serial.println(F("*Modem not work"));
+  Serial.flush();;
+}
      
     vPrevTime1 = getSecMidnight();
+    sl();  //После того как модем передал данные уводим его в сон. Если это делать в основном теле функции, то отправлять будем 1 раз в секунду
   
 digitalWrite(13, LOW);
 };
 
-  sl();  //После того как модем передал данные уводим его в сон
+ 
   isFirstRun = false;
 
    {
@@ -913,99 +1024,22 @@ digitalWrite(13, LOW);
    if (!vCanGoSleep) {
      return;
    };
- }
+ };
 
-{
-  unsigned long  vSleepTime   = 0, 
-                 vNextModem   = 0,
-                 vPeriodSleep = 0,
-                 vFirstLoop   = 0,
-                 vSecondLoop  = 0,
-                 vCurrTime    = 0;
-
-  byte vWaitTime=0;                 
-
- 
-    vCurrTime    = getSecMidnight();
-    vSleepTime   = getSleepTime();
-    
-    #ifdef IS_DEBUG
-    Serial.print(F("vSleepTime: "));
-    Serial.println(vSleepTime);
-    #endif
-
-    vNextModem   = vPrevTime1 + connectPeriod();
-    vNextModem   = max(0,vNextModem - vCurrTime);
-
-    vSleepTime   = min(vNextModem, vSleepTime);
-
-    /****************************************************
-     * Если перекатываемся через полночь,               *
-     * то время следующего старта будет меньше,         *
-     * чем текущее время.                               *
-     ****************************************************/
-    vPeriodSleep = (unsigned int)(vSleepTime / 8UL);
-    vWaitTime    = vSleepTime % vPeriodSleep;
-    
-    vFirstLoop   = (unsigned int)  vPeriodSleep / 37;
-    vSecondLoop  = vPeriodSleep % 37;
-
-#ifdef IS_DEBUG
-
-    Serial.print(F("vCurrTime: "));
-    Serial.println(vCurrTime);
-
-    Serial.print(F("vNextModem:"));
-    Serial.println(vNextModem);
-
-    Serial.print(F("vPrevTime1: "));
-    Serial.println(vPrevTime1);
-
-    Serial.print(F("Sleep time: "));
-    Serial.println(vSleepTime);
-
-    Serial.print(F("Sleep period: "));
-    Serial.println(vPeriodSleep);
-
-    Serial.print(F("First Loop: "));
-    Serial.println(vFirstLoop);
-
-    Serial.print(F("Second Loop: "));
-    Serial.println(vSecondLoop);
-
-    Serial.print(F("vWaitTime: "));
-    Serial.println(vWaitTime);
-    Serial.flush();
-
-#endif
-
-  Timer1.stop();
-        
-  for (unsigned int vJ = 0; vJ < vFirstLoop; vJ++) {      
-     sl();
-     for (unsigned int vK = 0; vK < 37; vK++) {
-       LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);    
-     };      
-  };
-
-  for (unsigned int vJ = 0; vJ < vSecondLoop; vJ++) {
-        LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);    
-  };     
-   
- #ifdef IS_DEBUG
-   Serial.println(F("... wait ..."));
-   Serial.flush();
- #endif 
- /**************************************************
+ Timer1.stop();
+ goSleep(50,vPrevTime1);
+ goSleep(75,vPrevTime1);
+ goSleep(90,vPrevTime1);
+/**************************************************
   * Гарантировано даем включиться исполнителям.
   * 
-  **************************************************/
-  Timer1.start();
-  delay(vWaitTime * 1000 + 2000);
+  **************************************************/  
+  {
+    byte vDelay = goSleep(100,vPrevTime1);
+    Timer1.start();
+    delay(vDelay * 1000 + 2000);
+  };
 
-};
-
-
-
+  
  
 }

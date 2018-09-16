@@ -229,18 +229,19 @@ byte worker::shouldTaskWork2(byte iAddress,
                              unsigned long iSecMidnight
                             ) {
   unsigned long secTaskBeg, secTaskEnd;
-  byte  vH, vM, vS, currDayOfWeek = getDayOfWeek();
+  byte  currDayOfWeek = getDayOfWeek();
   bool isCurrWeekDay,isInTime;
   task _task;  
 
   EEPROM.get(_startAddress + iAddress * sizeof(task),_task);
 
+  {
+    byte vH   = lowByte((_task.startCode & 32505856)  >> 20),
+         vM   = lowByte((_task.startCode & 1032192)   >> 14),
+         vS   = lowByte((_task.startCode & 16128)     >> 8);
 
-  vH   = lowByte((_task.startCode & 32505856)  >> 20);
-  vM   = lowByte((_task.startCode & 1032192)   >> 14);
-  vS   = lowByte((_task.startCode & 16128)     >> 8);
-
-  secTaskBeg    =  vH * 3600UL + vM * 60UL + (unsigned long) vS;
+        secTaskBeg    =  vH * 3600UL + vM * 60UL + (unsigned long) vS;
+  };
 
   secTaskEnd    = secTaskBeg + _task.duration;
   secTaskEnd    = min(secTaskEnd, 86400);

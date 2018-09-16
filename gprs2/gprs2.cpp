@@ -758,7 +758,7 @@ bool gprs2::setOnSms(bool (*iSmsEvent)(byte iSms, char* oStr)) {
         };
         vFirstLFPos++;
 
-        #if IS_DEBUG > 2
+        #ifdef IS_DEBUG
          Serial.println(F("-- sms ready ---"));
          Serial.println(vRes);
          Serial.println(F("-- end ready ---"));
