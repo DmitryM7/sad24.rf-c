@@ -379,3 +379,19 @@ unsigned long worker::_getMinTaskTime(byte iCurrDayOfWeek,unsigned long iCurrTim
   
   return  vTimeRight != NEAREST_TIME_BORDER ? vTimeRight : vTimeLeft;
 };
+
+unsigned long long getTimestamp() {
+  DS3231 Clock;
+
+  byte h,m,s;
+
+   {
+     bool H12 = false, PM;
+     h = Clock.getHour(H12, PM);
+   };
+
+    m = Clock.getMinute();
+    s = Clock.getSecond();
+
+
+}
