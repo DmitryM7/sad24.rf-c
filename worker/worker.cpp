@@ -380,18 +380,16 @@ unsigned long worker::_getMinTaskTime(byte iCurrDayOfWeek,unsigned long iCurrTim
   return  vTimeRight != NEAREST_TIME_BORDER ? vTimeRight : vTimeLeft;
 };
 
-unsigned long long getTimestamp() {
+long long worker::getTimestamp() {
   DS3231 Clock;
 
-  byte h,m,s;
+  byte h;
+  bool century=false;
 
    {
      bool H12 = false, PM;
      h = Clock.getHour(H12, PM);
    };
-
-    m = Clock.getMinute();
-    s = Clock.getSecond();
-
+    return (Clock.getYear() - 2016) * 365 * 86400 + Clock.getMonth(century) * 24 * 86400 + Clock.getDate() * 86400 + h * 3600 +  Clock.getMinute() * 60 + Clock.getSecond();
 
 }
