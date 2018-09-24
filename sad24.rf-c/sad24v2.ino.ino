@@ -911,7 +911,14 @@ void setup() {
   Timer1.attachInterrupt(Timer1_doJob);
   Timer1.start();
 
- vPrevTime2 = getTimestamp();
+ /*
+  * Отладка ошибки 23.09.28
+  * 
+  */
+  vPrevTime1 = 66900;
+  vPrevTime2 = 66900;
+  _worker.setDateTime(18, 9, 23, 23, 33, 0);
+  isFirstRun = false;
  
 #ifdef WDT_ENABLE
   wdt_enable (WDTO_8S);
