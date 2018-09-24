@@ -27,7 +27,7 @@ struct Connection {
 struct Globals {
   char version[3];
   int  sleepTime;
-  int  connectPeriod;
+  int connectPeriod;
 };
 
 struct offlineParams {
@@ -39,6 +39,7 @@ struct offlineParams {
 unsigned int mOfflineParamsStart = sizeof(Connection) + sizeof(Globals);
 unsigned int mWorkerStart = mOfflineParamsStart + sizeof(offlineParams);
 unsigned long vPrevTime1;
+long long vPrevTime2;
 
 volatile bool mCanGoSleep=true;
 bool isFirstRun = true;
@@ -96,7 +97,8 @@ void setTempOffline(int iLight, int iWater) {
 unsigned long connectPeriod() {
   Globals _globals;
   EEPROM.get(sizeof(Connection), _globals);
-  return _globals.connectPeriod * 60;
+ 
+  return _globals.connectPeriod * 60UL;
 }
 
 void setConnectPeriod(int iSleepTime) {
@@ -204,6 +206,13 @@ unsigned long getSecMidnight() {
   worker _worker(mWorkerStart);
   return _worker.getSecMidnight();
 }
+
+long long getTimestamp() {
+  worker _worker(mWorkerStart);
+  return _worker.getSecMidnight();
+}
+
+
 
 
 /**************************************************************
@@ -818,9 +827,6 @@ void Timer1_doJob(void) {
   mCanGoSleep = !(_light.isWork || _water.isWork);
 }
 
-unsigned long getNextTimeConnect(unsigned long iPrevTime1) {
-  return iPrevTime1 + connectPeriod() >= 86400 ? connectPeriod() - (86400 - iPrevTime1)  : iPrevTime1 + connectPeriod();
-}
 
 void setup() {
 
@@ -905,6 +911,15 @@ void setup() {
   Timer1.attachInterrupt(Timer1_doJob);
   Timer1.start();
 
+ /*
+  * Отладка ошибки 23.09.28
+  * 
+  */
+  vPrevTime1 = 66900;
+  vPrevTime2 = 66900;
+  _worker.setDateTime(18, 9, 23, 23, 33, 0);
+  isFirstRun = false;
+ 
 #ifdef WDT_ENABLE
   wdt_enable (WDTO_8S);
 #endif
@@ -918,7 +933,7 @@ void loop()
 
    delay(1000); //Обязательно оставить, иначе слишком быстро дергаются часы и из-за этого через некоторое время сбрасываются
 
-  if (getNextTimeConnect(vPrevTime1) < getSecMidnight() || isFirstRun) {
+  if (getTimestamp()-vPrevTime2>= connectPeriod() || isFirstRun) {
 
 digitalWrite(13, HIGH);    // turn the LED off by making the voltage LOW
   
@@ -1007,6 +1022,7 @@ if (isModemWork) {
 }
      
     vPrevTime1 = getSecMidnight();
+    vPrevTime2 = getTimestamp();
     sl();  //После того как модем передал данные уводим его в сон. Если это делать в основном теле функции, то отправлять будем 1 раз в секунду
   
 digitalWrite(13, LOW);
