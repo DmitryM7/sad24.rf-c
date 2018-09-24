@@ -38,7 +38,7 @@ struct offlineParams {
 
 unsigned int mOfflineParamsStart = sizeof(Connection) + sizeof(Globals);
 unsigned int mWorkerStart = mOfflineParamsStart + sizeof(offlineParams);
-unsigned long vPrevTime1;
+
 long long vPrevTime2;
 
 volatile bool mCanGoSleep=true;
@@ -379,38 +379,33 @@ void restartModem() {
  *************************************************************************/
 
 
-byte goSleep(byte iMode,unsigned long iPrevTime1) {
+byte goSleep(byte iMode,long long iPrevTime) {
   unsigned long  vSleepTime   = 0, 
-                 vNextModem   = 0,
                  vPeriodSleep = 0,
                  vFirstLoop   = 0,
-                 vSecondLoop  = 0,
-                 vCurrTime    = 0;
+                 vSecondLoop  = 0;
+
+           long  vNextModem   = 0;
 
   byte vWaitTime=0;                 
 
  
-    vCurrTime    = getSecMidnight();
-{
+   {
     worker _worker(mWorkerStart);    
     vSleepTime   = _worker.getSleepTime();
-};
+   };
     
  
 
-    //При переходе через сутки vCurrTime будет меньше, чем iPrevTime1 поэтому докидываем этой переменной до суток.
-    vNextModem   = iPrevTime1 + connectPeriod() - (vCurrTime < iPrevTime1 ? vCurrTime + 86400: vCurrTime);
+    /* connectPeriod() < getTimestamp() - iPrevTime */
+    vNextModem   = (long)(iPrevTime + connectPeriod() - getTimestamp());
+    /* Если по каким-то причинам было пропущено несколько подключений, то принудительно подключаемся */
+    vNextModem    = max(0,vNextModem); 
 
 #ifdef IS_DEBUG
 
-    Serial.print(F("vCurrTime: "));
-    Serial.println(vCurrTime);
-
     Serial.print(F("vNextModem:"));
     Serial.println(vNextModem);
-
-    Serial.print(F("iPrevTime1: "));
-    Serial.println(iPrevTime1);
 
     vSleepTime   = min(vNextModem, vSleepTime);
     Serial.print(F("Sleep time:"));
@@ -915,8 +910,7 @@ void setup() {
   * Отладка ошибки 23.09.28
   * 
   */
-  vPrevTime1 = 66900;
-  vPrevTime2 = 66900;
+    vPrevTime2 = 66900;
   _worker.setDateTime(18, 9, 23, 23, 33, 0);
   isFirstRun = false;
  
@@ -1021,7 +1015,6 @@ if (isModemWork) {
   Serial.flush();;
 }
      
-    vPrevTime1 = getSecMidnight();
     vPrevTime2 = getTimestamp();
     sl();  //После того как модем передал данные уводим его в сон. Если это делать в основном теле функции, то отправлять будем 1 раз в секунду
   
@@ -1043,15 +1036,15 @@ digitalWrite(13, LOW);
  };
 
  Timer1.stop();
- goSleep(50,vPrevTime1);
- goSleep(75,vPrevTime1);
- goSleep(90,vPrevTime1);
+ goSleep(50,vPrevTime2);
+ goSleep(75,vPrevTime2);
+ goSleep(90,vPrevTime2);
 /**************************************************
   * Гарантировано даем включиться исполнителям.
   * 
   **************************************************/  
   {
-    byte vDelay = goSleep(100,vPrevTime1);
+    byte vDelay = goSleep(100,vPrevTime2);
     Timer1.start();
     delay(vDelay * 1000 + 2000);
   };
