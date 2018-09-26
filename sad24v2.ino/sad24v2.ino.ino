@@ -209,7 +209,7 @@ unsigned long getSecMidnight() {
 
 long long getTimestamp() {
   worker _worker(mWorkerStart);
-  return _worker.getSecMidnight();
+  return _worker.getTimestamp();
 }
 
 
@@ -404,8 +404,13 @@ byte goSleep(byte iMode,long long iPrevTime) {
 
 #ifdef IS_DEBUG
 
+
+
     Serial.print(F("vNextModem:"));
     Serial.println(vNextModem);
+
+    Serial.print(F("connectPeriod():"));
+    Serial.println(connectPeriod());
 
     vSleepTime   = min(vNextModem, vSleepTime);
     Serial.print(F("Sleep time:"));
@@ -923,6 +928,8 @@ void setup() {
 
 void loop() 
 {
+
+  delay(5000);
   bool isModemWork = false;   
 
    delay(1000); //Обязательно оставить, иначе слишком быстро дергаются часы и из-за этого через некоторое время сбрасываются
