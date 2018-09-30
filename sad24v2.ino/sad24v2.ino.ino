@@ -830,7 +830,7 @@ void Timer1_doJob(void) {
 
 void setup() {
 
-  #ifdef IS_DEBUG
+  #ifdef IS_DEBUG_1
   Serial.begin(19200);
 #endif  
 
@@ -915,7 +915,7 @@ void setup() {
   * Отладка ошибки 23.09.28
   * 
   */
-    vPrevTime2 = 66900;
+   vPrevTime2 = 66900;
   _worker.setDateTime(18, 9, 23, 23, 33, 0);
   isFirstRun = false;
  
