@@ -465,10 +465,6 @@ bool gprs2::canInternet() {
        strcpy_P(_tmpStr,PSTR("+HTTPACTION")); 
 
        _getAnswerWait(oRes,iResLength,_tmpStr);
-       Serial.print(F("Ans:"));
-       Serial.print(oRes);
-       Serial.println(F(":end"));
-
 
         strcpy_P(_tmpStr, PSTR("+HTTPACTION: 1,200")); 
 

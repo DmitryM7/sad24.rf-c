@@ -181,9 +181,9 @@ void worker::showDateTime() {
   minutes = (int)Clock.getMinute();
 
   Serial.print(day);
-  Serial.print(F("-"));
+  Serial.print(F("."));
   Serial.print(month);
-  Serial.print(F("-"));
+  Serial.print(F("."));
   Serial.print(year);
   Serial.print(F(" "));
   Serial.print(hours);
@@ -382,14 +382,39 @@ unsigned long worker::_getMinTaskTime(byte iCurrDayOfWeek,unsigned long iCurrTim
 
 long long worker::getTimestamp() {
   DS3231 Clock;
+  long long r;
 
-  byte h;
-  bool century=false;
+
+  byte year,month,day,hour,minute,second;
 
    {
-     bool H12 = false, PM;
-     h = Clock.getHour(H12, PM);
+     bool H12 = false, century=false,PM;
+     year   = Clock.getYear();
+     month  = Clock.getMonth(century);      
+     day    = Clock.getDate();
+     hour   = Clock.getHour(H12, PM);
+     minute = Clock.getMinute();
+     second = Clock.getSecond();
    };
-    return (Clock.getYear() - 2016) * 365 * 86400 + Clock.getMonth(century) * 24 * 86400 + Clock.getDate() * 86400 + h * 3600 +  Clock.getMinute() * 60 + Clock.getSecond();
+    Serial.print(year);
+    Serial.print(F("-"));
+    Serial.print(month);
+    Serial.print(F("-"));
+    Serial.print(day);
+    Serial.print(F(" "));
+    Serial.print(hour);
+    Serial.print(F(":"));
+    Serial.print(minute);
+    Serial.print(F(":"));
+    Serial.println(second);
+    Serial.flush();  
+    r = (year - 16) * 365 * 86400LL + month * 31 * 86400LL + day * 86400LL + hour * 3600LL + minute * 60 + second;
+ /* 
+  uint64_t xx;
+  xx = r/1000000000ULL;
+    if (xx>0) Serial.print((long)xx);
+    Serial.print((long)(r-xx*1000000000));*/
+
+    return r;
 
 }

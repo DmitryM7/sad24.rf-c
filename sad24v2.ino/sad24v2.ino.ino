@@ -209,7 +209,7 @@ unsigned long getSecMidnight() {
 
 long long getTimestamp() {
   worker _worker(mWorkerStart);
-  return _worker.getSecMidnight();
+  return _worker.getTimestamp();
 }
 
 
@@ -399,12 +399,16 @@ byte goSleep(byte iMode,long long iPrevTime) {
 
     /* connectPeriod() < getTimestamp() - iPrevTime */
     vNextModem   = (long)(iPrevTime + connectPeriod() - getTimestamp());
+#ifdef IS_DEBUG_1
+    Serial.print(F("vNextModem1:"));
+    Serial.println(vNextModem);
+#endif
     /* Если по каким-то причинам было пропущено несколько подключений, то принудительно подключаемся */
     vNextModem    = max(0,vNextModem); 
 
-#ifdef IS_DEBUG
+#ifdef IS_DEBUG_1
 
-    Serial.print(F("vNextModem:"));
+    Serial.print(F("vNextModem2:"));
     Serial.println(vNextModem);
 
     vSleepTime   = min(vNextModem, vSleepTime);
@@ -825,7 +829,7 @@ void Timer1_doJob(void) {
 
 void setup() {
 
-  #ifdef IS_DEBUG
+  #ifdef IS_DEBUG_1
   Serial.begin(19200);
 #endif  
 
@@ -920,18 +924,41 @@ void setup() {
 
 }
 
+void showLong(long long iVal) {
+
+ char buffer[25];
+ sprintf(buffer, "%0ld", iVal/1000000L);
+ Serial.print(buffer);  
+ sprintf(buffer, "%0ld", iVal%1000000L);
+ Serial.println(buffer); 
+
+}
 
 void loop() 
 {
   bool isModemWork = false;   
 
-   delay(1000); //Обязательно оставить, иначе слишком быстро дергаются часы и из-за этого через некоторое время сбрасываются
 
-  if (getTimestamp()-vPrevTime2>= connectPeriod() || isFirstRun) {
+
+   delay(10000); //Обязательно оставить, иначе слишком быстро дергаются часы и из-за этого через некоторое время сбрасываются
+  long long vCurrTime=getTimestamp();
+  long vD = (long)(vCurrTime-vPrevTime2);
+   #ifdef IS_DEBUG_1
+  Serial.print(F("vCurrTime:"));
+  showLong(vCurrTime);
+  Serial.print(F("vPrevTime2:"));
+  showLong(vPrevTime2);
+
+  Serial.print(F("vD:"));
+  Serial.println(vD);
+
+  #endif
+  
+  if (vD >= connectPeriod() || isFirstRun) {
 
 digitalWrite(13, HIGH);    // turn the LED off by making the voltage LOW
   
-   #ifdef IS_DEBUG
+   #ifdef IS_DEBUG_1
     Serial.println(F("***"));
     showDateTime();
     Serial.println();    
