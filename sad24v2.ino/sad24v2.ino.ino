@@ -399,33 +399,32 @@ byte goSleep(byte iMode,long long iPrevTime) {
 
     /* connectPeriod() < getTimestamp() - iPrevTime */
     vNextModem   = (long)(iPrevTime + connectPeriod() - getTimestamp());
-#ifdef IS_DEBUG_1
+#ifdef IS_DEBUG
     Serial.print(F("vNextModem1:"));
     Serial.println(vNextModem);
 #endif
     /* Если по каким-то причинам было пропущено несколько подключений, то принудительно подключаемся */
     vNextModem    = max(0,vNextModem); 
 
-#ifdef IS_DEBUG_1
-
+#ifdef IS_DEBUG
     Serial.print(F("vNextModem2:"));
     Serial.println(vNextModem);
+#endif    
 
     vSleepTime   = min(vNextModem, vSleepTime);
+ #ifdef IS_DEBUG
     Serial.print(F("Sleep time:"));
     Serial.println(vSleepTime);
+ #endif    
     
     vSleepTime   = (unsigned long) vSleepTime * iMode / 100;
+ #ifdef IS_DEBUG
     Serial.print(F("Sleep time * "));
     Serial.print(iMode);
     Serial.print(F("%:"));
     Serial.println(vSleepTime);
-
-    /****************************************************
-     * Если перекатываемся через полночь,               *
-     * то время следующего старта будет меньше,         *
-     * чем текущее время.                               *
-     ****************************************************/
+ #endif
+    
     vPeriodSleep = (unsigned int)(vSleepTime / 8UL);        
     
     
@@ -434,7 +433,7 @@ byte goSleep(byte iMode,long long iPrevTime) {
 
     vWaitTime    = vSleepTime - vFirstLoop*37*8 - vSecondLoop * 8;
 
-
+#ifdef IS_DEBUG
     Serial.print(F("Sleep period:"));
     Serial.println(vPeriodSleep);
 
@@ -829,7 +828,7 @@ void Timer1_doJob(void) {
 
 void setup() {
 
-  #ifdef IS_DEBUG_1
+  #ifdef IS_DEBUG
   Serial.begin(19200);
 #endif  
 
@@ -943,7 +942,8 @@ void loop()
    delay(10000); //Обязательно оставить, иначе слишком быстро дергаются часы и из-за этого через некоторое время сбрасываются
   long long vCurrTime=getTimestamp();
   long vD = (long)(vCurrTime-vPrevTime2);
-   #ifdef IS_DEBUG_1
+
+  #ifdef IS_DEBUG
   Serial.print(F("vCurrTime:"));
   showLong(vCurrTime);
   Serial.print(F("vPrevTime2:"));
@@ -958,7 +958,7 @@ void loop()
 
 digitalWrite(13, HIGH);    // turn the LED off by making the voltage LOW
   
-   #ifdef IS_DEBUG_1
+   #ifdef IS_DEBUG
     Serial.println(F("***"));
     showDateTime();
     Serial.println();    
@@ -983,8 +983,10 @@ if (isModemWork) {
          vAttempt++;
       } while (!vStatus && vAttempt < 3);
 } else {
+ #ifdef IS_DEBUG
   Serial.println(F("*Modem not work"));
   Serial.flush();
+ #endif
 }
 
 
@@ -1038,8 +1040,10 @@ if (isModemWork) {
       } while (!vStatus && vAttempt < 3);
 
 } else {
-  Serial.println(F("*Modem not work"));
-  Serial.flush();;
+  #ifdef IS_DEBUG
+    Serial.println(F("*Modem not work"));
+    Serial.flush();;
+  #endif
 }
      
     vPrevTime2 = getTimestamp();

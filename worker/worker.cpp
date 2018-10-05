@@ -382,7 +382,6 @@ unsigned long worker::_getMinTaskTime(byte iCurrDayOfWeek,unsigned long iCurrTim
 
 long long worker::getTimestamp() {
   DS3231 Clock;
-  long long r;
 
 
   byte year,month,day,hour,minute,second;
@@ -396,6 +395,7 @@ long long worker::getTimestamp() {
      minute = Clock.getMinute();
      second = Clock.getSecond();
    };
+  #ifdef IS_DEBUG
     Serial.print(year);
     Serial.print(F("-"));
     Serial.print(month);
@@ -408,13 +408,7 @@ long long worker::getTimestamp() {
     Serial.print(F(":"));
     Serial.println(second);
     Serial.flush();  
-    r = (year - 16) * 365 * 86400LL + month * 31 * 86400LL + day * 86400LL + hour * 3600LL + minute * 60 + second;
- /* 
-  uint64_t xx;
-  xx = r/1000000000ULL;
-    if (xx>0) Serial.print((long)xx);
-    Serial.print((long)(r-xx*1000000000));*/
-
-    return r;
+  #endif
+    return (year - 16) * 365 * 86400LL + month * 31 * 86400LL + day * 86400LL + hour * 3600LL + minute * 60 + second;
 
 }
