@@ -408,8 +408,12 @@ byte goSleep(byte iMode,long long iPrevTime) {
 
 #ifdef IS_DEBUG
     Serial.print(F("vNextModem2:"));
+    Serial.print(F("vNextModem:"));
     Serial.println(vNextModem);
 #endif    
+
+    Serial.print(F("connectPeriod():"));
+    Serial.println(connectPeriod());
 
     vSleepTime   = min(vNextModem, vSleepTime);
  #ifdef IS_DEBUG
@@ -828,7 +832,7 @@ void Timer1_doJob(void) {
 
 void setup() {
 
-  #ifdef IS_DEBUG
+#ifdef IS_DEBUG
   Serial.begin(19200);
 #endif  
 
@@ -935,6 +939,8 @@ void showLong(long long iVal) {
 
 void loop() 
 {
+
+  delay(5000);
   bool isModemWork = false;   
 
 
@@ -956,7 +962,7 @@ void loop()
   
   if (vD >= connectPeriod() || isFirstRun) {
 
-digitalWrite(13, HIGH);    // turn the LED off by making the voltage LOW
+   // turn the LED off by making the voltage LOW
   
    #ifdef IS_DEBUG
     Serial.println(F("***"));
@@ -989,7 +995,7 @@ if (isModemWork) {
  #endif
 }
 
-
+digitalWrite(13, HIGH); 
 if (isModemWork) {
   long p1;
   int t1, t2, h1;
@@ -1045,11 +1051,10 @@ if (isModemWork) {
     Serial.flush();;
   #endif
 }
-     
+digitalWrite(13, LOW);     
     vPrevTime2 = getTimestamp();
     sl();  //После того как модем передал данные уводим его в сон. Если это делать в основном теле функции, то отправлять будем 1 раз в секунду
   
-digitalWrite(13, LOW);
 };
 
  
