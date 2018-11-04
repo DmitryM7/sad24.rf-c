@@ -1,3 +1,4 @@
+#define PERIOD_MODEM_SLEEP 180
 #define WDT_ENABLE1
 
 #include <avr/wdt.h>
@@ -30,26 +31,21 @@ struct Globals {
 };
 
 struct offlineParams {
-  int  tempUpLight1;
-  int  tempUpLight2;
-  int  tempUpWater1;
-  int  tempUpWater2;
+  int  tempUpLight;
+  int  tempUpWater;
 };
 
 
 unsigned int mOfflineParamsStart = sizeof(Connection) + sizeof(Globals);
 unsigned int mWorkerStart = mOfflineParamsStart + sizeof(offlineParams);
-
+unsigned long vPrevTime1;
 long long vPrevTime2;
 
 volatile bool mCanGoSleep=true;
 bool isFirstRun = true;
 
-int mCurrTempOut = 9900,
-    mCurrTempIn  = 990,   
-    mCurrH;
-unsigned long mCurrP;
-    
+int mCurrTempOut = 19900;
+int mCurrTempIn  = -2000;
 
 workerInfo _water;
 workerInfo _light;
@@ -60,42 +56,43 @@ workerInfo _light;
    Геттеры и сеттеры.
  **********************************************************/
 
+int getCurrTempOut() {
+  return mCurrTempOut;
+}
 
-void setOfflineLight(int iLight, int iWater) {
+int getCurrTempIn() {
+  return mCurrTempIn;
+}
+
+int getTempUpLight() {
+  offlineParams _offlineParams;
+  EEPROM.get(mOfflineParamsStart, _offlineParams);
+  return _offlineParams.tempUpLight;
+};
+
+int getTempUpWater() {
+  offlineParams _offlineParams;
+  EEPROM.get(mOfflineParamsStart, _offlineParams);
+  return _offlineParams.tempUpWater;
+};
+
+void setTempOffline(int iLight, int iWater) {
   offlineParams _offlineParams;
 
 
-  if (abs(iLight) > 99 || abs(iWater) > 99) {
+  if (iLight < -99 || iLight > 99 || iWater < -99 || iWater > 99) {
     return;
   };
 
   EEPROM.get(mOfflineParamsStart, _offlineParams);
-  _offlineParams.tempUpLight1 = iLight * 100;
-  _offlineParams.tempUpLight2 = iWater * 100;
+  _offlineParams.tempUpLight = iLight;
+  _offlineParams.tempUpWater = iWater;
 
   noInterrupts();
   EEPROM.put(mOfflineParamsStart, _offlineParams);
   interrupts();
+
 }
-
-void setOfflineWater(int iLight, int iWater) {
-  offlineParams _offlineParams;
-
-
-if (abs(iLight) > 99 || abs(iWater) > 99) {
-    return;
-  };
-
-  EEPROM.get(mOfflineParamsStart, _offlineParams);
-  _offlineParams.tempUpWater1 = iLight * 10;
-  _offlineParams.tempUpWater2 = iWater * 10;
-
-  noInterrupts();
-  EEPROM.put(mOfflineParamsStart, _offlineParams);
-  interrupts();
-}
-
-
 
 unsigned long connectPeriod() {
   Globals _globals;
@@ -128,15 +125,16 @@ void setConnectPeriod(int iSleepTime) {
    Дополнительные методы работы.
  ***********************************************************/
 
+void showDateTime() {
+  worker _worker(mWorkerStart);
+  _worker.showDateTime();
+}
 
-void loadSensorInfo1(int *oT1, 
-                     int *oH1, 
-                     int *oT2, 
-                     unsigned long *oP1) {
-  float    h1 = -100, t1 = 200;  
+void loadSensorInfo1(int *oT1, int *oH1, int *oT2, long *oP1) {
+  float    h1 = -100, t1 = 200;
+  long     p1 = -100;
   unsigned long vCurrTime;
-  int32_t  p1 = -100,
-           t2 = -100;
+  int32_t  t2 = -100;
 
   Wire.begin();
 
@@ -148,7 +146,6 @@ void loadSensorInfo1(int *oT1,
 
 
   dps.getPressure(&p1);
-
   dht.begin();
 
   /***********************************************************
@@ -159,14 +156,17 @@ void loadSensorInfo1(int *oT1,
 
 
 
-  
+  h1 = dht.readHumidity();
+  t1 = dht.readTemperature();
+  noInterrupts();
   vCurrTime = millis();
-  
-  do {    
+  interrupts();
+
+  while ((isnan(h1) || isnan(t1)) && millis() - vCurrTime < 5000) {
+    delay(1000);
     h1 = dht.readHumidity();
     t1 = dht.readTemperature();
-    delay(1000);
-  } while ((isnan(h1) || isnan(t1)) && millis() - vCurrTime < 5000) ;
+  };
 
 
   /*****************************************************
@@ -188,6 +188,10 @@ void loadSensorInfo1(int *oT1,
     p1 = -100;
   };
 
+
+  mCurrTempOut = round(t1);
+  mCurrTempIn  = round(t2 / 10);
+
   h1 = h1 * 100;
   t1 = t1 * 100;
 
@@ -198,21 +202,16 @@ void loadSensorInfo1(int *oT1,
 
 }
 
+unsigned long getSecMidnight() {
+  worker _worker(mWorkerStart);
+  return _worker.getSecMidnight();
+}
 
 long long getTimestamp() {
   worker _worker(mWorkerStart);
-  return _worker.getTimestamp();
+  return _worker.getSecMidnight();
 }
 
-void showLong(long long iVal) {
-
- char buffer[25];
- sprintf(buffer, "%0ld", iVal/1000000L);
- Serial.print(buffer);  
- sprintf(buffer, "%0ld", iVal%1000000L);
- Serial.print(buffer); 
-
-}
 
 
 
@@ -241,7 +240,7 @@ void parseThreeParamCommand(char* iCommand) {
   strcpy_P(vTmpStr, PSTR("APN7"));
   if (_mstr.isEqual(vCmd, vTmpStr)) {
 #ifdef IS_DEBUG
-    Serial.print(F("APN: "));
+    Serial.print(F(">APN: "));
 #endif
 
     strcpy_P(vTmpStr, PSTR(":"));
@@ -275,7 +274,7 @@ void parseThreeParamCommand(char* iCommand) {
   if (_mstr.isEqual(vCmd, vTmpStr)) {
 
 #ifdef IS_DEBUG
-    Serial.print(F("SITE: "));
+    Serial.print(F(">SITE: "));
 #endif
     strcpy_P(vTmpStr, PSTR(":"));
 
@@ -325,7 +324,7 @@ bool onSms(byte iSms, char* iCommand) {
 
 void readSms() {
   gprs2 sim900(7, 8);
-    
+
   sim900.setOnSms(onSms);
   sim900.readSms();
 }
@@ -368,52 +367,66 @@ void sl() {
 
 void restartModem() {
   gprs2 sim900(7, 8);
+  #ifdef IS_DEBUG
+    Serial.println(F("*REST*"));
+    Serial.flush();
+  #endif
   sim900.softRestart();
   delay(60000);
 };
 /**************************************************************************
     Конец методов работы с модемом
  *************************************************************************/
-bool canGoSleep() {
-   offlineParams _offlineParams;
-   EEPROM.get(mOfflineParamsStart, _offlineParams);
-   return mCanGoSleep && abs(_offlineParams.tempUpWater1) == 990 && abs(_offlineParams.tempUpWater1) == 990 && abs(_offlineParams.tempUpLight1) == 9900 && abs(_offlineParams.tempUpLight1) == 9900;
-}
 
-byte goSleep(byte iMode,long long iPrevTime) {
+
+byte goSleep(byte iMode,unsigned long iPrevTime1) {
   unsigned long  vSleepTime   = 0, 
+                 vNextModem   = 0,
                  vPeriodSleep = 0,
                  vFirstLoop   = 0,
-                 vSecondLoop  = 0;
-
-           long  vNextModem   = 0;
+                 vSecondLoop  = 0,
+                 vCurrTime    = 0;
 
   byte vWaitTime=0;                 
 
  
-   {
+    vCurrTime    = getSecMidnight();
+{
     worker _worker(mWorkerStart);    
     vSleepTime   = _worker.getSleepTime();
-   };
+};
     
  
 
-    vNextModem   = (long)(iPrevTime + connectPeriod() - getTimestamp());
-    /* Если по каким-то причинам было пропущено несколько подключений, то принудительно подключаемся */
-    vNextModem    = max(0,vNextModem); 
+    //При переходе через сутки vCurrTime будет меньше, чем iPrevTime1 поэтому докидываем этой переменной до суток.
+    vNextModem   = iPrevTime1 + connectPeriod() - (vCurrTime < iPrevTime1 ? vCurrTime + 86400: vCurrTime);
 
+#ifdef IS_DEBUG
+
+    Serial.print(F("vCurrTime: "));
+    Serial.println(vCurrTime);
+
+    Serial.print(F("vNextModem:"));
+    Serial.println(vNextModem);
+
+    Serial.print(F("iPrevTime1: "));
+    Serial.println(iPrevTime1);
 
     vSleepTime   = min(vNextModem, vSleepTime);
-  
-    vSleepTime   = (unsigned long) vSleepTime * iMode / 100;
- #ifdef IS_DEBUG
-    Serial.print(F("Slp time * "));
-    Serial.print(iMode);
-    Serial.print(F("%="));
+    Serial.print(F("Sleep time:"));
     Serial.println(vSleepTime);
-    Serial.flush();
- #endif
     
+    vSleepTime   = (unsigned long) vSleepTime * iMode / 100;
+    Serial.print(F("Sleep time * "));
+    Serial.print(iMode);
+    Serial.print(F("%:"));
+    Serial.println(vSleepTime);
+
+    /****************************************************
+     * Если перекатываемся через полночь,               *
+     * то время следующего старта будет меньше,         *
+     * чем текущее время.                               *
+     ****************************************************/
     vPeriodSleep = (unsigned int)(vSleepTime / 8UL);        
     
     
@@ -421,6 +434,22 @@ byte goSleep(byte iMode,long long iPrevTime) {
     vSecondLoop  = vPeriodSleep % 37;
 
     vWaitTime    = vSleepTime - vFirstLoop*37*8 - vSecondLoop * 8;
+
+
+    Serial.print(F("Sleep period:"));
+    Serial.println(vPeriodSleep);
+
+    Serial.print(F("First Loop: "));
+    Serial.println(vFirstLoop);
+
+    Serial.print(F("Second Loop: "));
+    Serial.println(vSecondLoop);
+
+    Serial.print(F("vWaitTime: "));
+    Serial.println(vWaitTime);
+    Serial.flush();
+
+#endif
         
   for (unsigned int vJ = 0; vJ < vFirstLoop; vJ++) {      
      sl();
@@ -435,7 +464,13 @@ byte goSleep(byte iMode,long long iPrevTime) {
   for (unsigned int vJ = 0; vJ < vSecondLoop; vJ++) {
         LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);    
   };     
-  
+   
+ #ifdef IS_DEBUG
+   Serial.print(F(". wait-2. "));
+   Serial.println(getSecMidnight());
+   Serial.flush();
+ #endif 
+
  return vWaitTime; 
 
 };
@@ -459,7 +494,7 @@ bool doPostParams(char* iRes, unsigned int iSize) {
     char vError[20];
     sim900.getLastError(vError);
     #ifdef IS_DEBUG
-    Serial.print(F("CI ER:"));
+    Serial.print(F("CInet error: "));
     Serial.println(vError);
     #endif
     return false;
@@ -475,7 +510,7 @@ bool doPostParams(char* iRes, unsigned int iSize) {
 
   vResult = sim900.postUrl(_connection.sitePoint, vParams, iRes, iSize);
 #ifdef IS_DEBUG
-  Serial.print(F("PAR"));
+  Serial.print(F("Params "));
 #endif
 
   if (vResult) {
@@ -486,7 +521,7 @@ bool doPostParams(char* iRes, unsigned int iSize) {
      *                                                                        *
      **************************************************************************/
 #ifdef IS_DEBUG
-    Serial.print(F(":"));
+    Serial.print(F("status: "));
     Serial.println(iRes);
     Serial.flush();
 #endif
@@ -495,7 +530,7 @@ bool doPostParams(char* iRes, unsigned int iSize) {
     sim900.getLastError(vError);
 
     #ifdef IS_DEBUG
-      Serial.print(F(" ER:"));
+      Serial.print(F("error: "));
       Serial.println(vError);
       Serial.flush();
     #endif
@@ -507,7 +542,7 @@ bool doPostParams(char* iRes, unsigned int iSize) {
 
 };
 
-bool updateRemoteMeasure(int t1,  int h1, int t2, long unsigned int p1) {
+bool updateRemoteMeasure(int t1,  int h1, int t2, long p1) {
   char vParams[200],     
        vRes[35],
        sitePoint[40];
@@ -520,7 +555,7 @@ bool updateRemoteMeasure(int t1,  int h1, int t2, long unsigned int p1) {
   {
     Connection _connection;      
     EEPROM.get(0, _connection);
-    sprintf_P(vParams, PSTR("r=%s&s=%s&t1=%d&h1=%d&t2=%d&p1=%lu&w1=%lu&l1=%lu&d=%lu"), _connection.siteLogin, _connection.sitePass, t1, h1, t2, p1, _water.duration, _light.duration, millis());
+    sprintf_P(vParams, PSTR("r=%s&s=%s&t1=%d&h1=%d&t2=%d&p1=%ld&w1=%lu&l1=%lu&d=%lu"), _connection.siteLogin, _connection.sitePass, t1, h1, t2, p1, _water.duration, _light.duration, millis());
     sim900.setInternetSettings(_connection.apnPoint, _connection.apnLogin, _connection.apnPass);
     strncpy(sitePoint,_connection.sitePoint,40);
   };
@@ -530,7 +565,7 @@ bool updateRemoteMeasure(int t1,  int h1, int t2, long unsigned int p1) {
     char vError[20];
     sim900.getLastError(vError);
     #ifdef IS_DEBUG
-      Serial.print(F("CI ER:"));
+      Serial.print(F("CInet error: "));
       Serial.println(vError);
       Serial.flush();
     #endif
@@ -540,7 +575,7 @@ bool updateRemoteMeasure(int t1,  int h1, int t2, long unsigned int p1) {
   vResult = sim900.postUrl(sitePoint, vParams, vRes, sizeof(vRes));
 
 #ifdef IS_DEBUG
-  Serial.print(F("MEAS "));
+  Serial.print(F("Measurement "));
 #endif
 
   if (vResult) {
@@ -558,11 +593,15 @@ bool updateRemoteMeasure(int t1,  int h1, int t2, long unsigned int p1) {
 
 
     if (!_water.isWork) {
+      noInterrupts();
       _water.duration = 0;
+      interrupts();
     };
 
     if (!_light.isWork) {
+      noInterrupts();
       _light.duration = 0;
+      interrupts();
     };
 
 
@@ -570,7 +609,7 @@ bool updateRemoteMeasure(int t1,  int h1, int t2, long unsigned int p1) {
     char vError[20];
     sim900.getLastError(vError);
 #ifdef IS_DEBUG
-    Serial.print(F("ER: "));
+    Serial.print(F("error: "));
     Serial.println(vError);
     Serial.flush();
 #endif
@@ -601,7 +640,7 @@ bool beforeTaskUpdate(char* iStr) {
     if (strcmp_P(vCommand, PSTR("C")) == 0) {
       if (_mstr.entry(2, iStr, vDelimiter, 4, vParam1)) {
 #ifdef IS_DEBUG
-        Serial.print(F("Sleep "));
+        Serial.print(F("Sleep = "));
         Serial.println(atoi(vParam1));
         Serial.flush();
 #endif
@@ -610,33 +649,16 @@ bool beforeTaskUpdate(char* iStr) {
       };
     };
 
-    if (strcmp_P(vCommand, PSTR("G")) == 0) {
+    if (strcmp_P(vCommand, PSTR("O")) == 0) {
       if (_mstr.entry(2, iStr, vDelimiter, 4, vParam1) && _mstr.entry(3, iStr, vDelimiter, 4, vParam2)) {
-
-        #ifdef IS_DEBUG
-            Serial.print(F("L off:"));
-            Serial.print(vParam1);
-            Serial.print(F("&"));
-            Serial.println(vParam2);
-            Serial.flush();
-        #endif
-        setOfflineLight(atoi(vParam1), atoi(vParam2));
-        return false;
-      };
-    };
-
-    
-    if (strcmp_P(vCommand, PSTR("J")) == 0) {
-      if (_mstr.entry(2, iStr, vDelimiter, 4, vParam1) && _mstr.entry(3, iStr, vDelimiter, 4, vParam2)) {
-
-        #ifdef IS_DEBUG
-            Serial.print(F("W off:"));
-            Serial.print(vParam1);
-            Serial.print(F("&"));
-            Serial.println(vParam2);
-            Serial.flush();
-        #endif
-        setOfflineWater(atoi(vParam1), atoi(vParam2));
+#ifdef IS_DEBUG
+        Serial.print(F("Set temp offline:"));
+        Serial.print(vParam1);
+        Serial.print(F("&"));
+        Serial.println(vParam2);
+        Serial.flush();
+#endif
+        setTempOffline(atoi(vParam1), atoi(vParam2));
         return false;
       };
     };
@@ -697,11 +719,9 @@ void Timer1_doJob(void) {
   unsigned long secMidnight=0;
   bool isWaterShouldWork = false,
        isLightShouldWork = false;
-  offlineParams _offlineParams;
-  EEPROM.get(mOfflineParamsStart, _offlineParams);       
 
   secMidnight=_worker.getSecMidnight();
-/*
+
     #ifdef IS_DEBUG
     Serial.print(F("Mem:"));
     Serial.print(freeMemory());
@@ -709,41 +729,10 @@ void Timer1_doJob(void) {
     Serial.println(secMidnight);
     Serial.flush();
   #endif
-  */
 
-
-   /*******************************************************************
-    * Если достигли минимального значения по температе,               *
-    * то включаем устройство "Свет". При этом отмечаем, что включение *
-    * произошло по границе.                                           *
-    *******************************************************************/
-    
-   if (mCurrTempOut <= _offlineParams.tempUpLight1 || _light.isEdge) {
-    isLightShouldWork = true;
-    _light.isEdge     = true;
-   };
-
-   if (_light.isEdge && mCurrTempOut >= _offlineParams.tempUpLight2) {
-      isLightShouldWork = false;
-      _light.isEdge = false;
-   };
-
-   /******************************************************************
-    * Если достигли мимального значения по внутренней температуре,   *
-    * то включаем устройство "Вода". При этом отмечаем включение     *
-    * по температуре. Делаю эту тему по заказу Юрца Маленького.      *
-    ******************************************************************/
-   if (mCurrTempIn <= _offlineParams.tempUpWater1 || _water.isEdge) {
-     isWaterShouldWork = true;
-     _water.isEdge     = true;
-   };
-
-   if (_water.isEdge && mCurrTempIn >= _offlineParams.tempUpWater2) {
-      isWaterShouldWork = false;
-      _water.isEdge     = false;
-   };
-
-    
+     
+  isLightShouldWork = getCurrTempOut() <= getTempUpLight();
+  isWaterShouldWork = getCurrTempIn()  >= getTempUpWater();
 
   for (byte vI = 0; vI < _worker.maxTaskCount; vI++) {    
     byte executor = _worker.shouldTaskWork2(vI, secMidnight);
@@ -841,7 +830,7 @@ void Timer1_doJob(void) {
 
 void setup() {
 
-#ifdef IS_DEBUG
+  #ifdef IS_DEBUG
   Serial.begin(19200);
 #endif  
 
@@ -889,10 +878,10 @@ void setup() {
     strcpy_P(_connection.sitePoint, PSTR("xn--24-6kcq7d.xn--p1ai/ri/sa"));
 
     // Site LOGIN
-    strcpy_P(_connection.siteLogin, PSTR("\0"));
+    strcpy_P(_connection.siteLogin, PSTR("guest"));
 
     // Site PASS
-    strcpy_P(_connection.sitePass, PSTR("\0"));
+    strcpy_P(_connection.sitePass, PSTR("guest"));
 
 
     strcpy_P(_connection.apnPoint, PSTR("\0"));
@@ -912,8 +901,7 @@ void setup() {
     EEPROM.put(sizeof(Connection), _globals);
     interrupts();
 
-    setOfflineLight(-99, -99);
-    setOfflineWater(99, 99);
+    setTempOffline(-99, 99);
 #ifdef IS_DEBUG
     Serial.println(F("END SET"));
 #endif
@@ -923,7 +911,15 @@ void setup() {
   Timer1.attachInterrupt(Timer1_doJob);
   Timer1.start();
 
-  
+ /*
+  * Отладка ошибки 23.09.28
+  * 
+  */
+  vPrevTime1 = 66900;
+  vPrevTime2 = 66900;
+  _worker.setDateTime(18, 9, 23, 23, 33, 0);
+  isFirstRun = false;
+ 
 #ifdef WDT_ENABLE
   wdt_enable (WDTO_8S);
 #endif
@@ -933,61 +929,28 @@ void setup() {
 
 void loop() 
 {
-  delay(15000); //Обязательно оставить, иначе слишком быстро дергаются часы и из-за этого через некоторое время сбрасываются  
   bool isModemWork = false;   
-  long long vCurrTime=getTimestamp();
-  long vD = (long)(vCurrTime-vPrevTime2);   
+
+   delay(1000); //Обязательно оставить, иначе слишком быстро дергаются часы и из-за этого через некоторое время сбрасываются
+
+  if (getTimestamp()-vPrevTime2>= connectPeriod() || isFirstRun) {
+
+digitalWrite(13, HIGH);    // turn the LED off by making the voltage LOW
   
-  loadSensorInfo1(&mCurrTempOut,&mCurrH, &mCurrTempIn, &mCurrP);
-
-    #ifdef IS_DEBUG
-    Serial.print(F("T1:"));
-    Serial.println(mCurrTempOut);
-
-    Serial.print(F("T2:"));
-    Serial.println(mCurrTempIn);
-
-    Serial.print(F("H:"));
-    Serial.println(mCurrH);
-
-    Serial.print(F("P:"));
-    Serial.println(mCurrP);
-
-
-    Serial.print(F("W&L:"));
-    Serial.print(_water.duration);
-    Serial.print(F("&"));
-    Serial.println(_light.duration);
-
-    Serial.print(F("CP:"));
-    Serial.println(connectPeriod());
-    
+   #ifdef IS_DEBUG
+    Serial.println(F("***"));
+    showDateTime();
+    Serial.println();    
     Serial.flush();
-  #endif
+   #endif
 
-
-  #ifdef IS_DEBUG
-  Serial.print(F("vD:"));
-  showLong(vCurrTime);
-  Serial.print(F("-"));
-  showLong(vPrevTime2);
-  Serial.print(F("="));
-  Serial.println(vD);
-
-  #endif
-  
-  if (vD >= connectPeriod() || isFirstRun) {
-
-   // turn the LED off by making the voltage LOW
-  
- isModemWork = wk();
-
- if ( isModemWork && isFirstRun) { readSms(); };
+    isModemWork = wk();
    
 
 if (isModemWork) {
  byte vAttempt = 0;
  bool vStatus  = false;
+ readSms();
 
        do {
          vStatus = updateRemoteParams();
@@ -999,20 +962,52 @@ if (isModemWork) {
          vAttempt++;
       } while (!vStatus && vAttempt < 3);
 } else {
- #ifdef IS_DEBUG
-  Serial.println(F("*MDM ER*"));
+  Serial.println(F("*Modem not work"));
   Serial.flush();
- #endif
 }
 
-digitalWrite(13, HIGH); 
+
 if (isModemWork) {
-   
+  long p1;
+  int t1, t2, h1;
   byte vAttempt = 0;
   bool vStatus  = false;
-  
+  loadSensorInfo1(&t1, &h1, &t2, &p1);
+
+  #ifdef IS_DEBUG
+    Serial.print(F("T_out:"));
+    Serial.println(t1);
+
+    Serial.print(F("T_in:"));
+    Serial.println(t2);
+
+    Serial.print(F("H:"));
+    Serial.println(h1);
+
+    Serial.print(F("P:"));
+    Serial.println(p1);
+
+
+    Serial.print(F("W&L:"));
+    Serial.print(_water.duration);
+    Serial.print(F("&"));
+    Serial.println(_light.duration);
+
+
+    Serial.print(F("Off.mode: "));
+    Serial.print(getTempUpLight());
+    Serial.print(F(" & "));
+    Serial.println(getTempUpWater());
+
+    Serial.print(F("Con.per.: "));
+    Serial.println(connectPeriod());
+    
+    Serial.flush();
+  #endif
+ 
+
        do {
-        vStatus = updateRemoteMeasure(mCurrTempOut, mCurrH, mCurrTempIn, mCurrP);
+        vStatus = updateRemoteMeasure(t1, h1, t2, p1);
 
         if (!vStatus && vAttempt==1) {
           restartModem();
@@ -1022,36 +1017,41 @@ if (isModemWork) {
       } while (!vStatus && vAttempt < 3);
 
 } else {
-  #ifdef IS_DEBUG
-    Serial.println(F("*MDM ER*"));
-    Serial.flush();;
-  #endif
+  Serial.println(F("*Modem not work"));
+  Serial.flush();;
 }
-digitalWrite(13, LOW);     
-
-vPrevTime2 = getTimestamp();
-sl();  //После того как модем передал данные уводим его в сон. Если это делать в основном теле функции, то отправлять будем 1 раз в секунду
+     
+    vPrevTime1 = getSecMidnight();
+    vPrevTime2 = getTimestamp();
+    sl();  //После того как модем передал данные уводим его в сон. Если это делать в основном теле функции, то отправлять будем 1 раз в секунду
   
+digitalWrite(13, LOW);
 };
 
  
   isFirstRun = false;
-  
-  if (!canGoSleep()) {
+
+   {
+   bool vCanGoSleep;
+   noInterrupts();
+   vCanGoSleep=mCanGoSleep;
+   interrupts();
+
+   if (!vCanGoSleep) {
      return;
    };
-
+ };
 
  Timer1.stop();
- goSleep(50,vPrevTime2);
- goSleep(75,vPrevTime2);
- goSleep(90,vPrevTime2);
+ goSleep(50,vPrevTime1);
+ goSleep(75,vPrevTime1);
+ goSleep(90,vPrevTime1);
 /**************************************************
   * Гарантировано даем включиться исполнителям.
   * 
   **************************************************/  
   {
-    byte vDelay = goSleep(100,vPrevTime2);
+    byte vDelay = goSleep(100,vPrevTime1);
     Timer1.start();
     delay(vDelay * 1000 + 2000);
   };

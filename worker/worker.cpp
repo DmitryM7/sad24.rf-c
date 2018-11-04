@@ -85,9 +85,6 @@ void worker::setTask2(unsigned int iAddress,char* iStr) {
         if (_mstr.numEntries(iStr,vDelimiter)!=3) {
            return;
         };
-        #if IS_DEBUG>0
-          Serial.println(iStr);
-        #endif
 
 
         _mstr.entry(2,iStr,vDelimiter,vStr);
@@ -326,7 +323,7 @@ unsigned long worker::getSleepTime() {
 
    vNextTime = _getMinTaskTime(vCurrDayOfWeek,vCurrTime);
 
-   if (vNextTime == NEAREST_TIME_BORDER) { return 0; };
+   if (vNextTime == NEAREST_TIME_BORDER) { return NEAREST_TIME_BORDER; };
 
   {
      byte vNextDayOfWeek;
@@ -395,7 +392,7 @@ long long worker::getTimestamp() {
      minute = Clock.getMinute();
      second = Clock.getSecond();
    };
-  #ifdef IS_DEBUG
+  #if IS_DEBUG>1
     Serial.print(year);
     Serial.print(F("-"));
     Serial.print(month);

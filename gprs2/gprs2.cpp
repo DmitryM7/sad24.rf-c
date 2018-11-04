@@ -22,12 +22,6 @@ void gprs2::setInternetSettings(char* iApn,char* iLogin,char* iPass) {
      _apn   = String(iApn);
      _login = String(iLogin);
      _pass  = String(iPass);
-/*   strncpy(_apn,vApn,35);
-   _apn[34]='\0';
-   strncpy(_login,vLogin,11);
-   _login[10]='\0';
-   strncpy(_pass,vPass,11);
-   _pass[10]='\0';*/
 }
 
 
@@ -101,9 +95,6 @@ bool gprs2::_getAnswer3(char* oRes,size_t iSize,bool saveCRLF,bool showAnswer) {
 
   } while ((millis() - vCurrTime < 2000UL) && (!wasRead || (wasRead && millis() - vLastReadTime < 750UL)));
 
-/*  Serial.print(F(">"));
-  Serial.println(oRes);
-  Serial.flush();*/
   return wasRead;         
 }                                     
 
@@ -116,12 +107,6 @@ bool gprs2::_getAnswerWait(char* oRes,size_t iSize,char* iNeedStr,bool iSaveCRLF
 
      do {
        _getAnswer3(oRes,iSize,iSaveCRLF);  
-       #if IS_DEBUG>1
-       if (iDebug) {
-         Serial.println(oRes);
-         Serial.flush();
-       };
-       #endif
        vAttempt++;
      }  while ((vStatus=_mstr.indexOf(oRes,iNeedStr)==-1) && vAttempt < 10);
 
@@ -223,11 +208,7 @@ bool gprs2::hasGprs() {
       _setLastError(__LINE__,vRes);      
       return false;
     };
-    
-    #if IS_DEBUG>1
-      Serial.println(vRes);
-    #endif
-    
+        
     strcpy_P(vTmpStr, PSTR(": 1,1,")); 
 
     if (_mstr.indexOf(vRes,vTmpStr)==-1) {
@@ -428,6 +409,7 @@ bool gprs2::canInternet() {
        {
          unsigned int vFactSize  = 0;
          vFactSize = strlen(iPar);
+
          #if IS_DEBUG>1
           Serial.println(iPar);
          #endif
@@ -480,10 +462,6 @@ bool gprs2::canInternet() {
              if (_mstr.indexOf(oRes,_tmpStr)>0) {                
                  _setLastError(__LINE__,oRes);
              } else {
-                  #if IS_DEBUG>1
-                  Serial.println(F("NO ACTION"));
-                  Serial.flush();
-                 #endif
                  _setLastError(__LINE__,oRes);
              };
               _sendTermCommand();
@@ -629,12 +607,10 @@ bool gprs2::deleteSms(byte iSms) {
         _tmpStr[10];
    mstr _mstr;
 
-   noInterrupts();
   _modem.print(F("AT+CMGD="));
   _modem.flush();
   _modem.println((int)iSms);
   _modem.flush();
-  interrupts();
   getAnswer3(vRes,sizeof(vRes));
 
 strcpy_P(_tmpStr, (char*)OK_M);
@@ -735,7 +711,7 @@ bool gprs2::setOnSms(bool (*iSmsEvent)(byte iSms, char* oStr)) {
 
  bool gprs2::readSms(bool deleteAfterRead=true) {
   char vRes[200],
-       vDelimiter[2]; //,vCommand[100]; //,vCommand[10];   
+       vDelimiter[2];
   int vFirstLFPos=0;
   mstr _mstr;
 
@@ -744,9 +720,19 @@ bool gprs2::setOnSms(bool (*iSmsEvent)(byte iSms, char* oStr)) {
 
     for (unsigned int vI=1; vI<6; vI++) {
          getSmsText(vI,vRes,sizeof(vRes));
-
              
          if (strlen(vRes) < 20) {
+               //******************************************************************
+               //Возможно ситуация, когда SMS  содержит текст на кирилице
+               //этот текст будет кодироваться существенно больше 200 символов
+               // в результате в итоговую строку не попадет завершаюший OK СМС.
+               // Это приведет к тому, что СМС будет считаться как отсутствующее,
+               // но при этом память СМС будет занята. Поэтому несмотря на то, что
+               // СМС не считана память следует очистить.
+               //*******************************************************************
+	       if (deleteAfterRead) {
+	           deleteSms(vI);
+	       };
             continue;
          };  
 
@@ -757,12 +743,6 @@ bool gprs2::setOnSms(bool (*iSmsEvent)(byte iSms, char* oStr)) {
             continue;
         };
         vFirstLFPos++;
-
-        #ifdef IS_DEBUG
-         Serial.println(F("-- sms ready ---"));
-         Serial.println(vRes);
-         Serial.println(F("-- end ready ---"));
-        #endif
 
         _mstr.leftShift(vRes,vFirstLFPos);
 
@@ -826,66 +806,33 @@ void gprs2::_getSmsBody(char* vRes,char* oBody,unsigned int iMaxSmsBodyLength) {
 }
 
 void gprs2::_doCmd(char* iStr) {
-  #if IS_DEBUG>1
-    Serial.println(iStr);
-    Serial.flush();
-  #endif
-  noInterrupts();
   _modem.println(iStr);
   _modem.flush();
-  interrupts();
 };
 
 
 void gprs2::_doCmd(const __FlashStringHelper *iStr) {
-  #if IS_DEBUG>1
-    Serial.println(iStr);
-    Serial.flush();
-  #endif
-  noInterrupts();
   _modem.println(iStr);
   _modem.flush();
-  interrupts();
 }
 
 void gprs2::_doCmd3(const __FlashStringHelper *iStr1,char* iStr2,const __FlashStringHelper *iStr3) {
 
-  #if IS_DEBUG>1
-  Serial.print(iStr1);
-  Serial.flush();
-  Serial.print(iStr2);
-  Serial.flush();
-  Serial.println(iStr3);      	
-  Serial.flush();
- #endif
-  noInterrupts();
   _modem.print(iStr1);
   _modem.flush();
   _modem.print(iStr2);
   _modem.flush();
   _modem.println(iStr3);
   _modem.flush();
-  interrupts();
 }
 
 void gprs2::_doCmd3(const __FlashStringHelper *iStr1,String iStr2,const __FlashStringHelper *iStr3) {
-
-  #if IS_DEBUG>1
-  Serial.print(iStr1);
-  Serial.flush();
-  Serial.print(iStr2);
-  Serial.flush();
-  Serial.println(iStr3);      	
-  Serial.flush();
- #endif
-  noInterrupts();
   _modem.print(iStr1);
   _modem.flush();
   _modem.print(iStr2);
   _modem.flush();
   _modem.println(iStr3);
   _modem.flush();
-  interrupts();
 }
 
 
@@ -893,18 +840,9 @@ void gprs2::softRestart() {
     char vRes[20],vTmpStr[5];
     mstr _mstr;
 
-    #if IS_DEBUG>1
-      Serial.print(F("*REST* : "));
-    #endif
-
    _doCmd(F("AT+CFUN=1,1"));
     getAnswer3(vRes,sizeof(vRes));
 
-    #if IS_DEBUG>1
-    Serial.print(vRes);
-    Serial.println(F("*"));
-    Serial.flush();
-    #endif
 
     strcpy_P(vTmpStr, (char*)OK_M);
 
@@ -966,9 +904,6 @@ bool gprs2::wakeUp() {
           vTmpStr[15];
      bool vStatus;
 
-      #if IS_DEBUG>1
-      Serial.print(F("wake up:"));
-      #endif
 
       pinMode(4,OUTPUT);
       digitalWrite(4,LOW);
@@ -986,10 +921,6 @@ bool gprs2::wakeUp() {
         return false;  
       };
 
-     #if IS_DEBUG>1
-      Serial.println(vRes);
-     #endif
-
       pinMode(4,INPUT);
 
  return true;
@@ -1001,9 +932,6 @@ void gprs2::sleep() {
                     
      pinMode(4,INPUT);
 
-     #if IS_DEBUG>1
-      Serial.print(F("Sleep:"));
-     #endif
 
      _doCmd(F("AT+CSCLK=1"));
 
