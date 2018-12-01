@@ -1,5 +1,4 @@
 #define WDT_ENABLE1
-
 #include <avr/wdt.h>
 #include <BMP085.h>
 #include <DHT.h>
@@ -10,9 +9,6 @@
 #include <TimerOne.h>
 #include <LowPower.h>
 #include <debug.h>
-#include <MemoryFree.h>
-
-
 
 struct Connection {
   char apnPoint[35];
@@ -377,7 +373,7 @@ void restartModem() {
 bool canGoSleep() {
    offlineParams _offlineParams;
    EEPROM.get(mOfflineParamsStart, _offlineParams);
-   return mCanGoSleep && abs(_offlineParams.tempUpWater1) == 990 && abs(_offlineParams.tempUpWater1) == 990 && abs(_offlineParams.tempUpLight1) == 9900 && abs(_offlineParams.tempUpLight1) == 9900;
+   return mCanGoSleep && abs(_offlineParams.tempUpWater1) == 990 && abs(_offlineParams.tempUpWater2) == 990 && abs(_offlineParams.tempUpLight1) == 9900 && abs(_offlineParams.tempUpLight2) == 9900;
 }
 
 byte goSleep(byte iMode,long long iPrevTime) {
@@ -933,7 +929,12 @@ void setup() {
 
 void loop() 
 {
-  delay(15000); //Обязательно оставить, иначе слишком быстро дергаются часы и из-за этого через некоторое время сбрасываются  
+  //Обязательно оставить, иначе слишком быстро дергаются часы и из-за этого через некоторое время сбрасываются  
+  digitalWrite(13,HIGH);
+  delay(350);
+  digitalWrite(13,LOW);
+  delay(15000); 
+  
   bool isModemWork = false;   
   long long vCurrTime=getTimestamp();
   long vD = (long)(vCurrTime-vPrevTime2);   
@@ -982,7 +983,7 @@ void loop()
   
  isModemWork = wk();
 
- if ( isModemWork && isFirstRun) { readSms(); };
+ if ( isModemWork && isFirstRun) { digitalWrite(13,HIGH); delay(1000); digitalWrite(13,LOW); delay(1000); digitalWrite(13,HIGH); delay(1000); digitalWrite(13,LOW); readSms(); };
    
 
 if (isModemWork) {
