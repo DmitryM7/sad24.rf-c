@@ -85,9 +85,6 @@ void worker::setTask2(unsigned int iAddress,char* iStr) {
         if (_mstr.numEntries(iStr,vDelimiter)!=3) {
            return;
         };
-        #if IS_DEBUG>0
-          Serial.println(iStr);
-        #endif
 
 
         _mstr.entry(2,iStr,vDelimiter,vStr);
@@ -181,9 +178,9 @@ void worker::showDateTime() {
   minutes = (int)Clock.getMinute();
 
   Serial.print(day);
-  Serial.print(F("-"));
+  Serial.print(F("."));
   Serial.print(month);
-  Serial.print(F("-"));
+  Serial.print(F("."));
   Serial.print(year);
   Serial.print(F(" "));
   Serial.print(hours);
@@ -326,7 +323,7 @@ unsigned long worker::getSleepTime() {
 
    vNextTime = _getMinTaskTime(vCurrDayOfWeek,vCurrTime);
 
-   if (vNextTime == NEAREST_TIME_BORDER) { return 0; };
+   if (vNextTime == NEAREST_TIME_BORDER) { return NEAREST_TIME_BORDER; };
 
   {
      byte vNextDayOfWeek;
@@ -383,13 +380,32 @@ unsigned long worker::_getMinTaskTime(byte iCurrDayOfWeek,unsigned long iCurrTim
 long long worker::getTimestamp() {
   DS3231 Clock;
 
-  byte h;
-  bool century=false;
+
+  byte year,month,day,hour,minute,second;
 
    {
-     bool H12 = false, PM;
-     h = Clock.getHour(H12, PM);
+     bool H12 = false, century=false,PM;
+     year   = Clock.getYear();
+     month  = Clock.getMonth(century);      
+     day    = Clock.getDate();
+     hour   = Clock.getHour(H12, PM);
+     minute = Clock.getMinute();
+     second = Clock.getSecond();
    };
-    return (Clock.getYear() - 2016) * 365 * 86400 + Clock.getMonth(century) * 24 * 86400 + Clock.getDate() * 86400 + h * 3600 +  Clock.getMinute() * 60 + Clock.getSecond();
+  #if IS_DEBUG>1
+    Serial.print(year);
+    Serial.print(F("-"));
+    Serial.print(month);
+    Serial.print(F("-"));
+    Serial.print(day);
+    Serial.print(F(" "));
+    Serial.print(hour);
+    Serial.print(F(":"));
+    Serial.print(minute);
+    Serial.print(F(":"));
+    Serial.println(second);
+    Serial.flush();  
+  #endif
+    return (year - 16) * 365 * 86400LL + month * 31 * 86400LL + day * 86400LL + hour * 3600LL + minute * 60 + second;
 
 }
