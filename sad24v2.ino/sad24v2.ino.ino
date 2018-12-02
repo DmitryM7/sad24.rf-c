@@ -2,12 +2,14 @@
 #include <avr/wdt.h>
 #include <BMP085.h>
 #include <DHT.h>
-#include <gprs2.h>
-#include <mstr.h>
-#include <worker.h>
 #include <EEPROM.h>
 #include <TimerOne.h>
 #include <LowPower.h>
+
+#include <gprs2.h>
+#include <mstr.h>
+#include <worker.h>
+
 #include <debug.h>
 
 struct Connection {
@@ -148,13 +150,10 @@ void loadSensorInfo1(int *oT1,
   dht.begin();
 
   /***********************************************************
-       Датчик влажности тугой. Он может с первого
-       раза данные не считать. Поэтому пытаемся
-       его считать столько раз, сколько успеем за 5 секунд.
+   *    Датчик влажности тугой. Он может с первого           *
+   *    раза данные не считать. Поэтому пытаемся             *
+   *    его считать столько раз, сколько успеем за 5 секунд. *
    ***********************************************************/
-
-
-
   
   vCurrTime = millis();
   
@@ -326,6 +325,10 @@ void readSms() {
   sim900.readSms();
 }
 
+/**************************************************************
+ * Пробуждаем модем, так как это не всегда                    *
+ * может получиться с первого раза делаем несколько попыток.  *
+ **************************************************************/
 bool wk() {
   Connection _connection;
   bool vStatus;
@@ -357,6 +360,9 @@ bool wk() {
 
 }
 
+/************************************************************
+ * Отправляем модем в сон.                                  *
+ ************************************************************/
 void sl() {
   gprs2 sim900(7, 8);
   sim900.sleep();
@@ -470,34 +476,21 @@ bool doPostParams(char* iRes, unsigned int iSize) {
 
 
   vResult = sim900.postUrl(_connection.sitePoint, vParams, iRes, iSize);
-#ifdef IS_DEBUG
+
+ #ifdef IS_DEBUG
   Serial.print(F("PAR"));
-#endif
-
-  if (vResult) {
-    /**************************************************************************
-     *                                                                        *
-       Если исполнители закончили свою работу и модуль передал информацию,
-       то тогда обнуляем время работы.
-     *                                                                        *
-     **************************************************************************/
-#ifdef IS_DEBUG
-    Serial.print(F(":"));
-    Serial.println(iRes);
-    Serial.flush();
-#endif
-  } else {
-    char vError[20];
-    sim900.getLastError(vError);
-
-    #ifdef IS_DEBUG
-      Serial.print(F(" ER:"));
-      Serial.println(vError);
+  if (vResult) {    
+      Serial.print(F(":"));
+      Serial.println(iRes);
       Serial.flush();
-    #endif
-
+  } else {
+         char vError[20];
+         sim900.getLastError(vError);
+         Serial.print(F(" ER:"));
+         Serial.println(vError);
+         Serial.flush();    
   };
-
+ #endif
 
   return vResult;
 
@@ -541,16 +534,15 @@ bool updateRemoteMeasure(int t1,  int h1, int t2, long unsigned int p1) {
 
   if (vResult) {
     /**************************************************************************
-     *                                                                        *
-       Если исполнители закончили свою работу и модуль передал информацию,
-       то тогда обнуляем время работы.
-     *                                                                        *
+     *  Если исполнители закончили свою работу и модуль передал информацию,   *
+     *  то тогда обнуляем время работы.                                       *
      **************************************************************************/
-#ifdef IS_DEBUG
-    Serial.print(F("status: "));
-    Serial.println(vRes);
-    Serial.flush();
-#endif
+
+      #ifdef IS_DEBUG
+        Serial.print(F("status: "));
+        Serial.println(vRes);
+        Serial.flush();
+      #endif
 
 
     if (!_water.isWork) {
@@ -565,12 +557,11 @@ bool updateRemoteMeasure(int t1,  int h1, int t2, long unsigned int p1) {
   } else {
     char vError[20];
     sim900.getLastError(vError);
-#ifdef IS_DEBUG
-    Serial.print(F("ER: "));
-    Serial.println(vError);
-    Serial.flush();
-#endif
-
+    #ifdef IS_DEBUG
+      Serial.print(F("ER: "));
+      Serial.println(vError);
+      Serial.flush();
+    #endif
   };
   return vResult;
 }
@@ -584,23 +575,22 @@ bool beforeTaskUpdate(char* iStr) {
   mstr _mstr;
 
   strcpy_P(vDelimiter, PSTR(";"));
-  if (_mstr.numEntries(iStr, vDelimiter) > 1) {
 
-    if (!_mstr.entry(1, iStr, vDelimiter, vCommand)) {
-#ifdef IS_DEBUG
-      Serial.println(F("E-N410"));
-      Serial.flush();
-#endif
+  if (_mstr.numEntries(iStr, vDelimiter) < 2) {
+    return false;
+  };
+
+  if (!_mstr.entry(1, iStr, vDelimiter, vCommand)) {
       return false;
-    };
+  };
 
     if (strcmp_P(vCommand, PSTR("C")) == 0) {
       if (_mstr.entry(2, iStr, vDelimiter, 4, vParam1)) {
-#ifdef IS_DEBUG
-        Serial.print(F("Sleep "));
-        Serial.println(atoi(vParam1));
-        Serial.flush();
-#endif
+        #ifdef IS_DEBUG
+            Serial.print(F("Sleep "));
+            Serial.println(atoi(vParam1));
+            Serial.flush();
+        #endif
         setConnectPeriod(atoi(vParam1));
         return false;
       };
@@ -608,7 +598,6 @@ bool beforeTaskUpdate(char* iStr) {
 
     if (strcmp_P(vCommand, PSTR("G")) == 0) {
       if (_mstr.entry(2, iStr, vDelimiter, 4, vParam1) && _mstr.entry(3, iStr, vDelimiter, 4, vParam2)) {
-
         #ifdef IS_DEBUG
             Serial.print(F("L off:"));
             Serial.print(vParam1);
@@ -620,11 +609,9 @@ bool beforeTaskUpdate(char* iStr) {
         return false;
       };
     };
-
     
     if (strcmp_P(vCommand, PSTR("J")) == 0) {
       if (_mstr.entry(2, iStr, vDelimiter, 4, vParam1) && _mstr.entry(3, iStr, vDelimiter, 4, vParam2)) {
-
         #ifdef IS_DEBUG
             Serial.print(F("W off:"));
             Serial.print(vParam1);
@@ -635,17 +622,15 @@ bool beforeTaskUpdate(char* iStr) {
         setOfflineWater(atoi(vParam1), atoi(vParam2));
         return false;
       };
-    };
-
-  };
+    };  
 
   return true;
 };
 
 /**********************************************************
-   Если требуется повторное соединение, то
-   функция возвращает 1. Если подсоединения не
-   требуется, то возвращается 0.
+ * Если требуется повторное соединение, то                *
+ * функция возвращает 1. Если подсоединения не            *
+ * требуется, то возвращается 0.                          *
  **********************************************************/
 byte workWithRes(char* iRes) {
   char vTmpStr[2];  
@@ -697,15 +682,6 @@ void Timer1_doJob(void) {
   EEPROM.get(mOfflineParamsStart, _offlineParams);       
 
   secMidnight=_worker.getSecMidnight();
-/*
-    #ifdef IS_DEBUG
-    Serial.print(F("Mem:"));
-    Serial.print(freeMemory());
-    Serial.print(F(" & "));
-    Serial.println(secMidnight);
-    Serial.flush();
-  #endif
-  */
 
 
    /*******************************************************************
@@ -715,8 +691,8 @@ void Timer1_doJob(void) {
     *******************************************************************/
     
    if (mCurrTempOut <= _offlineParams.tempUpLight1 || _light.isEdge) {
-    isLightShouldWork = true;
-    _light.isEdge     = true;
+     isLightShouldWork = true;
+     _light.isEdge     = true;
    };
 
    if (_light.isEdge && mCurrTempOut >= _offlineParams.tempUpLight2) {
@@ -749,68 +725,63 @@ void Timer1_doJob(void) {
 
   };
 
-  
-
   if (!isLightShouldWork && _light.isWork) {
-#ifdef IS_DEBUG
-    Serial.print(F("EL:"));
-    Serial.println(secMidnight);
-    Serial.flush();
-#endif
+
+    #ifdef IS_DEBUG
+      Serial.print(F("EL:"));
+      Serial.println(secMidnight);
+      Serial.flush();
+    #endif
     _worker.stopLight();
     _light.isWork = false;    
   };
 
   if (!isWaterShouldWork && _water.isWork) {
-#ifdef IS_DEBUG
-    Serial.print(F("EW:"));
-    Serial.println(secMidnight);
-    Serial.flush();
-#endif
+
+    #ifdef IS_DEBUG
+      Serial.print(F("EW:"));
+      Serial.println(secMidnight);
+      Serial.flush();
+    #endif
     _worker.stopWater();
     _water.isWork = false;
   };
 
   if (isWaterShouldWork && !_water.isWork) {
-#ifdef IS_DEBUG
-    Serial.print(F("SW:"));
-    Serial.println(secMidnight);
-    Serial.flush();
-#endif
+    #ifdef IS_DEBUG
+      Serial.print(F("SW:"));
+      Serial.println(secMidnight);
+      Serial.flush();
+    #endif
     _worker.startWater();
     _water.isWork = true;
     _water.startTime = secMidnight;
   };
 
-
-
-
   if (isLightShouldWork && !_light.isWork) {
-#ifdef IS_DEBUG
-    Serial.print(F("SL:"));
-    Serial.println(secMidnight);
-    Serial.flush();
-#endif
+    #ifdef IS_DEBUG
+      Serial.print(F("SL:"));
+      Serial.println(secMidnight);
+      Serial.flush();
+    #endif
     _worker.startLight();
     _light.isWork = true;
     _light.startTime = secMidnight;
   };
 
-
-
-  /**************************************************
-     Если исполнитель работает, то увеличиваем
-     время его работы.
-   **************************************************/
+   /**************************************************
+    * Если исполнитель работает, то увеличиваем      *
+    * время его работы.                              *
+    **************************************************/
 
   if (_water.isWork) {
-    /************************************************
-       Если время включения больше, чем текущее время
-       это означает, что либо мы перешагнули через
-       полуночь либо перевелись часы. Соответсвенно устанавливаем
-       время включения в 0. Исходим из того, что считаем время работы
-       исполнителя в текущих сутках.
-    */
+    /**********************************************************************
+     *  Если время включения больше, чем текущее время                    *
+     *  это означает, что либо мы перешагнули через                       *
+     *  полуночь либо перевелись часы. Соответсвенно устанавливаем        *
+     *  время включения в 0. Исходим из того, что считаем время работы    *
+     *  исполнителя в текущих сутках.                                     *
+     **********************************************************************/
     if (_water.startTime > secMidnight) {
       _water.startTime = 0;
     };
@@ -818,13 +789,13 @@ void Timer1_doJob(void) {
   };
 
   if (_light.isWork) {
-    /************************************************
-       Если время включения больше, чем текущее время
-       это означает, что либо мы перешагнули через
-       полуночь либо перевелись часы. Соответсвенно устанавливаем
-       время включения в 0. Исходим из того, что считаем время работы
-       исполнителя в текущих сутках.
-    */
+    /**********************************************************************
+     *  Если время включения больше, чем текущее время                    *
+     *  это означает, что либо мы перешагнули через                       *
+     *  полуночь либо перевелись часы. Соответсвенно устанавливаем        *
+     *  время включения в 0. Исходим из того, что считаем время работы    *
+     *  исполнителя в текущих сутках.                                     *
+     **********************************************************************/
     if (_light.startTime > secMidnight) {
       _light.startTime = 0;
     };
@@ -841,16 +812,10 @@ void setup() {
   Serial.begin(19200);
 #endif  
 
-    
-
   Connection _connection;
   Globals _globals;
-
   worker _worker(mWorkerStart);
  
-
-
-
   pinMode(4, OUTPUT);
   pinMode(13, OUTPUT);
   digitalWrite(13, LOW);    // turn the LED off by making the voltage LOW
@@ -858,21 +823,15 @@ void setup() {
   _worker.stopWater();
   _worker.stopLight();
   
-
-
-
-  _water.isWork = false;
-  _light.isWork = false;
-
   EEPROM.get(0, _connection);
   EEPROM.get(sizeof(Connection), _globals);
 
 
   if (strcmp_P(_globals.version, PSTR("INI")) != 0) {
   //  if (true) {
-#ifdef IS_DEBUG
-    Serial.println(F("SET"));
-#endif
+    #ifdef IS_DEBUG
+      Serial.println(F("SET"));
+    #endif
 
     for (int vI = 0 ; vI < EEPROM.length() ; vI++) {
       EEPROM.write(vI, 0);
@@ -880,17 +839,12 @@ void setup() {
 
     //Признак того, что инициализация выполнена
     strcpy_P(_globals.version, PSTR("INI"));
-
-    // Site POINT
-    strcpy_P(_connection.sitePoint, PSTR("xn--24-6kcq7d.xn--p1ai/ri/sa"));
-
-    // Site LOGIN
-    strcpy_P(_connection.siteLogin, PSTR("\0"));
-
-    // Site PASS
+    /*** SITE INIT ***/
+    strcpy_P(_connection.sitePoint, PSTR("\0"));    
+    strcpy_P(_connection.siteLogin, PSTR("\0"));    
     strcpy_P(_connection.sitePass, PSTR("\0"));
-
-
+    
+    /*** APN INIT ***/
     strcpy_P(_connection.apnPoint, PSTR("\0"));
     strcpy_P(_connection.apnLogin, PSTR("\0"));
     strcpy_P(_connection.apnPass, PSTR("\0"));
@@ -900,8 +854,6 @@ void setup() {
 
     _worker.setDateTime(16, 9, 13, 18, 45, 0);
 
-
-
     // Сохраняю настройки
     noInterrupts();
     EEPROM.put(0, _connection);
@@ -910,9 +862,10 @@ void setup() {
 
     setOfflineLight(-99, -99);
     setOfflineWater(99, 99);
-#ifdef IS_DEBUG
+
+  #ifdef IS_DEBUG
     Serial.println(F("END SET"));
-#endif
+  #endif
   };
 
   Timer1.initialize(3000000);
@@ -966,51 +919,35 @@ void loop()
     Serial.flush();
   #endif
 
-
-  #ifdef IS_DEBUG
-  Serial.print(F("vD:"));
-  showLong(vCurrTime);
-  Serial.print(F("-"));
-  showLong(vPrevTime2);
-  Serial.print(F("="));
-  Serial.println(vD);
-
-  #endif
-  
-  if (vD >= connectPeriod() || isFirstRun) {
-
-   // turn the LED off by making the voltage LOW
-  
- isModemWork = wk();
-
- if ( isModemWork && isFirstRun) { digitalWrite(13,HIGH); delay(1000); digitalWrite(13,LOW); delay(1000); digitalWrite(13,HIGH); delay(1000); digitalWrite(13,LOW); readSms(); };
+  if (vD >= connectPeriod() || isFirstRun) {   
+    isModemWork = wk();
+    /******************************************************
+     * При запуске или перезагрузке устройства проверяем  *
+     * СМС сообщения.                                     *
+     ******************************************************/
+    if ( isModemWork && isFirstRun) { digitalWrite(13,HIGH); delay(1000); digitalWrite(13,LOW); delay(1000); digitalWrite(13,HIGH); delay(1000); digitalWrite(13,LOW); readSms(); };
    
 
-if (isModemWork) {
- byte vAttempt = 0;
- bool vStatus  = false;
+    if (isModemWork) {
+      byte vAttempt = 0;
+      bool vStatus  = false;
 
        do {
          vStatus = updateRemoteParams();
          
          if (!vStatus && vAttempt==1) {
-          restartModem();
+            restartModem();
          };
          
          vAttempt++;
       } while (!vStatus && vAttempt < 3);
-} else {
- #ifdef IS_DEBUG
-  Serial.println(F("*MDM ER*"));
-  Serial.flush();
- #endif
-}
+    };
 
-digitalWrite(13, HIGH); 
-if (isModemWork) {
-   
-  byte vAttempt = 0;
-  bool vStatus  = false;
+    digitalWrite(13, HIGH); 
+
+    if (isModemWork) {   
+      byte vAttempt = 0;
+      bool vStatus  = false;
   
        do {
         vStatus = updateRemoteMeasure(mCurrTempOut, mCurrH, mCurrTempIn, mCurrP);
@@ -1022,20 +959,13 @@ if (isModemWork) {
         vAttempt++;
       } while (!vStatus && vAttempt < 3);
 
-} else {
-  #ifdef IS_DEBUG
-    Serial.println(F("*MDM ER*"));
-    Serial.flush();;
-  #endif
-}
-digitalWrite(13, LOW);     
+    };
+    digitalWrite(13, LOW);     
 
-vPrevTime2 = getTimestamp();
-sl();  //После того как модем передал данные уводим его в сон. Если это делать в основном теле функции, то отправлять будем 1 раз в секунду
-  
+    vPrevTime2 = getTimestamp();
+    sl();  //После того как модем передал данные уводим его в сон. Если это делать в основном теле функции, то отправлять будем 1 раз в секунду  
 };
 
- 
   isFirstRun = false;
   
   if (!canGoSleep()) {
@@ -1047,16 +977,14 @@ sl();  //После того как модем передал данные ув�
  goSleep(50,vPrevTime2);
  goSleep(75,vPrevTime2);
  goSleep(90,vPrevTime2);
-/**************************************************
-  * Гарантировано даем включиться исполнителям.
-  * 
-  **************************************************/  
+ 
+ /************************************************
+  * Гарантировано даем включиться исполнителям.  *
+  ************************************************/  
   {
     byte vDelay = goSleep(100,vPrevTime2);
     Timer1.start();
     delay(vDelay * 1000 + 2000);
   };
-
-  
  
 }
