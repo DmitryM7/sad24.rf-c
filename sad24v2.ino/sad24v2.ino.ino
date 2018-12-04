@@ -5,6 +5,7 @@
 #include <EEPROM.h>
 #include <TimerOne.h>
 #include <LowPower.h>
+#include <MemoryFree.h>
 
 #include <gprs2.h>
 #include <mstr.h>
@@ -43,8 +44,8 @@ long long vPrevTime2;
 volatile bool mCanGoSleep=true;
 bool isFirstRun = true;
 
-int mCurrTempOut = 9900,
-    mCurrTempIn  = 990,   
+int mCurrTempOut = 19900,
+    mCurrTempIn  = 1990,   
     mCurrH;
 unsigned long mCurrP;
     
@@ -63,7 +64,7 @@ void setOfflineLight(int iLight, int iWater) {
   offlineParams _offlineParams;
 
 
-  if (abs(iLight) > 99 || abs(iWater) > 99) {
+  if (abs(iLight) > 199 || abs(iWater) > 199) {
     return;
   };
 
@@ -80,7 +81,7 @@ void setOfflineWater(int iLight, int iWater) {
   offlineParams _offlineParams;
 
 
-if (abs(iLight) > 99 || abs(iWater) > 99) {
+if (abs(iLight) > 199 || abs(iWater) > 199) {
     return;
   };
 
@@ -127,14 +128,12 @@ void setConnectPeriod(int iSleepTime) {
  ***********************************************************/
 
 
-void loadSensorInfo1(int *oT1, 
-                     int *oH1, 
-                     int *oT2, 
-                     unsigned long *oP1) {
-  float    h1 = -100, t1 = 200;  
+void loadSensorInfo1(int &oT1, 
+                     int &oH1, 
+                     int &oT2, 
+                     unsigned long &oP1) {
   unsigned long vCurrTime;
-  int32_t  p1 = -100,
-           t2 = -100;
+  
 
   Wire.begin();
 
@@ -142,10 +141,10 @@ void loadSensorInfo1(int *oT1,
   DHT dht(2, DHT22);
 
   dps.init(MODE_STANDARD, 17700, true);
-  dps.getTemperature(&t2);
+  oT2=dps.getTemperature2();
 
 
-  dps.getPressure(&p1);
+  dps.getPressure(&oP1);
 
   dht.begin();
 
@@ -158,39 +157,12 @@ void loadSensorInfo1(int *oT1,
   vCurrTime = millis();
   
   do {    
-    h1 = dht.readHumidity();
-    t1 = dht.readTemperature();
+    oH1 = dht.readHumidity();
+    oT1 = dht.readTemperature() * 100;
     delay(1000);
-  } while ((isnan(h1) || isnan(t1)) && millis() - vCurrTime < 5000) ;
+  } while ((isnan(oH1) || isnan(oT1)) && millis() - vCurrTime < 5000) ;
 
-
-  /*****************************************************
-     Если все таки мы не получили влажность и вторую
-     температуру, то устанавливаем их значение в -1.
-   *****************************************************/
-
-
-  if (isnan(h1) || abs(h1) > 100) {
-    h1 = -100;
-  };
-
-  if (isnan(t1) || abs(t1) > 999 ) {
-    t1 = 0;
-  };
-
-
-  if (isnan(p1) || abs(p1) > 1000000 ) {
-    p1 = -100;
-  };
-
-  h1 = h1 * 100;
-  t1 = t1 * 100;
-
-  *oT1  = t1;
-  *oP1  = p1;
-  *oH1  = h1;
-  *oT2  = t2;
-
+  oH1  = oH1 * 100;
 }
 
 
@@ -202,9 +174,9 @@ long long getTimestamp() {
 void showLong(long long iVal) {
 
  char buffer[25];
- sprintf(buffer, "%0ld", iVal/1000000L);
+ sprintf_P(buffer, PSTR("%0ld"),iVal/1000000L);
  Serial.print(buffer);  
- sprintf(buffer, "%0ld", iVal%1000000L);
+ sprintf_P(buffer, PSTR("%0ld"),iVal%1000000L);
  Serial.print(buffer); 
 
 }
@@ -212,7 +184,7 @@ void showLong(long long iVal) {
 
 
 /**************************************************************
-   Конец доп.методов
+ *  Конец доп.методов                                         *
  **************************************************************/
 
 /**************************************************************
@@ -235,9 +207,10 @@ void parseThreeParamCommand(char* iCommand) {
    **********************************/
   strcpy_P(vTmpStr, PSTR("APN7"));
   if (_mstr.isEqual(vCmd, vTmpStr)) {
-#ifdef IS_DEBUG
-    Serial.print(F("APN: "));
-#endif
+
+    #ifdef IS_DEBUG
+      Serial.print(F("APN: "));
+    #endif
 
     strcpy_P(vTmpStr, PSTR(":"));
     if (!_mstr.entry(2, iCommand, vTmpStr, 35, _connection.apnPoint)) {
@@ -379,7 +352,7 @@ void restartModem() {
 bool canGoSleep() {
    offlineParams _offlineParams;
    EEPROM.get(mOfflineParamsStart, _offlineParams);
-   return mCanGoSleep && abs(_offlineParams.tempUpWater1) == 990 && abs(_offlineParams.tempUpWater2) == 990 && abs(_offlineParams.tempUpLight1) == 9900 && abs(_offlineParams.tempUpLight2) == 9900;
+   return mCanGoSleep && abs(_offlineParams.tempUpWater1) == 1990 && abs(_offlineParams.tempUpWater2) == 1990 && abs(_offlineParams.tempUpLight1) == 19900 && abs(_offlineParams.tempUpLight2) == 19900;
 }
 
 byte goSleep(byte iMode,long long iPrevTime) {
@@ -454,26 +427,22 @@ bool doPostParams(char* iRes, unsigned int iSize) {
 
 
   EEPROM.get(0, _connection);
-  sim900.setInternetSettings(_connection.apnPoint, _connection.apnLogin, _connection.apnPass);
-
-
+  sim900.setInternetSettings(_connection.apnPoint, _connection.apnLogin, _connection.apnPass); 
   if (!sim900.canInternet()) {
-    char vError[20];
-    sim900.getLastError(vError);
     #ifdef IS_DEBUG
-    Serial.print(F("CI ER:"));
-    Serial.println(vError);
+      char vError[20];
+      sim900.getLastError(vError);
+      Serial.print(F("CI ER:"));
+      Serial.println(vError);
     #endif
     return false;
   };
 
 {
   char vL[11], vA[11];
-    
   sim900.getCoords(vL, vA);
   sprintf_P(vParams, PSTR("r=%s&s=%s&m=c&l=%s&a=%s"), _connection.siteLogin, _connection.sitePass, vL, vA);
 };
-
 
   vResult = sim900.postUrl(_connection.sitePoint, vParams, iRes, iSize);
 
@@ -509,7 +478,9 @@ bool updateRemoteMeasure(int t1,  int h1, int t2, long unsigned int p1) {
   {
     Connection _connection;      
     EEPROM.get(0, _connection);
+    
     sprintf_P(vParams, PSTR("r=%s&s=%s&t1=%d&h1=%d&t2=%d&p1=%lu&w1=%lu&l1=%lu&d=%lu"), _connection.siteLogin, _connection.sitePass, t1, h1, t2, p1, _water.duration, _light.duration, millis());
+    
     sim900.setInternetSettings(_connection.apnPoint, _connection.apnLogin, _connection.apnPass);
     strncpy(sitePoint,_connection.sitePoint,40);
   };
@@ -695,10 +666,7 @@ void Timer1_doJob(void) {
      _light.isEdge     = true;
    };
 
-   if (_light.isEdge && mCurrTempOut >= _offlineParams.tempUpLight2) {
-      isLightShouldWork = false;
-      _light.isEdge = false;
-   };
+
 
    /******************************************************************
     * Если достигли мимального значения по внутренней температуре,   *
@@ -710,11 +678,7 @@ void Timer1_doJob(void) {
      _water.isEdge     = true;
    };
 
-   if (_water.isEdge && mCurrTempIn >= _offlineParams.tempUpWater2) {
-      isWaterShouldWork = false;
-      _water.isEdge     = false;
-   };
-
+ 
     
 
   for (byte vI = 0; vI < _worker.maxTaskCount; vI++) {    
@@ -724,6 +688,16 @@ void Timer1_doJob(void) {
     isWaterShouldWork = isWaterShouldWork || (bool)bitRead(executor, 0);
 
   };
+  
+   if (mCurrTempOut >= _offlineParams.tempUpLight2) {
+      isLightShouldWork = false;
+      _light.isEdge = false;
+   };
+   
+  if (mCurrTempIn >= _offlineParams.tempUpWater2) {
+      isWaterShouldWork = false;
+      _water.isEdge     = false;
+   };
 
   if (!isLightShouldWork && _light.isWork) {
 
@@ -860,9 +834,6 @@ void setup() {
     EEPROM.put(sizeof(Connection), _globals);
     interrupts();
 
-    setOfflineLight(-99, -99);
-    setOfflineWater(99, 99);
-
   #ifdef IS_DEBUG
     Serial.println(F("END SET"));
   #endif
@@ -888,11 +859,10 @@ void loop()
   digitalWrite(13,LOW);
   delay(15000); 
   
-  bool isModemWork = false;   
   long long vCurrTime=getTimestamp();
   long vD = (long)(vCurrTime-vPrevTime2);   
   
-  loadSensorInfo1(&mCurrTempOut,&mCurrH, &mCurrTempIn, &mCurrP);
+  loadSensorInfo1(mCurrTempOut,mCurrH, mCurrTempIn, mCurrP);
 
     #ifdef IS_DEBUG
     Serial.print(F("T1:"));
@@ -920,12 +890,13 @@ void loop()
   #endif
 
   if (vD >= connectPeriod() || isFirstRun) {   
+    bool isModemWork = false;   
     isModemWork = wk();
     /******************************************************
      * При запуске или перезагрузке устройства проверяем  *
      * СМС сообщения.                                     *
      ******************************************************/
-    if ( isModemWork && isFirstRun) { digitalWrite(13,HIGH); delay(1000); digitalWrite(13,LOW); delay(1000); digitalWrite(13,HIGH); delay(1000); digitalWrite(13,LOW); readSms(); };
+    if (isFirstRun && isModemWork) { digitalWrite(13,HIGH); readSms();  digitalWrite(13,LOW); }; 
    
 
     if (isModemWork) {
@@ -943,8 +914,6 @@ void loop()
       } while (!vStatus && vAttempt < 3);
     };
 
-    digitalWrite(13, HIGH); 
-
     if (isModemWork) {   
       byte vAttempt = 0;
       bool vStatus  = false;
@@ -960,8 +929,7 @@ void loop()
       } while (!vStatus && vAttempt < 3);
 
     };
-    digitalWrite(13, LOW);     
-
+    
     vPrevTime2 = getTimestamp();
     sl();  //После того как модем передал данные уводим его в сон. Если это делать в основном теле функции, то отправлять будем 1 раз в секунду  
 };
