@@ -117,6 +117,15 @@ void BMP085::getTemperature(int32_t *_Temperature) {
   *_Temperature = ((b5 + 8) >> 4);
 }
 
+/**************************************************
+ * Maslov D.A. add new function                   *
+ **************************************************/
+int BMP085::getTemperature2() {
+  calcTrueTemperature();                            // force b5 update
+  return ((b5 + 8) >> 4);
+}
+
+
 void BMP085::calcTrueTemperature(){
   long ut,x1,x2;
 
