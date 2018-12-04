@@ -163,8 +163,5 @@ void mstr::leftShift(char* iStr,size_t iShift) {
    for (size_t vI=iShift;vI<vStrLen;vI++) {
        iStr[vI-iShift]=iStr[vI];
    };
-
-  for (size_t vI=vStrLen-1;vI>iShift;vI--) {
-       iStr[vI]='\0';
-  };
+  memset(iStr + (vStrLen-iShift-1),0,iShift);
 }
