@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <MemoryFree.h>
 #include <mstr.h>
 
 mstr::mstr() {
@@ -123,14 +124,6 @@ int mstr::indexOf(char* iStr, char* iPattern) {
 int mstr::indexOf(char* iStr, char* iPattern,int iStartPosition) {
        char* pch;
 
-       if (strlen(iStr)==0 || strlen(iPattern)==0) {
-        return -1;
-       };
-
-       if (strlen(iStr)<iStartPosition || strlen(iStr)<strlen(iPattern)) {
-           return -1;
-       };
-
        pch = strstr(iStr + iStartPosition,iPattern);
 
       if (pch >= iStr) {      
@@ -157,11 +150,8 @@ void mstr::substr(char* iStr,int iStartPos,int iLength,char* oStr) {
   oStr[iLength]='\0';
 };
 
-void mstr::leftShift(char* iStr,size_t iShift) { 
-   unsigned int vStrLen=strlen(iStr);
-
-   for (size_t vI=iShift;vI<vStrLen;vI++) {
-       iStr[vI-iShift]=iStr[vI];
-   };
+void mstr::leftShift2(char* iStr,unsigned int iShift) { 
+  unsigned int vStrLen=strlen(iStr);
+  memmove(iStr,iStr+iShift,vStrLen-iShift);
   memset(iStr + (vStrLen-iShift-1),0,iShift);
 }
