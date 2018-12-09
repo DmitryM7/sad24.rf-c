@@ -47,6 +47,5 @@ class worker
    unsigned int _startAddress = 0;
    bool (*_beforeTaskUpdate)(char* oStr);
 
-
 };
 #endif

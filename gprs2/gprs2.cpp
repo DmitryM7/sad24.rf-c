@@ -2,6 +2,7 @@
 #include <SoftwareSerial.h>
 #include <gprs2.h>
 #include <mstr.h>
+#include <MemoryFree.h>
 #include <debug.h>
 #define WAIT_ANSWER_TIME 45000
 
@@ -337,12 +338,13 @@ bool gprs2::canInternet() {
     return postUrl(iUrl,iPar,oRes,250);
   }
   bool gprs2::postUrl(char* iUrl, char* iPar, char* oRes,unsigned int iResLength) {
-      char _tmpStr[30];
+      char _tmpStr[20];
       mstr _mstr;
 
       #if IS_DEBUG>1
         Serial.println(iUrl);
       #endif
+
 
        if (iResLength < 35) {
            strcpy_P(oRes,PSTR("iResLength small"));
@@ -544,7 +546,7 @@ bool gprs2::_setSmsTextMode() {
 }
 
 void gprs2::getSmsText(unsigned int iNum,char* oRes,unsigned int iSmsSize) {
-  char vCommand[15],vTmpStr[5];
+  char vCommand[15],vTmpStr[3];
    sprintf_P(vCommand,PSTR("AT+CMGR=%u,1"),iNum);
   _doCmd(vCommand);
   strcpy_P(vTmpStr,(char*)OK_M);
@@ -559,10 +561,8 @@ void gprs2::_setLastError(unsigned int iErrorNum,char* iErrorText) {
 //       strncpy(_lastError,iErrorText,19);
          _lastError=String(iErrorText);
     } else {
-//      sprintf_P(_lastError,PSTR("N %d"),iErrorNum);
          _lastError=String(iErrorNum);
     };
-//  _lastError[19] = '\0';
   _lastErrorNum  = iErrorNum;
 
 }
@@ -570,8 +570,6 @@ void gprs2::_setLastError(unsigned int iErrorNum,char* iErrorText) {
 
 
 void gprs2::getLastError(char* oRes) {
-//      strncpy(oRes,_lastError,20);
-//      oRes[19] = '\0';
         _lastError.toCharArray(oRes,20);
  }
 
@@ -582,7 +580,6 @@ uint8_t gprs2::getLastErrorNum() {
 
 void gprs2::_emptyBuffer(char* oBuf,size_t iSize) {
  memset(oBuf,'\0',iSize);
-// oBuf[0]='\0';
 }
 
 bool gprs2::deleteAllSms() {
@@ -603,8 +600,7 @@ strcpy_P(_tmpStr, (char*)OK_M);
 };
 
 bool gprs2::deleteSms(byte iSms) {
-   char vRes[20],
-        _tmpStr[10];
+   char vRes[8],_tmpStr[3];
    mstr _mstr;
 
   _modem.print(F("AT+CMGD="));
@@ -613,14 +609,8 @@ bool gprs2::deleteSms(byte iSms) {
   _modem.flush();
   getAnswer3(vRes,sizeof(vRes));
 
-strcpy_P(_tmpStr, (char*)OK_M);
-   if (_mstr.indexOf(vRes,_tmpStr)>-1) {
-        return true;
-   };
-
-  return false;
-
-
+  strcpy_P(_tmpStr, (char*)OK_M);
+   return _mstr.indexOf(vRes,_tmpStr)!=-1;
 };
 
 bool gprs2::hasNetwork() {
@@ -681,28 +671,6 @@ bool gprs2::sendSms(char* iPhone,char* iText) {
   return true; 
 }
 
-int gprs2::getSmsCount() {
- char vTmpStr[30],vRes[200];
- int vCount = 0;
-  mstr _mstr;
-
-
-    for (unsigned int vI=1; vI<6; vI++) {
-         getSmsText(vI,vRes,sizeof(vRes));  
-
-         _mstr.trim(vRes,' ');
-
-         strcpy_P(vTmpStr, (char*)OK_M);
-
-         if (!_mstr.isEqual(vRes,vTmpStr)) {
-             vCount++;
-         };
-
-    };
-
-return vCount;
-};
-
 
 bool gprs2::setOnSms(bool (*iSmsEvent)(byte iSms, char* oStr)) {
     _onSmsRead = iSmsEvent;
@@ -710,47 +678,34 @@ bool gprs2::setOnSms(bool (*iSmsEvent)(byte iSms, char* oStr)) {
 
 
  bool gprs2::readSms(bool deleteAfterRead=true) {
-  char vRes[200],
-       vDelimiter[2];
-  int vFirstLFPos=0;
-  mstr _mstr;
+ char vRes[200];
 
     _setSmsTextMode();
     saveOnSms();
 
+
     for (unsigned int vI=1; vI<6; vI++) {
+         _emptyBuffer(vRes,sizeof(vRes));
+
          getSmsText(vI,vRes,sizeof(vRes));
-             
+
          if (strlen(vRes) < 20) {
-               //******************************************************************
-               //Возможно ситуация, когда SMS  содержит текст на кирилице
-               //этот текст будет кодироваться существенно больше 200 символов
-               // в результате в итоговую строку не попадет завершаюший OK СМС.
-               // Это приведет к тому, что СМС будет считаться как отсутствующее,
-               // но при этом память СМС будет занята. Поэтому несмотря на то, что
-               // СМС не считана память следует очистить.
-               //*******************************************************************
+               /********************************************************************
+                *Возможно ситуация, когда SMS  содержит текст на кирилице          *
+                *этот текст будет кодироваться существенно больше 200 символов     *
+                * в результате в итоговую строку не попадет завершаюший OK СМС.    *
+                * Это приведет к тому, что СМС будет считаться как отсутствующее,  *
+                * но при этом память СМС будет занята. Поэтому несмотря на то, что *
+                * СМС не считана память следует очистить.                          *
+                ********************************************************************/
 	       if (deleteAfterRead) {
 	           deleteSms(vI);
 	       };
             continue;
-         };  
+         }; 
 
-        strcpy_P(vDelimiter, PSTR("\n"));     
-        vFirstLFPos = _mstr.indexOf(vRes,vDelimiter,2);
 
-        if (vFirstLFPos == -1) {
-            continue;
-        };
-        vFirstLFPos++;
-
-        _mstr.leftShift(vRes,vFirstLFPos);
-
-        vFirstLFPos = _mstr.indexOf(vRes,vDelimiter);
-        for (unsigned int vJ=vFirstLFPos;vJ<strlen(vRes);vJ++) {
-            vRes[vJ]='\0';
-        };
-        
+        if (!_clearSmsBody(vRes,sizeof(vRes))) { continue; };
 
         if (_onSmsRead) {
             if (!_onSmsRead(vI,vRes)) {                 
@@ -770,40 +725,6 @@ bool gprs2::setOnSms(bool (*iSmsEvent)(byte iSms, char* oStr)) {
   return true;
  }
 
-void gprs2::_getSmsBody(char* vRes,char* oBody,unsigned int iMaxSmsBodyLength) {
-
-          int  vCurrPos     = 0, 
-               vStartPos    = 0, 
-               vEndPos      = 0, 
-               vStrLen      = strlen(vRes), 
-               vLastCharNum = 0,
-               copyLength   = 0;
-
-  char vTmpStr[2];
-  mstr _mstr;
-
-
-        /********************************************************
-         * Нас интересует перенос строки тела смс от заголовка, *
-         * поэтому ищем со второго символа чтобы его пропустить *
-         *******************************************************/
-         strcpy_P(vTmpStr, PSTR("\n")); 
-         vStartPos = _mstr.indexOf(vRes,vTmpStr,2) + 1;           
-         vEndPos = min(vStrLen,vStartPos + iMaxSmsBodyLength);  
-
-
-	      for (unsigned int vJ=vStartPos; vJ<vEndPos; vJ++) {
-
-                 vCurrPos=vJ;
-
-                 if (vRes[vJ]=='\n' || vRes[vJ]=='\r') {  break;  };
-
-               };
-         copyLength = vCurrPos - vStartPos;
-         vLastCharNum=min(copyLength,iMaxSmsBodyLength-1);
-         strncpy(oBody,vRes + vStartPos,copyLength);
-         oBody[vLastCharNum] = '\0';     
-}
 
 void gprs2::_doCmd(char* iStr) {
   _modem.println(iStr);
@@ -852,6 +773,13 @@ void gprs2::softRestart() {
     };
 
     return true;
+}
+
+void gprs2::hardRestart() {
+ pinMode(6,OUTPUT);
+ digitalWrite(6,LOW);  
+ delay(1000);
+ pinMode(6,INPUT);
 }
 
  bool gprs2::getCoords(char* oLongitude,char* oLatitdue) {
@@ -939,3 +867,38 @@ void gprs2::sleep() {
  return false;
 
 };
+
+bool gprs2::_clearSmsBody(char* iRes,unsigned int iSize) {
+	char vDelimiter[2];
+        int vFirstLFPos;
+        mstr _mstr;
+
+        strcpy_P(vDelimiter, PSTR("\n"));     
+
+        /*********************************
+         * Убираем ведующие заголовки.   *
+         *********************************/
+        vFirstLFPos = _mstr.indexOf(iRes,vDelimiter,2);
+
+        if (vFirstLFPos==-1) {
+            return false;
+        };
+
+        vFirstLFPos++;
+
+        _mstr.leftShift2(iRes,vFirstLFPos);
+
+        /************************************
+         * Убираем хвостовые заголовки.     *
+         ************************************/
+
+        vFirstLFPos = _mstr.indexOf(iRes,vDelimiter);
+
+        if (vFirstLFPos==-1) {
+            return false;
+        };
+
+        memset(iRes+vFirstLFPos,0,strlen(iRes)-vFirstLFPos);      
+
+    return true;
+}

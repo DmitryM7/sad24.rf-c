@@ -2,6 +2,7 @@
 #include <worker.h>
 #include <mstr.h>
 #include <EEPROM.h>
+#include <MemoryFree.h>
 #include <debug.h>
 
 #define NEAREST_TIME_BORDER 900000
@@ -205,6 +206,7 @@ unsigned long worker::getSecMidnight() {
 
   m = Clock.getMinute();
   s = Clock.getSecond();
+
 
   return h * 3600UL + m * 60UL + (unsigned long) s;
 };

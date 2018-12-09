@@ -291,10 +291,11 @@ bool onSms(byte iSms, char* iCommand) {
   return true;
 }
 
-void readSms() {
+void readSms2() {
   gprs2 sim900(7, 8);
     
-  sim900.setOnSms(onSms);
+  sim900.setOnSms(onSms);     
+  delay(500); //Не знаю почему, но без этой конструкции freemem показывает, что сожрано на 200байт больше памяти.
   sim900.readSms();
 }
 
@@ -644,7 +645,8 @@ void Timer1_doJob(void) {
 #ifdef WDT_ENABLE
   wdt_reset();
 #endif
-
+ 
+  
   worker _worker(mWorkerStart);
   unsigned long secMidnight=0;
   bool isWaterShouldWork = false,
@@ -652,7 +654,11 @@ void Timer1_doJob(void) {
   offlineParams _offlineParams;
   EEPROM.get(mOfflineParamsStart, _offlineParams);       
 
-  secMidnight=_worker.getSecMidnight();
+ #ifdef IS_DEBUG
+   Serial.print(F("Mem:"));
+   Serial.println(freeMemory());  
+  #endif
+  secMidnight=_worker.getSecMidnight();  
 
 
    /*******************************************************************
@@ -661,7 +667,7 @@ void Timer1_doJob(void) {
     * произошло по границе.                                           *
     *******************************************************************/
     
-   if (mCurrTempOut <= _offlineParams.tempUpLight1 || _light.isEdge) {
+   if (mCurrTempOut < _offlineParams.tempUpLight1 || _light.isEdge) {
      isLightShouldWork = true;
      _light.isEdge     = true;
    };
@@ -673,13 +679,10 @@ void Timer1_doJob(void) {
     * то включаем устройство "Вода". При этом отмечаем включение     *
     * по температуре. Делаю эту тему по заказу Юрца Маленького.      *
     ******************************************************************/
-   if (mCurrTempIn <= _offlineParams.tempUpWater1 || _water.isEdge) {
+   if (mCurrTempIn < _offlineParams.tempUpWater1 || _water.isEdge) {
      isWaterShouldWork = true;
      _water.isEdge     = true;
-   };
-
- 
-    
+   };  
 
   for (byte vI = 0; vI < _worker.maxTaskCount; vI++) {    
     byte executor = _worker.shouldTaskWork2(vI, secMidnight);
@@ -896,7 +899,11 @@ void loop()
      * При запуске или перезагрузке устройства проверяем  *
      * СМС сообщения.                                     *
      ******************************************************/
-    if (isFirstRun && isModemWork) { digitalWrite(13,HIGH); readSms();  digitalWrite(13,LOW); }; 
+    if (isFirstRun && isModemWork) { 
+     digitalWrite(13,HIGH); 
+     readSms2();  
+     digitalWrite(13,LOW); 
+    }; 
    
 
     if (isModemWork) {
