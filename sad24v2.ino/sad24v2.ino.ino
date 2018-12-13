@@ -448,7 +448,7 @@ bool doPostParams(char* iRes, unsigned int iSize) {
   vResult = sim900.postUrl(_connection.sitePoint, vParams, iRes, iSize);
 
  #ifdef IS_DEBUG
-  Serial.print(F("PAR"));
+  Serial.print(F("PARA"));
   if (vResult) {    
       Serial.print(F(":"));
       Serial.println(iRes);
@@ -511,7 +511,7 @@ bool updateRemoteMeasure(int t1,  int h1, int t2, long unsigned int p1) {
      **************************************************************************/
 
       #ifdef IS_DEBUG
-        Serial.print(F("status: "));
+        Serial.print(F(": "));
         Serial.println(vRes);
         Serial.flush();
       #endif
