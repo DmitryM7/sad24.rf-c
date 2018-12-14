@@ -2,6 +2,7 @@
 #include <worker.h>
 #include <mstr.h>
 #include <EEPROM.h>
+#include <MemoryFree.h>
 #include <debug.h>
 
 #define NEAREST_TIME_BORDER 900000
@@ -27,11 +28,14 @@ worker::worker(unsigned int iStartAddress) {
  * Команды могут быть разделены знаком |                     *
  *************************************************************/
 byte worker::update(char* iCommand) {
-   char *str1;
+   char *str1,
+        _tmpStr1[2],
+        _tmpStr2[2],
+        vCommand[2];
    unsigned int vAddress = 0;
-   char _tmpStr1[2],_tmpStr2[2],vCommand[2];
+   bool         vNeedReconnect = 0;
+
    mstr _mstr;
-   bool vNeedReconnect = 0;
 
 
 
@@ -164,16 +168,16 @@ void worker::showDateTime() {
   int day, month, year, hours, minutes;  
 
   day   = (int)Clock.getDate();
-{
-  bool century = false;
-  month = (int)Clock.getMonth(century);
-};
+  {
+    bool century = false;
+    month = (int)Clock.getMonth(century);
+  };
 
   year  = (int)Clock.getYear();
-{
-  bool H12 = false, PM;
-  hours = (int)Clock.getHour(H12, PM);
-};
+  {
+    bool H12 = false, PM;
+    hours = (int)Clock.getHour(H12, PM);
+  };
 
   minutes = (int)Clock.getMinute();
 
@@ -191,17 +195,18 @@ void worker::showDateTime() {
   Serial.flush();
  };
 
- unsigned long worker::getSecMidnight() {
+unsigned long worker::getSecMidnight() {
   byte h,m,s;
 
   DS3231 Clock;
-{
-  bool H12 = false, PM;
-  h = Clock.getHour(H12, PM);
-};
+  {
+    bool H12 = false, PM;
+    h = Clock.getHour(H12, PM);
+  };
 
   m = Clock.getMinute();
   s = Clock.getSecond();
+
 
   return h * 3600UL + m * 60UL + (unsigned long) s;
 };
@@ -312,9 +317,9 @@ void worker::setTime(char* vCommand) {
   
 };
 
-   void worker::setDateTime(byte iYear,byte iMonth,byte iDay,byte iHour,byte iMinutes,byte iSec) {
+void worker::setDateTime(byte iYear,byte iMonth,byte iDay,byte iHour,byte iMinutes,byte iSec) {
      _setDateTime(iYear,iMonth,iDay,iHour,iMinutes,iSec);
-   };
+};
 
 unsigned long worker::getSleepTime() {
    unsigned long vNextTime,
@@ -379,10 +384,7 @@ unsigned long worker::_getMinTaskTime(byte iCurrDayOfWeek,unsigned long iCurrTim
 
 long long worker::getTimestamp() {
   DS3231 Clock;
-
-
   byte year,month,day,hour,minute,second;
-
    {
      bool H12 = false, century=false,PM;
      year   = Clock.getYear();
@@ -392,20 +394,6 @@ long long worker::getTimestamp() {
      minute = Clock.getMinute();
      second = Clock.getSecond();
    };
-  #if IS_DEBUG>1
-    Serial.print(year);
-    Serial.print(F("-"));
-    Serial.print(month);
-    Serial.print(F("-"));
-    Serial.print(day);
-    Serial.print(F(" "));
-    Serial.print(hour);
-    Serial.print(F(":"));
-    Serial.print(minute);
-    Serial.print(F(":"));
-    Serial.println(second);
-    Serial.flush();  
-  #endif
     return (year - 16) * 365 * 86400LL + month * 31 * 86400LL + day * 86400LL + hour * 3600LL + minute * 60 + second;
 
 }

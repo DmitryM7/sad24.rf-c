@@ -37,26 +37,24 @@ class gprs2
 
 
     bool saveOnSms();
-    int getSmsCount();
     void getSmsText(unsigned int iNum,char* oRes,unsigned int iSmsSize);
     bool sendSms(char* iPhone,char* iText);
     bool readSms(bool deleteAfterRead=true);
-    bool setOnSms(bool (*_mSmsEvent)(byte iSms, char* oStr));
+    bool setOnSms(bool (*iSmsEvent)(byte iSms, char* oStr));
     bool deleteAllSms();
     bool deleteSms(byte iSms);
 
     bool wakeUp();
     void sleep();
     void softRestart();
+    void hardRestart();
 
     void getLastError(char* oLastError);
     uint8_t getLastErrorNum();
 
   private:
     SoftwareSerial _modem;
-//    char  _apn[35], _login[11], _pass[11];
     String _apn, _login, _pass,_lastError;
-//    char  _lastError[20]; 
     uint8_t _lastErrorNum;
     bool   getAnswer3(char* oRes,size_t iSize);
     bool   _getAnswer3(char* oRes,size_t iSize,bool saveCRLF);
@@ -66,13 +64,13 @@ class gprs2
     void _emptyBuffer(char* oBuff,size_t iSize);
     void _sendTermCommand(bool iWaitOK=true);
     bool _setSmsTextMode();
-    void _getSmsBody(char* vRes,char* oBody,unsigned int iMaxSmsBodyLength);
     bool (*_onSmsRead)(byte iSms,char* oStr);
 
     void _doCmd(char* iStr);
     void _doCmd(const __FlashStringHelper *iStr);        
     void _doCmd3(const __FlashStringHelper *iStr1,char* iStr2, const __FlashStringHelper *iStr3);        
     void _doCmd3(const __FlashStringHelper *iStr1,String iStr2, const __FlashStringHelper *iStr3);        
+    bool _clearSmsBody(char* iRes,unsigned int iSize);
 };
 
 #endif
