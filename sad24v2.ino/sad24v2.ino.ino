@@ -344,7 +344,7 @@ void sl() {
 
 void restartModem() {
   gprs2 sim900(7, 8);
-  sim900.softRestart();
+  sim900.hardRestart();
   delay(60000);
 };
 /**************************************************************************
@@ -785,11 +785,7 @@ void Timer1_doJob(void) {
 
 void setup() {
 
-<<<<<<< HEAD
-  #ifdef IS_DEBUG_1
-=======
 #ifdef IS_DEBUG
->>>>>>> a680ac1e51098e982c11a71159dc9ba1a44e6c04
   Serial.begin(19200);
 #endif  
 
@@ -850,18 +846,7 @@ void setup() {
   Timer1.attachInterrupt(Timer1_doJob);
   Timer1.start();
 
-<<<<<<< HEAD
- /*
-  * Отладка ошибки 23.09.28
-  * 
-  */
-   vPrevTime2 = 66900;
-  _worker.setDateTime(18, 9, 23, 23, 33, 0);
-  isFirstRun = false;
- 
-=======
   
->>>>>>> a680ac1e51098e982c11a71159dc9ba1a44e6c04
 #ifdef WDT_ENABLE
   wdt_enable (WDTO_8S);
 #endif
