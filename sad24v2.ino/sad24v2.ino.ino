@@ -47,7 +47,9 @@ bool isFirstRun = true;
 int mCurrTempOut = 19900,
     mCurrTempIn  = 1990,   
     mCurrH;
+
 unsigned long mCurrP;
+volatile unsigned long mSecMidnight=0;
     
 
 workerInfo _water;
@@ -344,6 +346,9 @@ void sl() {
 
 void restartModem() {
   gprs2 sim900(7, 8);
+  #ifdef IS_DEBUG
+    Serial.println(F("*RST*"));
+  #endif
   sim900.hardRestart();
   delay(60000);
 };
@@ -450,13 +455,13 @@ bool doPostParams(char* iRes, unsigned int iSize) {
  #ifdef IS_DEBUG
   Serial.print(F("PARA"));
   if (vResult) {    
-      Serial.print(F(":"));
+      Serial.print(F(" : "));
       Serial.println(iRes);
       Serial.flush();
   } else {
          char vError[20];
          sim900.getLastError(vError);
-         Serial.print(F(" ER:"));
+         Serial.print(F(" ER :"));
          Serial.println(vError);
          Serial.flush();    
   };
@@ -481,6 +486,10 @@ bool updateRemoteMeasure(int t1,  int h1, int t2, long unsigned int p1) {
     EEPROM.get(0, _connection);
     
     sprintf_P(vParams, PSTR("r=%s&s=%s&t1=%d&h1=%d&t2=%d&p1=%lu&w1=%lu&l1=%lu&d=%lu"), _connection.siteLogin, _connection.sitePass, t1, h1, t2, p1, _water.duration, _light.duration, millis());
+
+   #ifdef IS_DEBUG
+     Serial.println(vParams);
+   #endif
     
     sim900.setInternetSettings(_connection.apnPoint, _connection.apnLogin, _connection.apnPass);
     strncpy(sitePoint,_connection.sitePoint,40);
@@ -517,7 +526,7 @@ bool updateRemoteMeasure(int t1,  int h1, int t2, long unsigned int p1) {
       #endif
 
 
-    if (!_water.isWork) {
+    if (!_water.isWork) {      
       _water.duration = 0;
     };
 
@@ -648,7 +657,6 @@ void Timer1_doJob(void) {
  
   
   worker _worker(mWorkerStart);
-  unsigned long secMidnight=0;
   bool isWaterShouldWork = false,
        isLightShouldWork = false;
   offlineParams _offlineParams;
@@ -658,7 +666,7 @@ void Timer1_doJob(void) {
    Serial.print(F("Mem:"));
    Serial.println(freeMemory());  
   #endif
-  secMidnight=_worker.getSecMidnight();  
+  mSecMidnight=_worker.getSecMidnight();  
 
 
    /*******************************************************************
@@ -685,7 +693,7 @@ void Timer1_doJob(void) {
    };  
 
   for (byte vI = 0; vI < _worker.maxTaskCount; vI++) {    
-    byte executor = _worker.shouldTaskWork2(vI, secMidnight);
+    byte executor = _worker.shouldTaskWork2(vI, mSecMidnight);
 
     isLightShouldWork = isLightShouldWork || (bool)bitRead(executor, 1);
     isWaterShouldWork = isWaterShouldWork || (bool)bitRead(executor, 0);
@@ -706,7 +714,7 @@ void Timer1_doJob(void) {
 
     #ifdef IS_DEBUG
       Serial.print(F("EL:"));
-      Serial.println(secMidnight);
+      Serial.println(mSecMidnight);
       Serial.flush();
     #endif
     _worker.stopLight();
@@ -717,7 +725,7 @@ void Timer1_doJob(void) {
 
     #ifdef IS_DEBUG
       Serial.print(F("EW:"));
-      Serial.println(secMidnight);
+      Serial.println(mSecMidnight);
       Serial.flush();
     #endif
     _worker.stopWater();
@@ -727,23 +735,23 @@ void Timer1_doJob(void) {
   if (isWaterShouldWork && !_water.isWork) {
     #ifdef IS_DEBUG
       Serial.print(F("SW:"));
-      Serial.println(secMidnight);
+      Serial.println(mSecMidnight);
       Serial.flush();
     #endif
     _worker.startWater();
     _water.isWork = true;
-    _water.startTime = secMidnight;
+    _water.startTime = mSecMidnight;
   };
 
   if (isLightShouldWork && !_light.isWork) {
     #ifdef IS_DEBUG
       Serial.print(F("SL:"));
-      Serial.println(secMidnight);
+      Serial.println(mSecMidnight);
       Serial.flush();
     #endif
     _worker.startLight();
     _light.isWork = true;
-    _light.startTime = secMidnight;
+    _light.startTime = mSecMidnight;
   };
 
    /**************************************************
@@ -759,10 +767,20 @@ void Timer1_doJob(void) {
      *  время включения в 0. Исходим из того, что считаем время работы    *
      *  исполнителя в текущих сутках.                                     *
      **********************************************************************/
-    if (_water.startTime > secMidnight) {
+    if (_water.startTime > mSecMidnight) {
       _water.startTime = 0;
     };
-    _water.duration = secMidnight - _water.startTime;
+
+    
+    _water.duration = mSecMidnight - _water.startTime;
+    #ifdef IS_DEBUG
+      Serial.print(F("DUR W:"));
+      Serial.print(mSecMidnight);
+      Serial.print(F(" - "));
+      Serial.print(_water.startTime);
+      Serial.print(F("="));
+      Serial.println(_water.duration);
+    #endif
   };
 
   if (_light.isWork) {
@@ -773,10 +791,18 @@ void Timer1_doJob(void) {
      *  время включения в 0. Исходим из того, что считаем время работы    *
      *  исполнителя в текущих сутках.                                     *
      **********************************************************************/
-    if (_light.startTime > secMidnight) {
+    if (_light.startTime > mSecMidnight) {
       _light.startTime = 0;
     };
-    _light.duration = secMidnight - _light.startTime;
+    _light.duration = mSecMidnight - _light.startTime;
+     #ifdef IS_DEBUG
+      Serial.print(F("DUR L:"));
+      Serial.print(mSecMidnight);
+      Serial.print(F(" - "));
+      Serial.print(_light.startTime);
+      Serial.print(F("="));
+      Serial.println(_light.duration);
+    #endif
   };
 
   mCanGoSleep = !(_light.isWork || _water.isWork);
@@ -862,7 +888,9 @@ void loop()
   digitalWrite(13,LOW);
   delay(15000); 
   
+  Timer1.stop();
   long long vCurrTime=getTimestamp();
+  Timer1.start();
   long vD = (long)(vCurrTime-vPrevTime2);   
   
   loadSensorInfo1(mCurrTempOut,mCurrH, mCurrTempIn, mCurrP);
@@ -895,6 +923,11 @@ void loop()
   if (vD >= connectPeriod() || isFirstRun) {   
     bool isModemWork = false;   
     isModemWork = wk();
+
+    if (!isModemWork) {
+      restartModem();
+      isModemWork = wk();
+    };
     /******************************************************
      * При запуске или перезагрузке устройства проверяем  *
      * СМС сообщения.                                     *
@@ -936,8 +969,9 @@ void loop()
       } while (!vStatus && vAttempt < 3);
 
     };
-    
+    Timer1.stop();
     vPrevTime2 = getTimestamp();
+    Timer1.start();
     sl();  //После того как модем передал данные уводим его в сон. Если это делать в основном теле функции, то отправлять будем 1 раз в секунду  
 };
 
