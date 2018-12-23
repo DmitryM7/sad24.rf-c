@@ -155,6 +155,22 @@ DateTime RTClib::now() {
 
 ///// ERIC'S ORIGINAL CODE FOLLOWS /////
 
+void DS3231::getNow(uint16_t &y, byte &m, byte &d, byte &hh, byte &mm, byte &ss) {
+   Wire.beginTransmission(CLOCK_ADDRESS);
+  Wire.write(0);	// This is the first register address (Seconds)
+  			// We'll read from here on for 7 bytes: secs reg, minutes reg, hours, days, months and years.
+  Wire.endTransmission();
+  
+  Wire.requestFrom(CLOCK_ADDRESS, 7);
+  ss = bcd2bin(Wire.read() & 0x7F);
+  mm = bcd2bin(Wire.read());
+  hh = bcd2bin(Wire.read());
+  Wire.read();
+  d = bcd2bin(Wire.read());
+  m = bcd2bin(Wire.read());
+  y = bcd2bin(Wire.read()) + 2000;
+}
+
 byte DS3231::getSecond() {
 	Wire.beginTransmission(CLOCK_ADDRESS);
 	Wire.write(0x00);

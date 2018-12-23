@@ -196,19 +196,12 @@ void worker::showDateTime() {
  };
 
 unsigned long worker::getSecMidnight() {
-  byte h,m,s;
+  DS3231 Clock;  
+  uint16_t y;
+  byte m,d,hh,mm,ss;
+  Clock.getNow(y,m,d,hh,mm,ss);
 
-  DS3231 Clock;
-  {
-    bool H12 = false, PM;
-    h = Clock.getHour(H12, PM);
-  };
-
-  m = Clock.getMinute();
-  s = Clock.getSecond();
-
-
-  return h * 3600UL + m * 60UL + (unsigned long) s;
+  return hh * 3600UL + mm * 60UL + (unsigned long) ss;
 };
 
 void worker::_setDateTime(byte iYear,byte iMonth,byte iDay,byte iHour,byte iMinutes,byte iSec) {
@@ -384,16 +377,9 @@ unsigned long worker::_getMinTaskTime(byte iCurrDayOfWeek,unsigned long iCurrTim
 
 long long worker::getTimestamp() {
   DS3231 Clock;
-  byte year,month,day,hour,minute,second;
-   {
-     bool H12 = false, century=false,PM;
-     year   = Clock.getYear();
-     month  = Clock.getMonth(century);      
-     day    = Clock.getDate();
-     hour   = Clock.getHour(H12, PM);
-     minute = Clock.getMinute();
-     second = Clock.getSecond();
-   };
-    return (year - 16) * 365 * 86400LL + month * 31 * 86400LL + day * 86400LL + hour * 3600LL + minute * 60 + second;
+  uint16_t y;
+  byte m,d,hh,mm,ss;
+  Clock.getNow(y,m,d,hh,mm,ss);
+  return (y - 16) * 365 * 86400LL + m * 31 * 86400LL + d * 86400LL + hh * 3600LL + mm * 60 + ss;
 
 }
