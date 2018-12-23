@@ -313,21 +313,29 @@ bool gprs2::isConnect() {
 
      _doCmd(F("AT+CREG?"));
      strcpy_P(vTmpStr, PSTR("+CREG")); 
+
      if (_getAnswerWait(vRes,sizeof(vRes),vTmpStr)) {
+     #ifdef IS_DEBUG
+       Serial.println(vRes);
+     #endif
+
+        strcpy_P(vTmpStr, PSTR("- CON"));
+        _setLastError(__LINE__,vTmpStr);       
+        return false;
+     };
 
        strcpy_P(vTmpStr, PSTR("0,1")); 
        if (_mstr.indexOf(vRes,vTmpStr)==-1) {
           _setLastError(__LINE__,vRes);
           return false;
        };
-     };
 
    return true;
  }
 
 
 bool gprs2::canWork() {
-   return isPowerUp() && isConnect() && hasNetwork();
+   return isPowerUp() && hasNetwork() && isConnect();
 };
 
 bool gprs2::canInternet() {
