@@ -156,19 +156,83 @@ DateTime RTClib::now() {
 ///// ERIC'S ORIGINAL CODE FOLLOWS /////
 
 void DS3231::getNow(uint16_t &y, byte &m, byte &d, byte &hh, byte &mm, byte &ss) {
-   Wire.beginTransmission(CLOCK_ADDRESS);
+  int r;
+  Wire.beginTransmission(CLOCK_ADDRESS);
   Wire.write(0);	// This is the first register address (Seconds)
   			// We'll read from here on for 7 bytes: secs reg, minutes reg, hours, days, months and years.
-  Wire.endTransmission();
+  r=Wire.endTransmission();
+
+  #ifdef IS_DEBUG
+  if (r!=0) {
+    Serial.println(F("WIRE #0"));
+  };
+  #endif
   
-  Wire.requestFrom(CLOCK_ADDRESS, 7);
-  ss = bcd2bin(Wire.read() & 0x7F);
-  mm = bcd2bin(Wire.read());
-  hh = bcd2bin(Wire.read());
+  r=Wire.requestFrom(CLOCK_ADDRESS, 7);
+
+  #ifdef IS_DEBUG
+  Serial.print(F("Wire:"));
+  Serial.print(r);
+  Serial.print(F("|"));
+
+  if (r<=0) {
+    Serial.println(F("WIRE #1"));
+  };
+  #endif
+
+  r=Wire.read();
+
+  #ifdef IS_DEBUG
+  Serial.print(r);
+  Serial.print(F("|"));
+  #endif
+
+  ss = bcd2bin(r & 0x7F);
+
+  r=Wire.read();
+  #ifdef IS_DEBUG
+    Serial.print(r);
+    Serial.print(F("|"));
+  #endif
+
+  mm = bcd2bin(r);
+
+  r=Wire.read();
+  #ifdef IS_DEBUG
+    Serial.print(r);
+    Serial.print(F("|"));
+  #endif
+
+  hh = bcd2bin(r);
+
   Wire.read();
-  d = bcd2bin(Wire.read());
-  m = bcd2bin(Wire.read());
-  y = bcd2bin(Wire.read()) + 2000;
+
+  r=Wire.read();
+
+  #ifdef IS_DEBUG
+    Serial.print(r);
+    Serial.print(F("|"));
+  #endif
+
+  d = bcd2bin(r);
+
+  r=Wire.read();
+
+  #ifdef IS_DEBUG
+   Serial.print(r);
+   Serial.print(F("|"));
+  #endif
+
+  m = bcd2bin(r);
+
+  r=Wire.read();
+  #ifdef IS_DEBUG
+    Serial.print(r);
+    Serial.print(F("|"));
+    Serial.println(millis());
+  #endif
+
+  y = bcd2bin(r);
 }
 
 byte DS3231::getSecond() {

@@ -2,7 +2,7 @@
 #include <avr/wdt.h>
 #include <BMP085.h>
 #include <DHT.h>
-#include <EEPROM.h>
+  #include <EEPROM.h>
 #include <TimerOne.h>
 #include <LowPower.h>
 #include <MemoryFree.h>
@@ -40,6 +40,7 @@ unsigned int mOfflineParamsStart = sizeof(Connection) + sizeof(Globals);
 unsigned int mWorkerStart = mOfflineParamsStart + sizeof(offlineParams);
 
 long long vPrevTime2;
+volatile long long mTimeStamp;
 
 volatile bool mCanGoSleep=true;
 bool isFirstRun = true;
@@ -49,7 +50,7 @@ int mCurrTempOut = 19900,
     mCurrH;
 
 unsigned long mCurrP;
-volatile unsigned long mSecMidnight=0;
+
     
 
 workerInfo _water;
@@ -131,7 +132,7 @@ void setConnectPeriod(int iSleepTime) {
 
 
 void loadSensorInfo1(int &oT1, 
-                     int &oH1, 
+                      int &oH1, 
                      int &oT2, 
                      unsigned long &oP1) {
   unsigned long vCurrTime;
@@ -146,7 +147,7 @@ void loadSensorInfo1(int &oT1,
   oT2=dps.getTemperature2();
 
 
-  dps.getPressure(&oP1);
+  oP1=dps.getPressure2();
 
   dht.begin();
 
@@ -167,11 +168,6 @@ void loadSensorInfo1(int &oT1,
   oH1  = oH1 * 100;
 }
 
-
-long long getTimestamp() {
-  worker _worker(mWorkerStart);
-  return _worker.getTimestamp();
-}
 
 void showLong(long long iVal) {
 
@@ -343,7 +339,11 @@ void sl() {
   gprs2 sim900(7, 8);
   sim900.sleep();
 }
-
+bool isDisabledTempRange() {
+  offlineParams _offlineParams;
+  EEPROM.get(mOfflineParamsStart, _offlineParams);
+  return abs(_offlineParams.tempUpWater1) == 1990 && abs(_offlineParams.tempUpWater2) == 1990 && abs(_offlineParams.tempUpLight1) == 19900 && abs(_offlineParams.tempUpLight2) == 19900;
+}
 void restartModem() {
   gprs2 sim900(7, 8);
   #ifdef IS_DEBUG
@@ -356,9 +356,7 @@ void restartModem() {
     Конец методов работы с модемом
  *************************************************************************/
 bool canGoSleep() {
-   offlineParams _offlineParams;
-   EEPROM.get(mOfflineParamsStart, _offlineParams);
-   return mCanGoSleep && abs(_offlineParams.tempUpWater1) == 1990 && abs(_offlineParams.tempUpWater2) == 1990 && abs(_offlineParams.tempUpLight1) == 19900 && abs(_offlineParams.tempUpLight2) == 19900;
+   return mCanGoSleep && isDisabledTempRange();
 }
 
 byte goSleep(byte iMode,long long iPrevTime) {
@@ -378,8 +376,9 @@ byte goSleep(byte iMode,long long iPrevTime) {
    };
     
  
-
-    vNextModem   = (long)(iPrevTime + connectPeriod() - getTimestamp());
+    
+    vNextModem   = (long)(iPrevTime + connectPeriod() - mTimeStamp);
+    
     /* Если по каким-то причинам было пропущено несколько подключений, то принудительно подключаемся */
     vNextModem    = max(0,vNextModem); 
 
@@ -660,13 +659,12 @@ void Timer1_doJob(void) {
   bool isWaterShouldWork = false,
        isLightShouldWork = false;
   offlineParams _offlineParams;
+  unsigned long vSecMidnight = 0;
+  byte vDayOfWeek;
+  
   EEPROM.get(mOfflineParamsStart, _offlineParams);       
-
- #ifdef IS_DEBUG
-   Serial.print(F("Mem:"));
-   Serial.println(freeMemory());  
-  #endif
-  mSecMidnight=_worker.getSecMidnight();  
+ 
+  mTimeStamp = _worker.getTimestamp(vSecMidnight,vDayOfWeek);  
 
 
    /*******************************************************************
@@ -675,7 +673,7 @@ void Timer1_doJob(void) {
     * произошло по границе.                                           *
     *******************************************************************/
     
-   if (mCurrTempOut < _offlineParams.tempUpLight1 || _light.isEdge) {
+   if (!isDisabledTempRange() && (mCurrTempOut < _offlineParams.tempUpLight1 || _light.isEdge)) {
      isLightShouldWork = true;
      _light.isEdge     = true;
    };
@@ -687,13 +685,13 @@ void Timer1_doJob(void) {
     * то включаем устройство "Вода". При этом отмечаем включение     *
     * по температуре. Делаю эту тему по заказу Юрца Маленького.      *
     ******************************************************************/
-   if (mCurrTempIn < _offlineParams.tempUpWater1 || _water.isEdge) {
+   if (!isDisabledTempRange() && (mCurrTempIn < _offlineParams.tempUpWater1 || _water.isEdge)) {
      isWaterShouldWork = true;
      _water.isEdge     = true;
    };  
 
   for (byte vI = 0; vI < _worker.maxTaskCount; vI++) {    
-    byte executor = _worker.shouldTaskWork2(vI, mSecMidnight);
+    byte executor = _worker.shouldTaskWork2(vI, vSecMidnight, vDayOfWeek);
 
     isLightShouldWork = isLightShouldWork || (bool)bitRead(executor, 1);
     isWaterShouldWork = isWaterShouldWork || (bool)bitRead(executor, 0);
@@ -702,7 +700,7 @@ void Timer1_doJob(void) {
   
    if (mCurrTempOut >= _offlineParams.tempUpLight2) {
       isLightShouldWork = false;
-      _light.isEdge = false;
+      _light.isEdge     = false;
    };
    
   if (mCurrTempIn >= _offlineParams.tempUpWater2) {
@@ -710,11 +708,31 @@ void Timer1_doJob(void) {
       _water.isEdge     = false;
    };
 
+  #ifdef IS_DEBUG
+     Serial.print(F("Mem:"));
+     Serial.print(freeMemory());  
+     Serial.print(F("   "));
+
+     Serial.print(F("MID:"));
+     Serial.print(vSecMidnight);  
+     Serial.print(F("   "));
+   
+     Serial.print(F("T1:"));
+     Serial.print(mCurrTempOut);     
+     Serial.print(F("   T2:"));
+     Serial.println(mCurrTempIn);
+  #endif
+
+
+  /************************************************************************
+   *                        Останавливаем исполнителей                    *
+   ************************************************************************/
+
   if (!isLightShouldWork && _light.isWork) {
 
     #ifdef IS_DEBUG
       Serial.print(F("EL:"));
-      Serial.println(mSecMidnight);
+      Serial.println(vSecMidnight);
       Serial.flush();
     #endif
     _worker.stopLight();
@@ -725,33 +743,38 @@ void Timer1_doJob(void) {
 
     #ifdef IS_DEBUG
       Serial.print(F("EW:"));
-      Serial.println(mSecMidnight);
+      Serial.println(vSecMidnight);
       Serial.flush();
     #endif
     _worker.stopWater();
     _water.isWork = false;
   };
 
+
+  /************************************************************************
+   *                        Стартуем исполнителей                         *
+   ************************************************************************/
+   
   if (isWaterShouldWork && !_water.isWork) {
     #ifdef IS_DEBUG
       Serial.print(F("SW:"));
-      Serial.println(mSecMidnight);
+      Serial.println(vSecMidnight);
       Serial.flush();
     #endif
     _worker.startWater();
     _water.isWork = true;
-    _water.startTime = mSecMidnight;
+    _water.startTime = vSecMidnight;
   };
 
   if (isLightShouldWork && !_light.isWork) {
     #ifdef IS_DEBUG
       Serial.print(F("SL:"));
-      Serial.println(mSecMidnight);
+      Serial.println(vSecMidnight);
       Serial.flush();
     #endif
     _worker.startLight();
     _light.isWork = true;
-    _light.startTime = mSecMidnight;
+    _light.startTime = vSecMidnight;
   };
 
    /**************************************************
@@ -767,20 +790,12 @@ void Timer1_doJob(void) {
      *  время включения в 0. Исходим из того, что считаем время работы    *
      *  исполнителя в текущих сутках.                                     *
      **********************************************************************/
-    if (_water.startTime > mSecMidnight) {
+    if (_water.startTime > vSecMidnight) {
       _water.startTime = 0;
     };
 
     
-    _water.duration = mSecMidnight - _water.startTime;
-    #ifdef IS_DEBUG
-      Serial.print(F("DUR W:"));
-      Serial.print(mSecMidnight);
-      Serial.print(F(" - "));
-      Serial.print(_water.startTime);
-      Serial.print(F("="));
-      Serial.println(_water.duration);
-    #endif
+    _water.duration = vSecMidnight - _water.startTime;    
   };
 
   if (_light.isWork) {
@@ -791,19 +806,12 @@ void Timer1_doJob(void) {
      *  время включения в 0. Исходим из того, что считаем время работы    *
      *  исполнителя в текущих сутках.                                     *
      **********************************************************************/
-    if (_light.startTime > mSecMidnight) {
+    if (_light.startTime > vSecMidnight) {
       _light.startTime = 0;
     };
-    _light.duration = mSecMidnight - _light.startTime;
-     #ifdef IS_DEBUG
-      Serial.print(F("DUR L:"));
-      Serial.print(mSecMidnight);
-      Serial.print(F(" - "));
-      Serial.print(_light.startTime);
-      Serial.print(F("="));
-      Serial.println(_light.duration);
-    #endif
+    _light.duration = vSecMidnight - _light.startTime;
   };
+ 
 
   mCanGoSleep = !(_light.isWork || _water.isWork);
 }
@@ -888,35 +896,30 @@ void loop()
   digitalWrite(13,LOW);
   delay(15000); 
   
-  Timer1.stop();
-  long long vCurrTime=getTimestamp();
-  Timer1.start();
+  long long vCurrTime=mTimeStamp;
+
   long vD = (long)(vCurrTime-vPrevTime2);   
   
   loadSensorInfo1(mCurrTempOut,mCurrH, mCurrTempIn, mCurrP);
 
     #ifdef IS_DEBUG
     Serial.print(F("T1:"));
-    Serial.println(mCurrTempOut);
+    Serial.print(mCurrTempOut);    
 
-    Serial.print(F("T2:"));
-    Serial.println(mCurrTempIn);
+    Serial.print(F("  T2:"));
+    Serial.print(mCurrTempIn);
 
-    Serial.print(F("H:"));
-    Serial.println(mCurrH);
+    Serial.print(F("  H:"));
+    Serial.print(mCurrH);
 
-    Serial.print(F("P:"));
-    Serial.println(mCurrP);
-
-
-    Serial.print(F("W&L:"));
+    Serial.print(F("  P:"));
+    Serial.print(mCurrP);
+    
+    Serial.print(F("  W&L:"));
     Serial.print(_water.duration);
     Serial.print(F("&"));
     Serial.println(_light.duration);
-
-    Serial.print(F("CP:"));
-    Serial.println(connectPeriod());
-    
+   
     Serial.flush();
   #endif
 
@@ -969,9 +972,7 @@ void loop()
       } while (!vStatus && vAttempt < 3);
 
     };
-    Timer1.stop();
-    vPrevTime2 = getTimestamp();
-    Timer1.start();
+    vPrevTime2 = mTimeStamp;
     sl();  //После того как модем передал данные уводим его в сон. Если это делать в основном теле функции, то отправлять будем 1 раз в секунду  
 };
 

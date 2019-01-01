@@ -148,9 +148,11 @@ byte worker::_DayOfWeek(int y,byte m,byte d) {
 
 byte worker::getDayOfWeek() {
   DS3231 Clock;
-  bool century = false;
-  byte dow;
-  dow = _DayOfWeek((int)Clock.getYear(),Clock.getMonth(century),Clock.getDate());
+  byte dow,m,d,hh,mm,ss;
+  uint16_t y;
+
+  Clock.getNow(y,m,d,hh,mm,ss);
+  dow = _DayOfWeek((int)y,m,d);
  /**************************************
   * Переводим в формат:                *  
   *  1 - понедельник,                  *
@@ -160,46 +162,48 @@ byte worker::getDayOfWeek() {
   if (dow==0) {
     dow=7;
   };
-return dow;
+
+ return dow;
 };
 
 void worker::showDateTime() {
-  DS3231 Clock;
-  int day, month, year, hours, minutes;  
 
-  day   = (int)Clock.getDate();
-  {
-    bool century = false;
-    month = (int)Clock.getMonth(century);
-  };
-
-  year  = (int)Clock.getYear();
-  {
-    bool H12 = false, PM;
-    hours = (int)Clock.getHour(H12, PM);
-  };
-
-  minutes = (int)Clock.getMinute();
-
-  Serial.print(day);
-  Serial.print(F("."));
-  Serial.print(month);
-  Serial.print(F("."));
-  Serial.print(year);
-  Serial.print(F(" "));
-  Serial.print(hours);
-  Serial.print(F(":"));
-  Serial.print(minutes); 
-  Serial.print(F(" ")); 
-  Serial.print(getDayOfWeek());
-  Serial.flush();
  };
 
-unsigned long worker::getSecMidnight() {
+unsigned long worker::getSecMidnight(byte &oDayOfWeek) {
   DS3231 Clock;  
   uint16_t y;
   byte m,d,hh,mm,ss;
   Clock.getNow(y,m,d,hh,mm,ss);
+
+  #ifdef IS_DEBUG
+    Serial.print(F("TIME MID:"));
+    Serial.print(y);
+    Serial.print(F("-"));
+    Serial.print(m);
+    Serial.print(F("-"));
+    Serial.print(d);
+    Serial.print(F("  "));
+    Serial.print(hh);
+    Serial.print(F(":"));
+    Serial.print(mm);
+    Serial.print(F(":"));
+    Serial.println(ss);
+  #endif
+
+   oDayOfWeek = _DayOfWeek((int)y,m,d);
+  /**************************************
+   * Переводим в формат:                *  
+   *  1 - понедельник,                  *
+   *  7 - воскресенье                   *
+   **************************************/
+   oDayOfWeek = oDayOfWeek - 1;
+   if (oDayOfWeek==0) {
+     oDayOfWeek=7;
+   };
+
+
+
 
   return hh * 3600UL + mm * 60UL + (unsigned long) ss;
 };
@@ -221,10 +225,10 @@ void worker::setBeforeTaskUpdate(bool (*iEvent)(char* oStr)) {
 
 
 byte worker::shouldTaskWork2(byte iAddress,
-                             unsigned long iSecMidnight
+                             unsigned long iSecMidnight,
+                             byte iDayOfWeek
                             ) {
   unsigned long secTaskBeg, secTaskEnd;
-  byte  currDayOfWeek = getDayOfWeek();
   bool isCurrWeekDay,isInTime;
   task _task;  
 
@@ -241,7 +245,7 @@ byte worker::shouldTaskWork2(byte iAddress,
   secTaskEnd    = secTaskBeg + _task.duration;
   secTaskEnd    = min(secTaskEnd, 86400);
 
-  isCurrWeekDay = bitRead(_task.startCode,32 - currDayOfWeek);
+  isCurrWeekDay = bitRead(_task.startCode,32 - iDayOfWeek);
   isInTime      = secTaskBeg <= iSecMidnight && iSecMidnight <= secTaskEnd;
 
 
@@ -315,9 +319,9 @@ void worker::setDateTime(byte iYear,byte iMonth,byte iDay,byte iHour,byte iMinut
 };
 
 unsigned long worker::getSleepTime() {
+   byte vCurrDayOfWeek;
    unsigned long vNextTime,
-                 vCurrTime = getSecMidnight();
-   byte vCurrDayOfWeek = getDayOfWeek();
+                 vCurrTime = getSecMidnight(vCurrDayOfWeek);
 
    vNextTime = _getMinTaskTime(vCurrDayOfWeek,vCurrTime);
 
@@ -375,11 +379,49 @@ unsigned long worker::_getMinTaskTime(byte iCurrDayOfWeek,unsigned long iCurrTim
   return  vTimeRight != NEAREST_TIME_BORDER ? vTimeRight : vTimeLeft;
 };
 
-long long worker::getTimestamp() {
+long long worker::getTimestamp(unsigned long &oSecMidnight,byte &oDayOfWeek) {
   DS3231 Clock;
   uint16_t y;
   byte m,d,hh,mm,ss;
+
   Clock.getNow(y,m,d,hh,mm,ss);
+
+  if (m<=0 || m>12 || d<=0 || d>31) {
+    #ifdef IS_DEBUG
+      Serial.println(F("TIME ERR#1"));
+    #endif
+    Clock.getNow(y,m,d,hh,mm,ss);
+  };
+
+  #ifdef IS_DEBUG
+    Serial.print(F("TIME ST:"));
+    Serial.print(y);
+    Serial.print(F("-"));
+    Serial.print(m);
+    Serial.print(F("-"));
+    Serial.print(d);
+    Serial.print(F("  "));
+    Serial.print(hh);
+    Serial.print(F(":"));
+    Serial.print(mm);
+    Serial.print(F(":"));
+    Serial.println(ss);
+  #endif
+
+   oDayOfWeek = _DayOfWeek((int)y,m,d);
+  /**************************************
+   * Переводим в формат:                *  
+   *  1 - понедельник,                  *
+   *  7 - воскресенье                   *
+   **************************************/
+   oDayOfWeek = oDayOfWeek - 1;
+   if (oDayOfWeek==0) {
+     oDayOfWeek=7;
+   };
+
+
+  oSecMidnight = hh * 3600UL + mm * 60UL + (unsigned long) ss;
+
   return (y - 16) * 365 * 86400LL + m * 31 * 86400LL + d * 86400LL + hh * 3600LL + mm * 60 + ss;
 
 }

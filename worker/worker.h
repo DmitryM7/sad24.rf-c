@@ -30,10 +30,10 @@ class worker
    void stopLight();
    byte getDayOfWeek();
    void showDateTime();
-   unsigned long getSecMidnight();
-   long long getTimestamp();
+   unsigned long getSecMidnight(byte &oDayOfWeek);
+   long long getTimestamp(unsigned long &oSecMidnight,byte &oDayOfWeek);
    void setBeforeTaskUpdate(bool (*_mEvent)(char* oStr));
-   byte shouldTaskWork2(byte iAddress,unsigned long iSecMidnight);
+   byte shouldTaskWork2(byte iAddress,unsigned long iSecMidnight,byte iDayOfWeek);
    void setTime(char* vCommand);
    void setDateTime(byte iYear,byte iMonth,byte iDay,byte iHour,byte iMinutes,byte iSec);
    unsigned long getSleepTime();
