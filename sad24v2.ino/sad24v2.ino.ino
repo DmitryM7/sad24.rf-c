@@ -339,10 +339,15 @@ void sl() {
   gprs2 sim900(7, 8);
   sim900.sleep();
 }
-bool isDisabledTempRange() {
+bool isDisabledLightRange() {
   offlineParams _offlineParams;
   EEPROM.get(mOfflineParamsStart, _offlineParams);
-  return abs(_offlineParams.tempUpWater1) == 1990 && abs(_offlineParams.tempUpWater2) == 1990 && abs(_offlineParams.tempUpLight1) == 19900 && abs(_offlineParams.tempUpLight2) == 19900;
+  return abs(_offlineParams.tempUpLight1) == 19900 && abs(_offlineParams.tempUpLight2) == 19900;
+}
+bool isDisabledWaterRange() {
+  offlineParams _offlineParams;
+  EEPROM.get(mOfflineParamsStart, _offlineParams);
+  return abs(_offlineParams.tempUpWater1) == 1990 && abs(_offlineParams.tempUpWater2) == 1990;
 }
 void restartModem() {
   gprs2 sim900(7, 8);
@@ -356,7 +361,7 @@ void restartModem() {
     Конец методов работы с модемом
  *************************************************************************/
 bool canGoSleep() {
-   return mCanGoSleep && isDisabledTempRange();
+   return mCanGoSleep && isDisabledLightRange() && isDisabledWaterRange();
 }
 
 byte goSleep(byte iMode,long long iPrevTime) {
@@ -364,8 +369,10 @@ byte goSleep(byte iMode,long long iPrevTime) {
                  vPeriodSleep = 0,
                  vFirstLoop   = 0,
                  vSecondLoop  = 0;
+                 
 
-           long  vNextModem   = 0;
+  long  vNextModem   = 0;
+  long long vTimeStamp;
 
   byte vWaitTime=0;                 
 
@@ -373,11 +380,12 @@ byte goSleep(byte iMode,long long iPrevTime) {
    {
     worker _worker(mWorkerStart);    
     vSleepTime   = _worker.getSleepTime();
+    vTimeStamp   = _worker.getTimestamp();
    };
     
  
     
-    vNextModem   = (long)(iPrevTime + connectPeriod() - mTimeStamp);
+    vNextModem   = (long)(iPrevTime + connectPeriod() - vTimeStamp);
     
     /* Если по каким-то причинам было пропущено несколько подключений, то принудительно подключаемся */
     vNextModem    = max(0,vNextModem); 
@@ -673,7 +681,7 @@ void Timer1_doJob(void) {
     * произошло по границе.                                           *
     *******************************************************************/
     
-   if (!isDisabledTempRange() && (mCurrTempOut < _offlineParams.tempUpLight1 || _light.isEdge)) {
+   if (!isDisabledLightRange() && (mCurrTempOut < _offlineParams.tempUpLight1 || _light.isEdge)) {
      isLightShouldWork = true;
      _light.isEdge     = true;
    };
@@ -685,7 +693,7 @@ void Timer1_doJob(void) {
     * то включаем устройство "Вода". При этом отмечаем включение     *
     * по температуре. Делаю эту тему по заказу Юрца Маленького.      *
     ******************************************************************/
-   if (!isDisabledTempRange() && (mCurrTempIn < _offlineParams.tempUpWater1 || _water.isEdge)) {
+   if (!isDisabledWaterRange() && (mCurrTempIn < _offlineParams.tempUpWater1 || _water.isEdge)) {
      isWaterShouldWork = true;
      _water.isEdge     = true;
    };  
