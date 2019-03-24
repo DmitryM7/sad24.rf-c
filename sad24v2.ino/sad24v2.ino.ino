@@ -42,7 +42,7 @@ unsigned int mWorkerStart = mOfflineParamsStart + sizeof(offlineParams);
 long long vPrevTime2;
 volatile long long mTimeStamp;
 
-volatile bool mCanGoSleep=true;
+volatile bool mCanGoSleep=true,shouldReadSms=false;
 bool isFirstRun = true;
 
 int mCurrTempOut = 19900,
@@ -130,6 +130,7 @@ void setConnectPeriod(int iSleepTime) {
    Дополнительные методы работы.
  ***********************************************************/
 
+void(* resetFunc) (void) = 0;
 
 void loadSensorInfo1(int &oT1, 
                       int &oH1, 
@@ -141,7 +142,7 @@ void loadSensorInfo1(int &oT1,
   Wire.begin();
 
   BMP085   dps = BMP085();
-  DHT dht(2, DHT22);
+  DHT dht(5, DHT22);
 
   dps.init(MODE_STANDARD, 17700, true);
   oT2=dps.getTemperature2();
@@ -824,6 +825,10 @@ void Timer1_doJob(void) {
   mCanGoSleep = !(_light.isWork || _water.isWork);
 }
 
+void pin_ISR () {
+  digitalWrite(13,HIGH); 
+  shouldReadSms=true;
+}
 
 void setup() {
 
@@ -893,6 +898,8 @@ void setup() {
   wdt_enable (WDTO_8S);
 #endif
 
+ attachInterrupt(0, pin_ISR, FALLING);
+
 }
 
 
@@ -931,23 +938,27 @@ void loop()
     Serial.flush();
   #endif
 
+  /******************************************************
+     * При запуске или перезагрузке устройства проверяем  *
+     * СМС сообщения.                                     *
+     ******************************************************/
+    if (shouldReadSms) {      
+     bool isModemWork = wk();
+     if (isModemWork) {
+       readSms2();   
+       resetFunc();
+     };    
+     digitalWrite(13,LOW); 
+     shouldReadSms=false;
+    }; 
+
   if (vD >= connectPeriod() || isFirstRun) {   
-    bool isModemWork = false;   
-    isModemWork = wk();
+    bool isModemWork = wk();
 
     if (!isModemWork) {
       restartModem();
       isModemWork = wk();
-    };
-    /******************************************************
-     * При запуске или перезагрузке устройства проверяем  *
-     * СМС сообщения.                                     *
-     ******************************************************/
-    if (isFirstRun && isModemWork) { 
-     digitalWrite(13,HIGH); 
-     readSms2();  
-     digitalWrite(13,LOW); 
-    }; 
+    };    
    
 
     if (isModemWork) {
