@@ -379,6 +379,12 @@ unsigned long worker::_getMinTaskTime(byte iCurrDayOfWeek,unsigned long iCurrTim
   return  vTimeRight != NEAREST_TIME_BORDER ? vTimeRight : vTimeLeft;
 };
 
+   long long worker::getTimestamp() {
+       unsigned long vSecMidnight = 0;
+       byte vDayOfWeek;
+       return getTimestamp(vSecMidnight,vDayOfWeek); 
+   };
+
 long long worker::getTimestamp(unsigned long &oSecMidnight,byte &oDayOfWeek) {
   DS3231 Clock;
   uint16_t y;
