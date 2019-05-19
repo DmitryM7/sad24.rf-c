@@ -1,7 +1,6 @@
 ################################################################
 # Скрипт для синхронизации библиотек в MS Windows              #
 ################################################################
-cd c:\sad24.rf-c
 
 robocopy gprs2 %userprofile%\Documents\Arduino\libraries\gprs2
 robocopy mstr %userprofile%\Documents\Arduino\libraries\mstr
