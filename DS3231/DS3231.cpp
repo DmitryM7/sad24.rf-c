@@ -163,7 +163,7 @@ void DS3231::getNow(uint16_t &y, byte &m, byte &d, byte &hh, byte &mm, byte &ss)
   			// We'll read from here on for 7 bytes: secs reg, minutes reg, hours, days, months and years.
   r=Wire.endTransmission();
 
-  #ifdef IS_DEBUG
+  #ifdef IS_DEBUG>2
   if (r!=0) {
     Serial.println(F("WIRE #0"));
   };
@@ -171,7 +171,7 @@ void DS3231::getNow(uint16_t &y, byte &m, byte &d, byte &hh, byte &mm, byte &ss)
   
   r=Wire.requestFrom(CLOCK_ADDRESS, 7);
 
-  #ifdef IS_DEBUG
+  #ifdef IS_DEBUG>2
   Serial.print(F("Wire:"));
   Serial.print(r);
   Serial.print(F("|"));
@@ -183,7 +183,7 @@ void DS3231::getNow(uint16_t &y, byte &m, byte &d, byte &hh, byte &mm, byte &ss)
 
   r=Wire.read();
 
-  #ifdef IS_DEBUG
+  #ifdef IS_DEBUG>2
   Serial.print(r);
   Serial.print(F("|"));
   #endif
@@ -191,7 +191,7 @@ void DS3231::getNow(uint16_t &y, byte &m, byte &d, byte &hh, byte &mm, byte &ss)
   ss = bcd2bin(r & 0x7F);
 
   r=Wire.read();
-  #ifdef IS_DEBUG
+  #ifdef IS_DEBUG>2
     Serial.print(r);
     Serial.print(F("|"));
   #endif
@@ -199,7 +199,7 @@ void DS3231::getNow(uint16_t &y, byte &m, byte &d, byte &hh, byte &mm, byte &ss)
   mm = bcd2bin(r);
 
   r=Wire.read();
-  #ifdef IS_DEBUG
+  #ifdef IS_DEBUG>2
     Serial.print(r);
     Serial.print(F("|"));
   #endif
@@ -210,7 +210,7 @@ void DS3231::getNow(uint16_t &y, byte &m, byte &d, byte &hh, byte &mm, byte &ss)
 
   r=Wire.read();
 
-  #ifdef IS_DEBUG
+  #ifdef IS_DEBUG>2
     Serial.print(r);
     Serial.print(F("|"));
   #endif
@@ -227,7 +227,7 @@ void DS3231::getNow(uint16_t &y, byte &m, byte &d, byte &hh, byte &mm, byte &ss)
   m = bcd2bin(r);
 
   r=Wire.read();
-  #ifdef IS_DEBUG
+  #ifdef IS_DEBUG>2
     Serial.print(r);
     Serial.print(F("|"));
     Serial.println(millis());

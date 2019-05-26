@@ -176,7 +176,7 @@ unsigned long worker::getSecMidnight(byte &oDayOfWeek) {
   byte m,d,hh,mm,ss;
   Clock.getNow(y,m,d,hh,mm,ss);
 
-  #ifdef IS_DEBUG
+  #ifdef IS_DEBUG>1
     Serial.print(F("TIME MID:"));
     Serial.print(y);
     Serial.print(F("-"));
@@ -379,8 +379,8 @@ unsigned long worker::_getMinTaskTime(byte iCurrDayOfWeek,unsigned long iCurrTim
   return  vTimeRight != NEAREST_TIME_BORDER ? vTimeRight : vTimeLeft;
 };
 
-   long long worker::getTimestamp() {
-       unsigned long vSecMidnight = 0;
+  long long worker::getTimestamp() {
+       unsigned long vSecMidnight;
        byte vDayOfWeek;
        return getTimestamp(vSecMidnight,vDayOfWeek); 
    };
@@ -388,18 +388,23 @@ unsigned long worker::_getMinTaskTime(byte iCurrDayOfWeek,unsigned long iCurrTim
 long long worker::getTimestamp(unsigned long &oSecMidnight,byte &oDayOfWeek) {
   DS3231 Clock;
   uint16_t y;
-  byte m,d,hh,mm,ss;
+  byte m,d,hh,mm,ss,vAttempt=0;
+  bool isError;
 
-  Clock.getNow(y,m,d,hh,mm,ss);
-
-  if (m<=0 || m>12 || d<=0 || d>31) {
-    #ifdef IS_DEBUG
-      Serial.println(F("TIME ERR#1"));
-    #endif
+   {
     Clock.getNow(y,m,d,hh,mm,ss);
-  };
+    #ifdef IS_DEBUG
+       if (m<=0 || m>12 || d<=0 || d>31) {
+        Serial.print(F("TE = "));
+        Serial.println(vAttempt);
+       }
+    #endif
+    vAttempt++;
+   } while (vAttempt<3 && (isError=(m<=0 || m>12 || d<=0 || d>31)));
 
-  #ifdef IS_DEBUG
+   if (isError) { oSecMidnight=0; oDayOfWeek=0; return 0; };
+
+  #if IS_DEBUG>2
     Serial.print(F("TIME ST:"));
     Serial.print(y);
     Serial.print(F("-"));
@@ -428,6 +433,6 @@ long long worker::getTimestamp(unsigned long &oSecMidnight,byte &oDayOfWeek) {
 
   oSecMidnight = hh * 3600UL + mm * 60UL + (unsigned long) ss;
 
-  return (y - 16) * 365 * 86400LL + m * 31 * 86400LL + d * 86400LL + hh * 3600LL + mm * 60 + ss;
+  return (y - 16) * 365 * 86400LL + m * 31 * 86400LL + d * 86400LL + hh * 3600LL + mm * 60LL + ss;
 
 }

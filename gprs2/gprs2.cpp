@@ -302,7 +302,7 @@ void gprs2::_sendTermCommand(bool iWaitOK=true) {
       };
 
       _doCmd(F("AT+HTTPTERM"));
-      vStatus=_getAnswerWait(vRes,sizeof(vRes),vTmpStr);
+      vStatus= _getAnswerWait(vRes,sizeof(vRes),vTmpStr);
 };
 
 bool gprs2::isConnect() {
@@ -315,10 +315,6 @@ bool gprs2::isConnect() {
      strcpy_P(vTmpStr, PSTR("+CREG")); 
 
      if (_getAnswerWait(vRes,sizeof(vRes),vTmpStr)) {
-     #ifdef IS_DEBUG
-       Serial.println(vRes);
-     #endif
-
         strcpy_P(vTmpStr, PSTR("- CON"));
         _setLastError(__LINE__,vTmpStr);       
         return false;
@@ -349,7 +345,7 @@ bool gprs2::canInternet() {
       char _tmpStr[20];
       mstr _mstr;
 
-      #if IS_DEBUG>1
+      #if IS_DEBUG
         Serial.println(iUrl);
       #endif
 
@@ -371,6 +367,7 @@ bool gprs2::canInternet() {
 
         strcpy_P(_tmpStr, (char*)OK_M);
 	_doCmd(F("AT+HTTPINIT"));
+
         if(_getAnswerWait(oRes,iResLength,_tmpStr)) {
            _sendTermCommand();
            _setLastError(__LINE__,oRes);
@@ -420,7 +417,7 @@ bool gprs2::canInternet() {
          unsigned int vFactSize  = 0;
          vFactSize = strlen(iPar);
 
-         #if IS_DEBUG>1
+         #if IS_DEBUG
           Serial.println(iPar);
          #endif
 
@@ -554,19 +551,16 @@ bool gprs2::_setSmsTextMode() {
 }
 
 void gprs2::getSmsText(unsigned int iNum,char* oRes,unsigned int iSmsSize) {
-  char vCommand[15],vTmpStr[3];
+   char vCommand[13],vTmpStr[3];
    sprintf_P(vCommand,PSTR("AT+CMGR=%u,1"),iNum);
-  _doCmd(vCommand);
-  strcpy_P(vTmpStr,(char*)OK_M);
+   _doCmd(vCommand);
+   strcpy_P(vTmpStr,(char*)OK_M);
   _getAnswerWait(oRes,iSmsSize,vTmpStr,true);     
 }
 
 
 void gprs2::_setLastError(unsigned int iErrorNum,char* iErrorText) {
-//    _emptyBuffer(_lastError,20);  
-
     if (strlen(iErrorText)>2) {     
-//       strncpy(_lastError,iErrorText,19);
          _lastError=String(iErrorText);
     } else {
          _lastError=String(iErrorNum);
@@ -690,7 +684,6 @@ bool gprs2::setOnSms(bool (*iSmsEvent)(byte iSms, char* oStr)) {
 
     _setSmsTextMode();
     saveOnSms();
-
 
     for (unsigned int vI=1; vI<6; vI++) {
          _emptyBuffer(vRes,sizeof(vRes));
