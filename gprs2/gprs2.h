@@ -40,7 +40,9 @@ class gprs2
     void getSmsText(unsigned int iNum,char* oRes,unsigned int iSmsSize);
     bool sendSms(char* iPhone,char* iText);
     bool readSms(bool deleteAfterRead=true);
+
     bool setOnSms(bool (*iSmsEvent)(byte iSms, char* oStr));
+
     bool deleteAllSms();
     bool deleteSms(byte iSms);
 
