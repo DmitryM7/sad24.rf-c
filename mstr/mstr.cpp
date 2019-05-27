@@ -139,7 +139,7 @@ bool mstr::begins(char* iStr,char* iPattern) {
   char* p1;
   p1 = strstr(iStr,iPattern);
 
-  if (p1!=NULL && p1 >= iStr) {
+  if (p1 >= iStr) {
     return p1 - iStr == 0;
   };
   

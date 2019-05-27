@@ -12,9 +12,9 @@
  * Serial.print (" L/hour\r\n"); //Prints "L/hour" and returns a  new line                       *
  ************************************************************************************************/
 
-volatile int               NbTopsFan; //measuring the rising edges of the signal
+volatile int NbTopsFan; //measuring the rising edges of the signal
 volatile unsigned long int mPrevFlow = 0;
-bool                       isWater = false;  
+bool isWater = false;  
  
 void rpm ()     //This is the function that the interupt calls 
 { 
@@ -60,8 +60,8 @@ void loop ()
 {
 
   float mMinPreasure      = 2,
-        mMaxPreasure      = 3,
         mCriticalPreasure = 4,
+        mMaxPreasure      = 3,
         mCurrPreasure,
         mCurrFlowTimeDiff;
   int mFlowTimeDiff       = 200;
