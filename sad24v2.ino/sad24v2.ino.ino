@@ -688,9 +688,9 @@ void Timer1_doJob(void) {
   unsigned long vSecMidnight = 0;
   byte vDayOfWeek;
   
-  EEPROM.get(eeprom_mOfflineParamsStart, _offlineParams);       
+   EEPROM.get(eeprom_mOfflineParamsStart, _offlineParams);       
  
-  mCurrTime=_worker.getTimestamp(vSecMidnight,vDayOfWeek);  
+   mCurrTime=_worker.getTimestamp(vSecMidnight,vDayOfWeek);  
 
 
    /*******************************************************************
@@ -703,7 +703,6 @@ void Timer1_doJob(void) {
      isLightShouldWork = true;
      _light.isEdge     = true;
    };
-
 
 
    /******************************************************************
