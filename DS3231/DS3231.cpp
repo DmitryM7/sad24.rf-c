@@ -156,45 +156,84 @@ DateTime RTClib::now() {
 
 ///// ERIC'S ORIGINAL CODE FOLLOWS /////
 
-void DS3231::getNow(byte &y, byte &m, byte &d, byte &hh, byte &mm, byte &ss) {
-  volatile unsigned int vAttempt=0;
-  bool hasError=false;
-  
- /****************************************************
-  * Делаем паузу приблизительно в 65 мс. Сделать     *
-  * это с помощью delay не можем, так как фун-ция    *
-  * будет использоваться в прерывании.               *
-  ****************************************************/
-  while (vAttempt<750) {
-    vAttempt++;
-  };
-
+void DS3231::getNow(uint16_t &y, byte &m, byte &d, byte &hh, byte &mm, byte &ss) {
+  int r;
   Wire.beginTransmission(CLOCK_ADDRESS);
-  Wire.write(0);	         // This is the first register address (Seconds)  			// We'll read from here on for 7 bytes: secs reg, minutes reg, hours, days, months and years.
-  Wire.endTransmission();
+  Wire.write(0);	// This is the first register address (Seconds)
+  			// We'll read from here on for 7 bytes: secs reg, minutes reg, hours, days, months and years.
+  r=Wire.endTransmission();
 
-  vAttempt=0;
-  Wire.requestFrom(CLOCK_ADDRESS, 7);
-  
-  do {
-    vAttempt++;   
-  } while ((hasError=!Wire.available()) && vAttempt<1000);
-
-  if (hasError) {
-    ss=0;
-    mm=0;
-    hh=0;
-    d=0;m=0;y=0;
-    return;
+  #ifdef IS_DEBUG>2
+  if (r!=0) {
+    Serial.println(F("WIRE #0"));
   };
+  #endif
+  
+  r=Wire.requestFrom(CLOCK_ADDRESS, 7);
 
-  ss = bcd2bin(Wire.read() & 0x7F);
-  mm = bcd2bin(Wire.read());
-  hh = bcd2bin(Wire.read());
+  #ifdef IS_DEBUG>2
+  Serial.print(F("Wire:"));
+  Serial.print(r);
+  Serial.print(F("|"));
+
+  if (r<=0) {
+    Serial.println(F("WIRE #1"));
+  };
+  #endif
+
+  r=Wire.read();
+
+  #ifdef IS_DEBUG>2
+  Serial.print(r);
+  Serial.print(F("|"));
+  #endif
+
+  ss = bcd2bin(r & 0x7F);
+
+  r=Wire.read();
+  #ifdef IS_DEBUG>2
+    Serial.print(r);
+    Serial.print(F("|"));
+  #endif
+
+  mm = bcd2bin(r);
+
+  r=Wire.read();
+  #ifdef IS_DEBUG>2
+    Serial.print(r);
+    Serial.print(F("|"));
+  #endif
+
+  hh = bcd2bin(r);
+
   Wire.read();
-  d = bcd2bin(Wire.read());
-  m = bcd2bin(Wire.read());
-  y = bcd2bin(Wire.read());
+
+  r=Wire.read();
+
+  #ifdef IS_DEBUG>2
+    Serial.print(r);
+    Serial.print(F("|"));
+  #endif
+
+  d = bcd2bin(r);
+
+  r=Wire.read();
+
+  #ifdef IS_DEBUG
+   Serial.print(r);
+   Serial.print(F("|"));
+  #endif
+
+  m = bcd2bin(r);
+
+  r=Wire.read();
+  #ifdef IS_DEBUG>2
+    Serial.print(r);
+    Serial.print(F("|"));
+    Serial.println(millis());
+  #endif
+
+  y = bcd2bin(r);
 }
 
 byte DS3231::getSecond() {
