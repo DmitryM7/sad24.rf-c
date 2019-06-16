@@ -66,7 +66,7 @@ class DS3231 {
 		// Time-retrieval functions
     
 		// the get*() functions retrieve current values of the registers.
-                void getNow(uint16_t &y, byte &m, byte &d, byte &hh, byte &mm, byte &ss);
+                void getNow(byte &y, byte &m, byte &d, byte &hh, byte &mm, byte &ss);
 		byte getSecond(); 
 		byte getMinute(); 
 		byte getHour(bool& h12, bool& PM); 

@@ -148,8 +148,8 @@ byte worker::_DayOfWeek(int y,byte m,byte d) {
 
 byte worker::getDayOfWeek() {
   DS3231 Clock;
-  byte dow,m,d,hh,mm,ss;
-  uint16_t y;
+  byte dow,m,d,hh,mm,ss,y;
+  
 
   Clock.getNow(y,m,d,hh,mm,ss);
   dow = _DayOfWeek((int)y,m,d);
@@ -172,26 +172,10 @@ void worker::showDateTime() {
 
 unsigned long worker::getSecMidnight(byte &oDayOfWeek) {
   DS3231 Clock;  
-  uint16_t y;
-  byte m,d,hh,mm,ss;
+    byte m,d,hh,mm,ss,y;
   Clock.getNow(y,m,d,hh,mm,ss);
 
-  #ifdef IS_DEBUG>1
-    Serial.print(F("TIME MID:"));
-    Serial.print(y);
-    Serial.print(F("-"));
-    Serial.print(m);
-    Serial.print(F("-"));
-    Serial.print(d);
-    Serial.print(F("  "));
-    Serial.print(hh);
-    Serial.print(F(":"));
-    Serial.print(mm);
-    Serial.print(F(":"));
-    Serial.println(ss);
-  #endif
-
-   oDayOfWeek = _DayOfWeek((int)y,m,d);
+     oDayOfWeek = _DayOfWeek((int)y,m,d);
   /**************************************
    * Переводим в формат:                *  
    *  1 - понедельник,                  *
@@ -387,45 +371,24 @@ unsigned long worker::_getMinTaskTime(byte iCurrDayOfWeek,unsigned long iCurrTim
 
 long long worker::getTimestamp(unsigned long &oSecMidnight,byte &oDayOfWeek) {
   DS3231 Clock;
-  uint16_t y;
-  byte m,d,hh,mm,ss,vAttempt=0;
-  bool isError=false;
+    byte m=0,d,hh,mm,ss,y,vAttempt=0;
+  bool hasError;
 
-   {
-     /******************************************************************
-      * Делаем паузу перед чтением. Так как читать можем в прерывании, *
-      * то паузу ставим в виде цикла.                                  *
-      ******************************************************************/
-    volatile unsigned int vFlag;
-    for (unsigned int i=1; i<6700; i++) { vFlag++; };
-     /*******************************/
+   do {
     Clock.getNow(y,m,d,hh,mm,ss);
+    
     #ifdef IS_DEBUG
-       if (isError) {
+       if (m<=0 || m>12 || d<=0 || d>31) {
         Serial.print(F("TE = "));
         Serial.println(vAttempt);
+        Serial.flush();
        }
     #endif
-    vAttempt++;
-   } while (vAttempt<3 && (isError=(m<=0 || m>12 || d<=0 || d>31)));
-
-   if (isError) { oSecMidnight=0; oDayOfWeek=0; return 0; };
-
-  #if IS_DEBUG>2
-    Serial.print(F("TIME ST:"));
-    Serial.print(y);
-    Serial.print(F("-"));
-    Serial.print(m);
-    Serial.print(F("-"));
-    Serial.print(d);
-    Serial.print(F("  "));
-    Serial.print(hh);
-    Serial.print(F(":"));
-    Serial.print(mm);
-    Serial.print(F(":"));
-    Serial.println(ss);
-  #endif
-
+     vAttempt++;
+   } while (vAttempt<3 && (hasError=m<=0 || m>12 || d<=0 || d>31));
+   
+   if (hasError) { oSecMidnight=0; oDayOfWeek=0; return 0; };
+   
    oDayOfWeek = _DayOfWeek((int)y,m,d);
   /**************************************
    * Переводим в формат:                *  
