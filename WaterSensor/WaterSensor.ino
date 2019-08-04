@@ -1,4 +1,5 @@
 #include <avr/wdt.h>
+#include <debug.h>
 /************************************************************************************************
  * Пример кода для посчета количества протекующей жидкости                                      *
  * int Calc;                               
@@ -11,10 +12,16 @@
  * Serial.print (Calc, DEC); //Prints the number calculated above                                *
  * Serial.print (" L/hour\r\n"); //Prints "L/hour" and returns a  new line                       *
  ************************************************************************************************/
-
+         
 volatile int NbTopsFan; //measuring the rising edges of the signal
 volatile unsigned long int mPrevFlow = 0;
 bool isWater = false;  
+
+#define CRITICAL_PREASURE 4   // Критическое давление при котором устройсво отключится без учета  потока.
+#define MAX_PREASURE 3        // Давление при котором устройство отключится если нет потока
+#define MIN_PREASURE 2        // В случае если давление в системе упадет меньше указанного, то устройство вклчючит насос
+#define FLOW_DIFF 200         // Время в течение которого устройство опеделяет отсутствие потока.
+
  
 void rpm ()     //This is the function that the interupt calls 
 { 
@@ -22,26 +29,8 @@ void rpm ()     //This is the function that the interupt calls
   mPrevFlow = millis();
 } 
 // The setup() method runs once, when the sketch starts
-void setup() //
-{ 
-  Serial.begin(19200); 
 
-  Serial.println(F("*** Start device ***")); Serial.flush();
-  
-  pinMode(2, INPUT); 
-  attachInterrupt(0, rpm, RISING); 
-  
-  pinMode(A0, INPUT);
 
-  pinMode(11, OUTPUT);
-  pinMode(12, OUTPUT);
-
-  digitalWrite(11,HIGH);
-  digitalWrite(12,HIGH);
-
-  wdt_enable (WDTO_8S);
-  
-} 
 
 float getCurrPreasure() {
   unsigned int v;
@@ -55,19 +44,44 @@ unsigned long int getPrevFlowDiff() {
   return millis() - mPrevFlow;
 }
 
+void confPump() {
+  pinMode(11, OUTPUT);
+  digitalWrite(11,LOW);
+}
+void disablePump() {
+  digitalWrite(11,LOW);
+}
 
+void enablePump() {
+  digitalWrite(11,HIGH);
+}
+
+
+void setup() //
+{ 
+  #ifdef IS_DEBUG
+    Serial.begin(19200); 
+    Serial.println(F("*** Start device ***")); Serial.flush();
+  #endif
+  
+  pinMode(3, INPUT); 
+  attachInterrupt(1, rpm, RISING); 
+  
+  pinMode(A0, INPUT);
+
+  confPump();
+
+  wdt_enable (WDTO_8S);
+  
+} 
 void loop ()    
 {
 
-  float mMinPreasure      = 2,
-        mCriticalPreasure = 4,
-        mMaxPreasure      = 3,
-        mCurrPreasure,
-        mCurrFlowTimeDiff;
-  int mFlowTimeDiff       = 200;
+  float mCurrPreasure, mCurrFlowTimeDiff;
 
-   
-  
+  #ifdef IS_DEBUG
+      Serial.print(getCurrPreasure()); Serial.println(); Serial.flush();
+  #endif
 
  /*****************************************************
   * Проверка №1.
@@ -75,12 +89,10 @@ void loop ()
   *  при достижении нужной границы отключаем воду.    *
   *****************************************************/
  
- if ((mCurrFlowTimeDiff = getPrevFlowDiff()) >= mFlowTimeDiff && (mCurrPreasure = getCurrPreasure()) >= mMaxPreasure) {
-    Serial.println(F("Max preasure: ")); Serial.print(mCurrPreasure); Serial.print(F(" and no flow: ")); Serial.print(mCurrFlowTimeDiff); Serial.println(F(" - power off."));    
-    Serial.flush();
-    digitalWrite(11,HIGH);
+ if ((mCurrFlowTimeDiff = getPrevFlowDiff()) >= FLOW_DIFF) {
+    Serial.println(F("Max preasure: ")); Serial.print(mCurrPreasure); Serial.print(F(" and no flow: ")); Serial.print(mCurrFlowTimeDiff); Serial.println(F(" - power off."));  Serial.flush();
+    disablePump();
     isWater = false;
-    return;
   };
 
  /********************************************************
@@ -88,13 +100,10 @@ void loop ()
   * Достигли критического значения по давлению.          *
   * Отключаем насос вне зависимости от других параметров *
   ********************************************************/
-  if ((mCurrPreasure = getCurrPreasure()) >= mCriticalPreasure) {
-    Serial.print(F("!!! Critical preasure: ")); Serial.print(mCurrPreasure); Serial.println(F("- power off !!!"));    
-    Serial.print(F("FLOW: ")); Serial.println(getPrevFlowDiff());    
-    Serial.flush();
-    digitalWrite(11,HIGH);
+  if ((mCurrPreasure = getCurrPreasure()) >= CRITICAL_PREASURE) {
+    Serial.print(F("!!! Critical preasure: ")); Serial.print(mCurrPreasure); Serial.println(F("- power off !!!")); Serial.print(F("FLOW: ")); Serial.println(getPrevFlowDiff()); Serial.flush();
+    disablePump();
     isWater = false;
-    return;
   };
 
   /**************************************************
@@ -103,12 +112,10 @@ void loop ()
    * Включаем его.                                  *
    **************************************************/
 
-  if ((mCurrPreasure = getCurrPreasure()) <= mMinPreasure && !isWater) {
-    Serial.print(F("Min preasure: ")); Serial.print(mCurrPreasure); Serial.println(F(" - power on."));    
-    Serial.flush();
-    digitalWrite(11,LOW);
+  if ((mCurrPreasure = getCurrPreasure()) <= MIN_PREASURE && !isWater) {
+    Serial.print(F("Min preasure: ")); Serial.print(mCurrPreasure); Serial.println(F(" - power on.")); Serial.flush();
+    enablePump();
     isWater = true;
-    return;
   };
 
  wdt_reset();
