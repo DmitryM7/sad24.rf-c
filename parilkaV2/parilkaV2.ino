@@ -55,6 +55,10 @@ void doColorByTemp(float iTemp) {
   float vDiff;
   
   if (iTemp <= p[0]) {
+    #ifdef IS_DEBUG 
+      Serial.print(F("Do color = "));
+      Serial.println(vColor);
+    #endif
        setRGB(0,0, vColor);
   };
 
