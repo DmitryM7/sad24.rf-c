@@ -17,10 +17,10 @@ volatile int NbTopsFan; //measuring the rising edges of the signal
 volatile unsigned long int mPrevFlow = 0;
 bool isWater = false;  
 
-#define CRITICAL_PREASURE 4   // Критическое давление при котором устройсво отключится без учета  потока.
-#define MAX_PREASURE 3        // Давление при котором устройство отключится если нет потока
+#define CRITICAL_PREASURE 3   // Критическое давление при котором устройсво отключится без учета  потока.
+#define MAX_PREASURE 2        // Давление при котором устройство отключится если нет потока
 #define MIN_PREASURE 2        // В случае если давление в системе упадет меньше указанного, то устройство вклчючит насос
-#define FLOW_DIFF 200         // Время в течение которого устройство опеделяет отсутствие потока.
+#define FLOW_DIFF 70         // Время в течение которого устройство опеделяет отсутствие потока.
 
  
 void rpm ()     //This is the function that the interupt calls 
@@ -77,10 +77,10 @@ void setup() //
 void loop ()    
 {
 
-  float mCurrPreasure, mCurrFlowTimeDiff;
+  float mCurrPreasure = getCurrPreasure(), mCurrFlowTimeDiff;
 
   #ifdef IS_DEBUG
-      Serial.print(getCurrPreasure()); Serial.println(); Serial.flush();
+      Serial.print(mCurrPreasure); Serial.println(); Serial.flush();
   #endif
 
  /*****************************************************
@@ -89,7 +89,7 @@ void loop ()
   *  при достижении нужной границы отключаем воду.    *
   *****************************************************/
  
- if ((mCurrFlowTimeDiff = getPrevFlowDiff()) >= FLOW_DIFF) {
+ if ((mCurrPreasure = getCurrPreasure()) > MAX_PREASURE && (mCurrFlowTimeDiff = getPrevFlowDiff()) >= FLOW_DIFF && isWater) {
     Serial.println(F("Max preasure: ")); Serial.print(mCurrPreasure); Serial.print(F(" and no flow: ")); Serial.print(mCurrFlowTimeDiff); Serial.println(F(" - power off."));  Serial.flush();
     disablePump();
     isWater = false;
