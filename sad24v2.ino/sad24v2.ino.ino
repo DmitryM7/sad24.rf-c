@@ -39,6 +39,7 @@ struct offlineParams {
 #define eeprom_mGlobalsStart sizeof(Connection)
 #define eeprom_mOfflineParamsStart sizeof(Connection)+sizeof(Globals)
 #define eeprom_mWorkerStart eeprom_mOfflineParamsStart + sizeof(offlineParams)
+#define BLINK_PIN 13
 
 long long mCurrTime,vPrevTime2;
 
@@ -129,7 +130,11 @@ void setConnectPeriod(int iSleepTime) {
    Дополнительные методы работы.
  ***********************************************************/
 
-void(* resetFunc) (void) = 0;
+bool isConnectInfoFull() {
+  Connection _connection;
+  EEPROM.get(0, _connection);  
+  return strlen(_connection.sitePoint)>0 && strlen(_connection.apnPoint)>0;
+}
 
 void loadSensorInfo1(int &oT1, 
                       int &oH1, 
@@ -187,7 +192,7 @@ void showLong(long long iVal) {
 /**************************************************************
    Методы работы с модемом
  **************************************************************/
-void parseThreeParamCommand(char* iCommand) {
+void parseSmsParamCommand(char* iCommand) {
   char vTmpStr[5],
        vCmd[10];
     mstr _mstr;
@@ -274,10 +279,8 @@ bool onSms(byte iSms, char* iCommand) {
 
   strcpy_P(vTmpStr, PSTR(":"));
 
-  switch (_mstr.numEntries(iCommand, vTmpStr)) {
-    case 4:
-      parseThreeParamCommand(iCommand);
-     break;
+  if (_mstr.numEntries(iCommand, vTmpStr)>3) {
+      parseSmsParamCommand(iCommand);     
   };
 
   return true;
@@ -295,7 +298,6 @@ void readSms2() {
   #endif   
   delay(500); //Не знаю почему, но без этой конструкции freemem показывает, что сожрано на 200байт больше памяти.
   sim900.readSms();
-
   #ifdef IS_DEBUG
       Serial.println(F("*ESMS*"));
       Serial.flush();
@@ -333,7 +335,7 @@ bool wk() {
       Serial.println(vError);
       Serial.flush();
   };
-#endif*/
+#endif
 
   return vStatus;
 
@@ -349,6 +351,7 @@ void sl() {
 bool isDisabledLightRange() {
   offlineParams _offlineParams;
   EEPROM.get(eeprom_mOfflineParamsStart, _offlineParams);
+
   return abs(_offlineParams.tempUpLight1) == 19900 && abs(_offlineParams.tempUpLight2) == 19900;
 }
 bool isDisabledWaterRange() {
@@ -688,9 +691,9 @@ void Timer1_doJob(void) {
   unsigned long vSecMidnight = 0;
   byte vDayOfWeek;
   
-   EEPROM.get(eeprom_mOfflineParamsStart, _offlineParams);       
+  EEPROM.get(eeprom_mOfflineParamsStart, _offlineParams);       
  
-   mCurrTime=_worker.getTimestamp(vSecMidnight,vDayOfWeek);  
+  mCurrTime=_worker.getTimestamp(vSecMidnight,vDayOfWeek);  
 
 
    /*******************************************************************
@@ -703,6 +706,7 @@ void Timer1_doJob(void) {
      isLightShouldWork = true;
      _light.isEdge     = true;
    };
+
 
 
    /******************************************************************
@@ -850,8 +854,28 @@ void Timer1_doJob(void) {
 }
 
 void pin_ISR () {
-  digitalWrite(13,HIGH); 
+  /**********************************************
+   * Пришло прерывание по нажатию на кнопку.    *
+   * Обнуляем переменные соединения, выставляем *         
+   * флаг считывания СМС сообщений.             *
+   **********************************************/
+
+  Connection _connection;
+
+  EEPROM.get(0, _connection);   
+
+  strcpy_P(_connection.sitePoint, PSTR("\0"));    
+  strcpy_P(_connection.apnPoint, PSTR("\0"));    
+     
+  #ifdef IS_DEBUG
+    Serial.println(F("SMS|^"));
+  #endif
   mShouldReadSms=true;
+
+  noInterrupts();
+  EEPROM.put(0, _connection);
+  interrupts();
+
 }
 
 void setup() {
@@ -863,10 +887,9 @@ void setup() {
   Connection _connection;
   Globals _globals;
   worker _worker(eeprom_mWorkerStart);
- 
-  pinMode(4, OUTPUT);
-  pinMode(13, OUTPUT);
-  digitalWrite(13, LOW);    // turn the LED off by making the voltage LOW
+   
+  pinMode(BLINK_PIN, OUTPUT);
+  digitalWrite(BLINK_PIN, LOW);    // turn the LED off by making the voltage LOW
 
   _worker.stopWater();
   _worker.stopLight();
@@ -939,9 +962,9 @@ void setup() {
 }
 
 void waitAndBlink() {
-  digitalWrite(13,HIGH);
+  digitalWrite(BLINK_PIN,HIGH);
   delay(500);
-  digitalWrite(13,LOW);
+  digitalWrite(BLINK_PIN,LOW);
   delay(5000); 
 }
 
@@ -949,94 +972,82 @@ void waitAndBlink() {
 void loop() 
 {
     
-  //Обязательно оставить, иначе слишком быстро дергаются часы и из-за этого через некоторое время сбрасываются    
-  waitAndBlink();
+  waitAndBlink(); // Мигаем диодом, что живы
    
-  long vD = (long)(mCurrTime-vPrevTime2);   
-   
- 
-  
+  long vD = (long)(mCurrTime-vPrevTime2);  // mCurrTime берем из прерывания по будильнику
+      
     loadSensorInfo1(mCurrTempOut,mCurrH, mCurrTempIn, mCurrP);
 
     #ifdef IS_DEBUG
-     Serial.print(F("T1:"));
-     Serial.print(mCurrTempOut);    
-
-     Serial.print(F("  T2:"));
-     Serial.print(mCurrTempIn);
-
-     Serial.print(F("  H:"));
-     Serial.print(mCurrH);
-
-     Serial.print(F("  P:"));
-     Serial.print(mCurrP);
-    
-     Serial.print(F("  W&L:"));
-     Serial.print(_water.duration);
-     Serial.print(F("&"));
-     Serial.println(_light.duration);
-   
-     Serial.flush();
+     Serial.print(F("T1:")); Serial.print(mCurrTempOut); Serial.print(F("  T2:")); Serial.print(mCurrTempIn); Serial.print(F("  H:")); Serial.print(mCurrH); Serial.print(F("  P:")); Serial.print(mCurrP); Serial.print(F("  W&L:"));     Serial.print(_water.duration); Serial.print(F("&")); Serial.println(_light.duration); Serial.flush();
    #endif
 
-    /******************************************************
-     * При запуске или перезагрузке устройства проверяем  *
-     * СМС сообщения.                                     *
-     ******************************************************/
+    /***************************************************************
+     * Была нажата кнопка считывания СМС сообщения, считываем      * 
+     * до тех пор пока не будут заполнены ключевые параметры.      *
+     * Если модем не готов, то будем его перезагружать его до тех  *
+     * пор пока он не станет готовым.                              *
+     **************************************************************/
     if (mShouldReadSms) {      
-       bool isModemWork = wk();
-       if (isModemWork) {
-         readSms2();   
-         resetFunc();
-       };    
-       digitalWrite(13,LOW); 
+       bool isModemWork;
+
+       while (!(isModemWork=wk())) {                
+        restartModem();
+       };
+              
+       while (!isConnectInfoFull()) {
+           readSms2();             
+       };       
+       digitalWrite(BLINK_PIN,LOW); 
        mShouldReadSms=false;
     }; 
 
 
     
 
-  if (vD >= connectPeriod()) {   
-    
-    bool isModemWork = wk();
+  if (vD >= connectPeriod()) { 
 
-    if (!isModemWork) {
-      restartModem();
-      isModemWork = wk();
-    };   
-   
+    /*** Начало блока работы с модемом ***/
 
-    if (isModemWork) {
-      byte vAttempt = 0;
-      bool vStatus  = false;
+    if (isConnectInfoFull()) {
+      bool isModemWork = wk();  
 
-       do {
-         vStatus = updateRemoteParams();
+      if (!isModemWork) {
+        restartModem();
+        isModemWork = wk();
+      };
+
+      if (isModemWork) {
+        byte vAttempt = 0;
+        bool vStatus  = false;
+
+        do {
+          vStatus = updateRemoteParams();
          
-         if (!vStatus && vAttempt==1) {
+          if (!vStatus && vAttempt==1) {
+             restartModem();
+          };
+         
+          vAttempt++;
+       } while (!vStatus && vAttempt < 3);
+
+        vAttempt = 0;
+        vStatus  = false;
+        do {
+          vStatus = updateRemoteMeasure(mCurrTempOut, mCurrH, mCurrTempIn, mCurrP);
+
+          if (!vStatus && vAttempt==1) {
             restartModem();
-         };
+          };
          
-         vAttempt++;
-      } while (!vStatus && vAttempt < 3);
+          vAttempt++;
+        } while (!vStatus && vAttempt < 3);
+      };            
+      
+      
+      /*** Конец блока работы с модемом ***/
     };
-
-    if (isModemWork) {   
-      byte vAttempt = 0;
-      bool vStatus  = false;
-  
-       do {
-        vStatus = updateRemoteMeasure(mCurrTempOut, mCurrH, mCurrTempIn, mCurrP);
-
-        if (!vStatus && vAttempt==1) {
-          restartModem();
-         };
-         
-        vAttempt++;
-      } while (!vStatus && vAttempt < 3);
-
-    };
-
+          
     vPrevTime2 = mCurrTime;
     sl();  //После того как модем передал данные уводим его в сон. Если это делать в основном теле функции, то отправлять будем 1 раз в секунду  
 };

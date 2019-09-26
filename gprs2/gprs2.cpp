@@ -4,7 +4,6 @@
 #include <mstr.h>
 #include <MemoryFree.h>
 #include <debug.h>
-#define WAIT_ANSWER_TIME 45000
 
 
 const char OK_M[] PROGMEM = "OK";
@@ -345,13 +344,16 @@ bool gprs2::canInternet() {
       char _tmpStr[20];
       mstr _mstr;
 
-      #if IS_DEBUG
-        Serial.println(iUrl);
-      #endif
-
+       if (strlen(iUrl)<2) {
+           strcpy_P(oRes,PSTR("NO URL"));
+          _setLastError(__LINE__,oRes);
+          _sendTermCommand();
+          _emptyBuffer(oRes,iResLength);
+          return false;
+       };
 
        if (iResLength < 35) {
-           strcpy_P(oRes,PSTR("iResLength small"));
+           strcpy_P(oRes,PSTR("iRes small"));
            _setLastError(__LINE__,oRes);
           _sendTermCommand();
           _emptyBuffer(oRes,iResLength);
@@ -535,7 +537,7 @@ bool gprs2::saveOnSms() {
    char vRes[10],
         vTmpStr[3];
    mstr _mstr;
-   _doCmd(F("AT+CNMI=1,1,0,0,0"));
+   _doCmd(F("AT+CNMI=2,0,0,0,0"));
    getAnswer3(vRes,sizeof(vRes));
    strcpy_P(vTmpStr, (char*)OK_M);
    return _mstr.indexOf(vRes,vTmpStr) > -1;
@@ -682,13 +684,16 @@ bool gprs2::setOnSms(bool (*iSmsEvent)(byte iSms, char* oStr)) {
  bool gprs2::readSms(bool deleteAfterRead=true) {
  char vRes[200];
 
-    _setSmsTextMode();
-    saveOnSms();
-
     for (unsigned int vI=1; vI<6; vI++) {
          _emptyBuffer(vRes,sizeof(vRes));
 
          getSmsText(vI,vRes,sizeof(vRes));
+
+         #ifdef IS_DEBUG
+           Serial.print(vI);
+           Serial.print(F(":"));
+           Serial.println(vRes);
+         #endif
 
          if (strlen(vRes) < 20) {
                /********************************************************************
