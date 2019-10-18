@@ -11,7 +11,6 @@
 
 
 worker::worker(unsigned int iStartAddress) {
- Wire.begin();
  _startAddress = iStartAddress;
  pinMode(11, OUTPUT);
  pinMode(12, OUTPUT);
@@ -27,19 +26,21 @@ worker::worker(unsigned int iStartAddress) {
  *  4. Дительность.                                          *
  * Команды могут быть разделены знаком |                     *
  *************************************************************/
-byte worker::update(char* iCommand) {
+bool worker::update(char* iCommand) {
    char *str1,
         _tmpStr1[2],
         _tmpStr2[2],
         vCommand[2];
    unsigned int vAddress = 0;
-   bool         vNeedReconnect = 0;
+   bool vNeedReconnect = false;
 
    mstr _mstr;
 
 
 
    strcpy_P(_tmpStr1, PSTR("|"));
+   strcpy_P(_tmpStr2, PSTR(";"));
+
    while ((str1 = strtok_r(iCommand,_tmpStr1,&iCommand))!=NULL) {
 
       if (_beforeTaskUpdate) {
@@ -48,7 +49,6 @@ byte worker::update(char* iCommand) {
          };
       };
       
-      strcpy_P(_tmpStr2, PSTR(";"));
 
       if (_mstr.numEntries(str1,_tmpStr2) < 2) {
         continue;
@@ -63,7 +63,7 @@ byte worker::update(char* iCommand) {
       };
 
       if (strcmp_P(vCommand,PSTR("U"))==0) {
-         vNeedReconnect = 1;
+         vNeedReconnect = true;
          continue;
       };
 
@@ -103,7 +103,7 @@ void worker::setTask2(unsigned int iAddress,char* iStr) {
 	EEPROM.put(vFactAddress,_task);
 	interrupts();
 
-	#if IS_DEBUG>1
+	#ifdef IS_DEBUG
          Serial.print(iAddress);
          Serial.print(F(" = "));
          Serial.print(_task.startCode);
@@ -278,7 +278,7 @@ void worker::setTime(char* vCommand) {
    _mstr.substr(vTimeStr,10,2,vUnit);
    vSec = byte(atoi(vUnit));
 
-   #if IS_DEBUG>1
+   #ifdef IS_DEBUG
     Serial.print(F("Set Time:"));
     Serial.print(vYear);
     Serial.print(F("-"));
@@ -375,15 +375,7 @@ long long worker::getTimestamp(unsigned long &oSecMidnight,byte &oDayOfWeek) {
   bool hasError;
 
    do {
-    Clock.getNow(y,m,d,hh,mm,ss);
-    
-    #ifdef IS_DEBUG
-       if (m<=0 || m>12 || d<=0 || d>31) {
-        Serial.print(F("TE = "));
-        Serial.println(vAttempt);
-        Serial.flush();
-       }
-    #endif
+    Clock.getNow(y,m,d,hh,mm,ss);   
      vAttempt++;
    } while (vAttempt<3 && (hasError=m<=0 || m>12 || d<=0 || d>31));
    

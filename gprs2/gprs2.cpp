@@ -236,7 +236,9 @@ bool gprs2::gprsUp(bool iForce=false) {
     };
 
     _doCmd3(F("AT+SAPBR=3,1,\"APN\",\""),_apn,F("\""));
-    
+
+
+   
     if (_getAnswerWait(vRes,sizeof(vRes),vTmpStr)) {
      _setLastError(__LINE__,vRes);
       return false;
@@ -250,6 +252,7 @@ bool gprs2::gprsUp(bool iForce=false) {
     };
 
     _doCmd3(F("AT+SAPBR=3,1,\"PWD\",\""),_pass,F("\""));
+
 
     if (_getAnswerWait(vRes,sizeof(vRes),vTmpStr)) {
      _setLastError(__LINE__,vRes);
@@ -438,6 +441,7 @@ bool gprs2::canInternet() {
              return false;
            }; 
 
+
          _doCmd(iPar);
          strcpy_P(_tmpStr, (char*)OK_M);
 
@@ -451,28 +455,19 @@ bool gprs2::canInternet() {
 
       };   //end param block
 
+
        _doCmd(F("AT+HTTPACTION=1"));
 
        strcpy_P(_tmpStr,PSTR("+HTTPACTION")); 
 
        _getAnswerWait(oRes,iResLength,_tmpStr);
 
+
+
         strcpy_P(_tmpStr, PSTR("+HTTPACTION: 1,200")); 
 
          if (_mstr.indexOf(oRes,_tmpStr)==-1) {
-           
-                 /*********************************************************
-                  * Возможна ошибка сервера. Поэтому                      *
-                  * проверяем, что модем не возвращает 500 ошибку         *
-                  *********************************************************/
-            strcpy_P(_tmpStr, PSTR("+HTTPACTION: 1,500"));             
-
-
-             if (_mstr.indexOf(oRes,_tmpStr)>0) {                
-                 _setLastError(__LINE__,oRes);
-             } else {
-                 _setLastError(__LINE__,oRes);
-             };
+              _setLastError(__LINE__,oRes);
               _sendTermCommand();
               _emptyBuffer(oRes,iResLength);
               return false;
@@ -486,6 +481,7 @@ bool gprs2::canInternet() {
            _emptyBuffer(oRes,iResLength);
            return false;                   
          };
+
      
        strcpy_P(_tmpStr,(char*)OK_M);             
        if (_mstr.indexOf(oRes,_tmpStr)==-1) {
@@ -788,8 +784,8 @@ void gprs2::hardRestart() {
  pinMode(6,INPUT);
 }
 
- bool gprs2::getCoords(char* oLongitude,char* oLatitdue) {
-     char vRes[75],vUnit[20],vTmpStr[20];
+ bool gprs2::getCoords(char* oLongitude,char* oLatitdue,char* oRes,size_t iSize) {
+     char vTmpStr[15];
      mstr _mstr;
 
     _emptyBuffer(oLongitude,11);
@@ -799,34 +795,30 @@ void gprs2::hardRestart() {
 
     strcpy_P(vTmpStr, PSTR("+CIPGSMLOC:"));
 
-    if (_getAnswerWait(vRes,sizeof(vRes),vTmpStr)) {
-       _setLastError(__LINE__,vRes);
+    if (_getAnswerWait(oRes,iSize,vTmpStr)) {
+       _setLastError(__LINE__,oRes);
        return false;
     };
 
     strcpy_P(vTmpStr, PSTR("CIPGSMLOC: 0"));
 
-    if (_mstr.indexOf(vRes,vTmpStr)==-1) {
-       _setLastError(__LINE__,vRes);
+    if (_mstr.indexOf(oRes,vTmpStr)==-1) {
+       _setLastError(__LINE__,oRes);
        return false;
     };
-
 
 
     strcpy_P(vTmpStr, (char*)COMMA_M);
 
-    if (_mstr.numEntries(vRes,vTmpStr)<=0) {
-       _setLastError(__LINE__,vRes);
+    if (_mstr.numEntries(oRes,vTmpStr)<=0) {
+       _setLastError(__LINE__,oRes);
        return false;
     };
 
-      _mstr.entry(2,vRes,vTmpStr,10,vUnit);
-
-      strncpy(oLongitude,vUnit,10);
+      _mstr.entry(2,oRes,vTmpStr,10,oLongitude);
       oLongitude[10]='\0';
 
-      _mstr.entry(3,vRes,vTmpStr,10,vUnit);
-      strncpy(oLatitdue,vUnit,10);
+      _mstr.entry(3,oRes,vTmpStr,10,oLatitdue);
       oLatitdue[10]='\0';
 
       return true;
@@ -834,6 +826,11 @@ void gprs2::hardRestart() {
 
 
 bool gprs2::wakeUp() {   
+      pinMode(4,OUTPUT);
+      digitalWrite(4,HIGH);
+      return true;
+
+/*
      char vRes[20],
           vTmpStr[15];
      bool vStatus;
@@ -858,9 +855,15 @@ bool gprs2::wakeUp() {
       pinMode(4,INPUT);
 
  return true;
+*/
 };
 
 void gprs2::sleep() {   
+
+      pinMode(4,OUTPUT);
+      digitalWrite(4,LOW);
+      return false;
+/*
      char vRes[20],
           vTmpStr[5];
                     
@@ -871,7 +874,7 @@ void gprs2::sleep() {
 
 
  return false;
-
+*/
 };
 
 bool gprs2::_clearSmsBody(char* iRes,unsigned int iSize) {

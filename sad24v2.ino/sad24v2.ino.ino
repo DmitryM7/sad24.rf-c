@@ -1,4 +1,3 @@
-#define WDT_ENABLE1
 #include <avr/wdt.h>
 #include <BMP085.h>
 #include <DHT.h>
@@ -13,12 +12,14 @@
 
 #include <debug.h>
 
+#define SITE_POINT_SIZE 40
+
 
 struct Connection {
   char apnPoint[35];
   char apnLogin[11];
   char apnPass[11];
-  char sitePoint[40];
+  char sitePoint[SITE_POINT_SIZE];
   char siteLogin[11];
   char sitePass[20];
 };
@@ -141,9 +142,6 @@ void loadSensorInfo1(int &oT1,
                      int &oT2, 
                      unsigned long &oP1) {
   unsigned long vCurrTime;
-  
-
-  Wire.begin();
 
   BMP085   dps = BMP085();
   DHT dht(5, DHT22);
@@ -251,7 +249,7 @@ void parseSmsParamCommand(char* iCommand) {
       return;
     };
 
-    if (!_mstr.entry(4, iCommand, vTmpStr, 40, _connection.sitePoint)) {
+    if (!_mstr.entry(4, iCommand, vTmpStr, SITE_POINT_SIZE, _connection.sitePoint)) {
       return;
     };
 
@@ -321,9 +319,11 @@ bool wk() {
     sim900.setInternetSettings(_connection.apnPoint, _connection.apnLogin, _connection.apnPass);
   };
 
-  do {
-    vStatus = sim900.wakeUp() && sim900.canWork();
-    delay(vAttempt * 5000);
+  sim900.wakeUp();  
+  delay(10000);
+    
+  do {    
+    vStatus = sim900.canWork();    
     vAttempt++;
   } while (!vStatus && vAttempt < 3);
 
@@ -409,7 +409,8 @@ byte goSleep(byte iMode,long long iPrevTime) {
     Serial.print(F("Slp time * "));
     Serial.print(iMode);
     Serial.print(F("%="));
-    Serial.println(vSleepTime);
+    Serial.print(vSleepTime);
+    Serial.println(F(" (s)"));
     Serial.flush();
  #endif
     
@@ -439,69 +440,15 @@ byte goSleep(byte iMode,long long iPrevTime) {
 
 };
 
- 
 
-bool doPostParams(char* iRes, unsigned int iSize) {
-  char vParams[70];
-  bool vResult;
-  
-
-  gprs2 sim900(7, 8);
-  {
-    Connection _connection;
-    EEPROM.get(0, _connection);
-    sim900.setInternetSettings(_connection.apnPoint, _connection.apnLogin, _connection.apnPass); 
-  };
-  if (!sim900.canInternet()) {
-    #ifdef IS_DEBUG
-      char vError[20];
-      sim900.getLastError(vError);
-      Serial.print(F("CI ER:"));
-      Serial.println(vError);
-      Serial.flush();
-    #endif
-    return false;
-  };
-
-{
-  char vL[11], vA[11];
-  sim900.getCoords(vL, vA);
-  {
-    Connection _connection;
-    EEPROM.get(0, _connection);
-    sprintf_P(vParams, PSTR("r=%s&s=%s&m=c&l=%s&a=%s"), _connection.siteLogin, _connection.sitePass, vL, vA);
-  };
-};
-
-{
-    Connection _connection;
-    EEPROM.get(0, _connection);
-    vResult = sim900.postUrl(_connection.sitePoint, vParams, iRes, iSize);
-};
-
- #ifdef IS_DEBUG
-  Serial.print(F("PARA"));
-  if (vResult) {    
-      Serial.print(F(" : "));
-      Serial.println(iRes);
-      Serial.flush();
-  } else {
-         char vError[20];
-         sim900.getLastError(vError);
-         Serial.print(F(" ER :"));
-         Serial.println(vError);
-         Serial.flush();    
-  };
- #endif
-
-  return vResult;
-
-};
+/*********************************************************
+ * Метод отправляет информацию об измерения с датчиков.  *
+ *********************************************************/
 
 bool updateRemoteMeasure(int t1,  int h1, int t2, long unsigned int p1) {
   char vParams[200],     
-       vRes[35],
-       sitePoint[40];
+       vRes[40],
+       sitePoint[SITE_POINT_SIZE];
   bool vResult;  
 
 
@@ -513,21 +460,16 @@ bool updateRemoteMeasure(int t1,  int h1, int t2, long unsigned int p1) {
     EEPROM.get(0, _connection);
     
     sprintf_P(vParams, PSTR("r=%s&s=%s&t1=%d&h1=%d&t2=%d&p1=%lu&w1=%lu&l1=%lu&d=%lu"), _connection.siteLogin, _connection.sitePass, t1, h1, t2, p1, _water.duration, _light.duration, millis());
-
-   #ifdef IS_DEBUG
-     Serial.println(vParams);
-     Serial.flush();
-   #endif
     
     sim900.setInternetSettings(_connection.apnPoint, _connection.apnLogin, _connection.apnPass);
-    strncpy(sitePoint,_connection.sitePoint,40);
+    strncpy(sitePoint,_connection.sitePoint,sizeof(sitePoint));
   };
   
 
   if (!sim900.canInternet()) {
-    char vError[20];
-    sim900.getLastError(vError);
     #ifdef IS_DEBUG
+      char vError[20];
+      sim900.getLastError(vError);
       Serial.print(F("CI ER:"));
       Serial.println(vError);
       Serial.flush();
@@ -537,8 +479,8 @@ bool updateRemoteMeasure(int t1,  int h1, int t2, long unsigned int p1) {
 
   vResult = sim900.postUrl(sitePoint, vParams, vRes, sizeof(vRes));
 
-#ifdef IS_DEBUG
-  Serial.print(F("MEAS "));
+  #ifdef IS_DEBUG
+    Serial.print(F("MEAS "));
   #endif
 
   if (vResult) {
@@ -564,9 +506,9 @@ bool updateRemoteMeasure(int t1,  int h1, int t2, long unsigned int p1) {
 
 
   } else {
-    char vError[20];
-    sim900.getLastError(vError);
     #ifdef IS_DEBUG
+      char vError[20];
+      sim900.getLastError(vError);
       Serial.print(F("ER: "));
       Serial.println(vError);
       Serial.flush();
@@ -638,10 +580,10 @@ bool beforeTaskUpdate(char* iStr) {
 
 /**********************************************************
  * Если требуется повторное соединение, то                *
- * функция возвращает 1. Если подсоединения не            *
- * требуется, то возвращается 0.                          *
+ * функция возвращает True. Если подсоединения не         *
+ * требуется, то возвращается False.                      *
  **********************************************************/
-byte workWithRes(char* iRes) {
+bool workWithRes(char* iRes) {
   char vTmpStr[2];  
   mstr _mstr;
 
@@ -660,20 +602,72 @@ byte workWithRes(char* iRes) {
 
 }
 
-bool updateRemoteParams() {
-  char vRes[250];
-  byte vShouldReconnect = 1;
+/**********************************************************
+ * Метод отправляет информацию о текущих координатах и    *
+ * загружает новые параметры устройства.                  *
+ **********************************************************/
+bool updateRemoteParams() {  
+  char vParams[70], 
+       sitePoint[SITE_POINT_SIZE];
+  bool vShouldReconnect = true;
+  
 
+  gprs2 sim900(7, 8);
+  {
+    char vL[11], vA[11];
+    Connection _connection;
+    
+    EEPROM.get(0, _connection);
+    sim900.setInternetSettings(_connection.apnPoint, _connection.apnLogin, _connection.apnPass); 
+    strncpy(sitePoint,_connection.sitePoint,sizeof(sitePoint));
 
-  while (vShouldReconnect == 1) {
-
-    if (!doPostParams(vRes, sizeof(vRes))) {
+    if (!sim900.canInternet()) {
+      #ifdef IS_DEBUG
+        char vError[20];
+        sim900.getLastError(vError);
+        Serial.print(F("CI ER:"));
+        Serial.println(vError);
+        Serial.flush();
+      #endif
       return false;
     };
 
-    vShouldReconnect = workWithRes(vRes);
+    sim900.getCoords(vL, vA,vParams,sizeof(vParams));    
+    sprintf_P(vParams, PSTR("r=%s&s=%s&m=c&l=%s&a=%s"), _connection.siteLogin, _connection.sitePass, vL, vA);
   };
-  return true;
+  
+
+
+
+    while (vShouldReconnect) {      
+      char vRes[250];
+      bool vResult;
+      
+      vResult = sim900.postUrl(sitePoint, vParams, vRes, sizeof(vRes));
+            #ifdef IS_DEBUG
+              Serial.print(F("PARA"));
+              if (vResult) {    
+                Serial.print(F(" : "));
+                Serial.println(vRes);
+                Serial.flush();
+              } else {
+                char vError[20];
+                sim900.getLastError(vError);
+                Serial.print(F(" ER :"));
+                Serial.println(vError);
+                Serial.flush();    
+              };
+            #endif
+
+      if (!vResult) {
+       return false;
+      };
+
+      vShouldReconnect = workWithRes(vRes);
+
+    };
+
+   return true;         
 
 }
 
@@ -860,6 +854,8 @@ void pin_ISR () {
    * флаг считывания СМС сообщений.             *
    **********************************************/
 
+ digitalWrite(BLINK_PIN,HIGH); 
+
   Connection _connection;
 
   EEPROM.get(0, _connection);   
@@ -948,6 +944,8 @@ void setup() {
     worker _worker(eeprom_mWorkerStart);
     vPrevTime2 = _worker.getTimestamp() - connectPeriod();
   };
+
+  Wire.begin();
   
   Timer1.initialize(3000000);
   Timer1.attachInterrupt(Timer1_doJob);
@@ -988,10 +986,9 @@ void loop()
      * Если модем не готов, то будем его перезагружать его до тех  *
      * пор пока он не станет готовым.                              *
      **************************************************************/
-    if (mShouldReadSms) {      
-       bool isModemWork;
+    if (mShouldReadSms) {           
 
-       while (!(isModemWork=wk())) {                
+       while (!wk()) {                
         restartModem();
        };
               
@@ -1070,9 +1067,7 @@ void loop()
     byte vDelay = goSleep(100,vPrevTime2);
     Timer1.start();
     delay(vDelay * 1000 + 2000);
-  };
-
-        
+  };     
 
  
  

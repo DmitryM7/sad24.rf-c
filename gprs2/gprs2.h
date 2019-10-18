@@ -29,7 +29,7 @@ class gprs2
     bool canWork();                        //ќпредел€ет может ли модем установить соединение, при этом пытаетс€ подн€ть несущую и соединение GPRS
     bool canInternet();                        
 
-    bool getCoords(char* iLongitude,char* iLatitdue);
+    bool getCoords(char* iLongitude,char* iLatitdue,char* oRes,size_t iSize);
 
     void setInternetSettings(char* iApn,char* iLogin,char* iPass);
     bool postUrl(char* iUrl,char* iPar,char* oRes);
