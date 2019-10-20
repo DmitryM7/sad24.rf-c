@@ -810,16 +810,20 @@ void gprs2::hardRestart() {
 
     strcpy_P(vTmpStr, (char*)COMMA_M);
 
-    if (_mstr.numEntries(oRes,vTmpStr)<=0) {
+    if (_mstr.numEntries(oRes,vTmpStr)<3) {
        _setLastError(__LINE__,oRes);
        return false;
     };
+#ifdef IS_DEBUG
+Serial.println(oRes);
+Serial.flush();
+#endif
+
 
       _mstr.entry(2,oRes,vTmpStr,10,oLongitude);
-      oLongitude[10]='\0';
-
       _mstr.entry(3,oRes,vTmpStr,10,oLatitdue);
-      oLatitdue[10]='\0';
+
+     _emptyBuffer(oRes,iSize);
 
       return true;
  };

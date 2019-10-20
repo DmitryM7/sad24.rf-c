@@ -15,7 +15,7 @@
 #define SITE_POINT_SIZE 40
 
 
-struct Connection {
+struct Connection { 
   char apnPoint[35];
   char apnLogin[11];
   char apnPass[11];
@@ -972,7 +972,7 @@ void loop()
     
   waitAndBlink(); // Мигаем диодом, что живы
    
-  long vD = (long)(mCurrTime-vPrevTime2);  // mCurrTime берем из прерывания по будильнику
+    long vD = (long)(mCurrTime-vPrevTime2);  // mCurrTime берем из прерывания по будильнику
       
     loadSensorInfo1(mCurrTempOut,mCurrH, mCurrTempIn, mCurrP);
 
@@ -1019,24 +1019,15 @@ void loop()
         bool vStatus  = false;
 
         do {
-          vStatus = updateRemoteParams();
-         
-          if (!vStatus && vAttempt==1) {
-             restartModem();
-          };
-         
+          vStatus = updateRemoteParams();         
           vAttempt++;
        } while (!vStatus && vAttempt < 3);
 
+        
         vAttempt = 0;
         vStatus  = false;
         do {
-          vStatus = updateRemoteMeasure(mCurrTempOut, mCurrH, mCurrTempIn, mCurrP);
-
-          if (!vStatus && vAttempt==1) {
-            restartModem();
-          };
-         
+          vStatus = updateRemoteMeasure(mCurrTempOut, mCurrH, mCurrTempIn, mCurrP);         
           vAttempt++;
         } while (!vStatus && vAttempt < 3);
       };            
