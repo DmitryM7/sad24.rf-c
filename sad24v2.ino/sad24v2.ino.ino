@@ -324,6 +324,7 @@ bool wk() {
     
   do {    
     vStatus = sim900.canWork();    
+    delay(vAttempt * 3000);
     vAttempt++;
   } while (!vStatus && vAttempt < 3);
 
@@ -366,7 +367,7 @@ void restartModem() {
     Serial.flush();
   #endif
   sim900.hardRestart();
-  delay(60000);
+  delay(20000);
 };
 /**************************************************************************
     Конец методов работы с модемом
@@ -423,14 +424,11 @@ byte goSleep(byte iMode,long long iPrevTime) {
     vWaitTime    = vSleepTime - vFirstLoop*37*8 - vSecondLoop * 8;
         
   for (unsigned int vJ = 0; vJ < vFirstLoop; vJ++) {      
-     sl();
      for (unsigned int vK = 0; vK < 37; vK++) {
        LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);    
      };      
   };
 
-
-  sl();  //Первый цикл может быть пропущен поэтому необходимо модем отправить в сон.
   
   for (unsigned int vJ = 0; vJ < vSecondLoop; vJ++) {
         LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);    
@@ -1031,12 +1029,13 @@ void loop()
           vAttempt++;
         } while (!vStatus && vAttempt < 3);
       };            
-      
+
+      vPrevTime2 = mCurrTime;
       
       /*** Конец блока работы с модемом ***/
     };
           
-    vPrevTime2 = mCurrTime;
+    
     sl();  //После того как модем передал данные уводим его в сон. Если это делать в основном теле функции, то отправлять будем 1 раз в секунду  
 };
 

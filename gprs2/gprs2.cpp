@@ -796,9 +796,19 @@ void gprs2::hardRestart() {
     strcpy_P(vTmpStr, PSTR("+CIPGSMLOC:"));
 
     if (_getAnswerWait(oRes,iSize,vTmpStr)) {
+	    #ifdef IS_DEBUG
+	      Serial.println(oRes);
+	      Serial.flush();
+	    #endif
        _setLastError(__LINE__,oRes);
        return false;
     };
+
+    #ifdef IS_DEBUG
+      Serial.println(oRes);
+      Serial.flush();
+    #endif
+
 
     strcpy_P(vTmpStr, PSTR("CIPGSMLOC: 0"));
 
@@ -814,11 +824,6 @@ void gprs2::hardRestart() {
        _setLastError(__LINE__,oRes);
        return false;
     };
-#ifdef IS_DEBUG
-Serial.println(oRes);
-Serial.flush();
-#endif
-
 
       _mstr.entry(2,oRes,vTmpStr,10,oLongitude);
       _mstr.entry(3,oRes,vTmpStr,10,oLatitdue);
