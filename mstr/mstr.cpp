@@ -92,7 +92,8 @@ bool mstr::entry(unsigned int iField,char* iStr,char iDelimiter,int iMaxEntrySiz
    int vDiffPos;
 
    for (unsigned int vI = 0; vI < vStrLength; vI++) {
-     if (iStr[vI]==iDelimiter ||( vEndRase = vI == vStrLength - 1)) {
+
+     if ( iStr[vI]==iDelimiter || ( vEndRase = (vI == vStrLength - 1)) ) {
       vPrevPos = vCurrPos;
       vCurrPos = vI;
       /*************************************************************
@@ -102,10 +103,12 @@ bool mstr::entry(unsigned int iField,char* iStr,char iDelimiter,int iMaxEntrySiz
       vDiffPos = max(vCurrPos - vPrevPos - (vEndRase && iStr[vI] != iDelimiter ? 0 : 1),0);
       
       if (vCurrField == iField) {
+
         if (vDiffPos > iMaxEntrySize) { return false; };
         strncpy(oRes, iStr + vPrevPos + 1,vDiffPos);
         oRes[vDiffPos]='\0';
         return true;
+
       };
       
       vCurrField++;

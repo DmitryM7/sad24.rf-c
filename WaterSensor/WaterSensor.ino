@@ -9,13 +9,15 @@
  * delay (1000);   //Wait 1 second                                                               *
  * cli();      //Disable interrupts                                                              *
  * Calc = (NbTopsFan * 60 / 5.5); //(Pulse frequency x 60) / 5.5Q, = flow rate in L/hour         *
- * Serial.print (Calc, DEC); //Prints the number calculated above                                *
+ * Serial.print (Calc, DEC); //Prints the number calculated above                                
+ * *
  * Serial.print (" L/hour\r\n"); //Prints "L/hour" and returns a  new line                       *
  ************************************************************************************************/
          
 volatile int NbTopsFan; //measuring the rising edges of the signal
 volatile unsigned long int mPrevFlow = 0;
 bool isWater = false;  
+
 
 #define CRITICAL_PREASURE 3   // Критическое давление при котором устройсво отключится без учета  потока.
 #define MAX_PREASURE 2        // Давление при котором устройство отключится если нет потока
@@ -48,7 +50,7 @@ void confPump() {
   pinMode(11, OUTPUT);
   digitalWrite(11,LOW);
 }
-void disablePump() {
+void disablePump() {  
   digitalWrite(11,LOW);
 }
 
@@ -80,15 +82,14 @@ void loop ()
   float mCurrPreasure = getCurrPreasure(), mCurrFlowTimeDiff;
 
   #ifdef IS_DEBUG
-      //Serial.print(mCurrPreasure); Serial.println(); Serial.flush();
+      Serial.print(mCurrPreasure); Serial.print(F(" and flow ")); Serial.print(getPrevFlowDiff()); Serial.println(); Serial.flush();
   #endif
-
- /*****************************************************
-  * Проверка №1.
-  * Нет потока. Проверяем давление и                  *
-  *  при достижении нужной границы отключаем воду.    *
-  *****************************************************/
  
+ /**************************************************************
+  * Проверка №1.                                              *
+  * Нет потока больше заданного интервала - отключаем воду.    *
+  *************************************************************/
+
  if ((mCurrPreasure = getCurrPreasure()) > MAX_PREASURE && (mCurrFlowTimeDiff = getPrevFlowDiff()) >= FLOW_DIFF && isWater) {
     Serial.print(F("Max preasure: ")); Serial.print(mCurrPreasure); Serial.print(F(" and no flow: ")); Serial.print(mCurrFlowTimeDiff); Serial.println(F(" - power off."));  Serial.flush();
     disablePump();
@@ -101,19 +102,26 @@ void loop ()
   * Отключаем насос вне зависимости от других параметров *
   ********************************************************/
   if ((mCurrPreasure = getCurrPreasure()) >= CRITICAL_PREASURE) {
-    Serial.print(F("!!! Critical preasure: ")); Serial.print(mCurrPreasure); Serial.println(F("- power off !!!")); Serial.print(F("FLOW: ")); Serial.println(getPrevFlowDiff()); Serial.flush();
+
+   #ifdef IS_DEBUG
+     Serial.print(F("!!! Critical preasure: ")); Serial.print(mCurrPreasure); Serial.println(F("- power off !!!")); Serial.print(F("FLOW: ")); Serial.println(getPrevFlowDiff()); Serial.flush();
+   #endif
+
     disablePump();
     isWater = false;
   };
 
-  /**************************************************
-   * Проверка №3.                                  *
+  /**************************************************   * Проверка №3.                                  *
    * Давление упало. При этом насос не работает.    *
    * Включаем его.                                  *
    **************************************************/
 
   if ((mCurrPreasure = getCurrPreasure()) <= MIN_PREASURE && !isWater) {
+
+   #ifdef IS_DEBUG
     Serial.print(F("Min preasure: ")); Serial.print(mCurrPreasure); Serial.println(F(" - power on.")); Serial.flush();
+   #endif
+
     enablePump();
     isWater = true;
   };

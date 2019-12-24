@@ -20,7 +20,7 @@ class worker
   public:
    byte maxTaskCount = 5;
    worker(unsigned int iStartAddress);
-   byte update(char* iCommand);
+   bool update(char* iCommand);
    void setTask2(unsigned int iAddress,char* iStr);
    task getTask(int iAddress);
    void setStartAddress(unsigned int iStartAddress);
