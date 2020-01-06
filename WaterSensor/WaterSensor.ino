@@ -19,15 +19,15 @@ volatile unsigned long int mPrevFlow = 0;
 bool isWater = false;  
 
 
-#define CRITICAL_PREASURE 3   // Критическое давление при котором устройсво отключится без учета  потока.
-#define MAX_PREASURE 2        // Давление при котором устройство отключится если нет потока
-#define MIN_PREASURE 1.5        // В случае если давление в системе упадет меньше указанного, то устройство вклчючит насос
-#define FLOW_DIFF 65         // Время в течение которого устройство опеделяет отсутствие потока.
+#define CRITICAL_PREASURE 3.5   // Критическое давление при котором устройсво отключится без учета  потока.
+#define MAX_PREASURE 2.5        // Давление при котором устройство отключится если нет потока
+#define MIN_PREASURE 2.1        // В случае если давление в системе упадет меньше указанного, то устройство вклчючит насос
+#define FLOW_DIFF 50         // Время в течение которого устройство опеделяет отсутствие потока.
 
  
 void rpm ()     //This is the function that the interupt calls 
 { 
-  NbTopsFan++;  //This function measures the rising and falling edge of the hall effect sensors signal
+  //NbTopsFan++;  //This function measures the rising and falling edge of the hall effect sensors signal
   mPrevFlow = millis();
 } 
 // The setup() method runs once, when the sketch starts
@@ -82,16 +82,19 @@ void loop ()
   float mCurrPreasure = getCurrPreasure(), mCurrFlowTimeDiff;
 
   #ifdef IS_DEBUG
-      Serial.print(mCurrPreasure); Serial.print(F(" and flow ")); Serial.print(getPrevFlowDiff()); Serial.println(); Serial.flush();
-  #endif
+      //Serial.print(mCurrPreasure); Serial.print(F(" and flow ")); Serial.print(getPrevFlowDiff()); Serial.println(); Serial.flush();
+  #endif 
  
  /**************************************************************
   * Проверка №1.                                              *
   * Нет потока больше заданного интервала - отключаем воду.    *
   *************************************************************/
 
- if ((mCurrPreasure = getCurrPreasure()) > MAX_PREASURE && (mCurrFlowTimeDiff = getPrevFlowDiff()) >= FLOW_DIFF && isWater) {
+ if ((mCurrPreasure = getCurrPreasure()) >= MAX_PREASURE && (mCurrFlowTimeDiff = getPrevFlowDiff()) >= FLOW_DIFF && isWater) {
+
+  #ifdef IS_DEBUG
     Serial.print(F("Max preasure: ")); Serial.print(mCurrPreasure); Serial.print(F(" and no flow: ")); Serial.print(mCurrFlowTimeDiff); Serial.println(F(" - power off."));  Serial.flush();
+   #endif
     disablePump();
     isWater = false;
   };
@@ -104,7 +107,7 @@ void loop ()
   if ((mCurrPreasure = getCurrPreasure()) >= CRITICAL_PREASURE) {
 
    #ifdef IS_DEBUG
-     Serial.print(F("!!! Critical preasure: ")); Serial.print(mCurrPreasure); Serial.println(F("- power off !!!")); Serial.print(F("FLOW: ")); Serial.println(getPrevFlowDiff()); Serial.flush();
+     Serial.print(F("!!! Critical preasure: ")); Serial.print(mCurrPreasure); Serial.print(F("- power off !!!")); Serial.print(F("FLOW: ")); Serial.println(getPrevFlowDiff()); Serial.flush();
    #endif
 
     disablePump();
@@ -116,7 +119,7 @@ void loop ()
    * Включаем его.                                  *
    **************************************************/
 
-  if ((mCurrPreasure = getCurrPreasure()) <= MIN_PREASURE && !isWater) {
+  if ((mCurrPreasure = getCurrPreasure()) < MIN_PREASURE && !isWater) {
 
    #ifdef IS_DEBUG
     Serial.print(F("Min preasure: ")); Serial.print(mCurrPreasure); Serial.println(F(" - power on.")); Serial.flush();

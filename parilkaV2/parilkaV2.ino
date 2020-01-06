@@ -41,8 +41,9 @@ void hide() {
 }
 
 void setRGB(int r,int g,int b) {
+  //G,R,B
   for (unsigned int vI=0;vI<NUM_LEDS;vI++) {
-    leds[vI].setRGB(r,g,b); 
+    leds[vI].setRGB(g,r,b); 
  
     
   };
@@ -51,7 +52,7 @@ void setRGB(int r,int g,int b) {
 
 void doColorByTemp(float iTemp) {
   unsigned int vColor = 50;
-  int p[5] = {50,70,85,95,105};
+  int p[5] = {50,65,80,95,105};
   float vDiff;
   
   if (iTemp <= p[0]) {
@@ -60,12 +61,32 @@ void doColorByTemp(float iTemp) {
 
      if (iTemp > p[0] && iTemp <= p[1]) {
        vDiff = vColor / (p[1] - p[0]);
+
+       #ifdef IS_DEBUG
+         Serial.println(F("* NORMAL TEMP *"));
+         Serial.print(F("G = "));
+         Serial.print(round((iTemp-p[0]) * vDiff));
+         Serial.print(F("; B = "));
+         Serial.println(round(vColor - (iTemp - p[0]) * vDiff));        
+       #endif
        setRGB(0,round((iTemp-p[0]) * vDiff),round(vColor - (iTemp - p[0]) * vDiff));
+      //G,R,B
+       //setRGB(0,50,0);
+       return;
      };
 
  
   if (iTemp >= p[1] && iTemp < p[2]) {
        setRGB(0,vColor, 0);
+
+        #ifdef IS_DEBUG
+         Serial.println(F("* > p1 & < p2 *"));
+         Serial.print(F("G = "));
+         Serial.print(vColor);
+         Serial.print(F("; B = "));
+         Serial.println(0);        
+       #endif
+       return;
   };  
 
      if (iTemp > p[2] && iTemp <= p[3]) {
