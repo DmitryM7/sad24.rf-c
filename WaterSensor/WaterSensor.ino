@@ -81,7 +81,7 @@ void loop ()
 
   float mCurrPreasure = getCurrPreasure(), mCurrFlowTimeDiff;
 
-  #ifdef IS_DEBUG
+  #if IS_DEBUG>1
       //Serial.print(mCurrPreasure); Serial.print(F(" and flow ")); Serial.print(getPrevFlowDiff()); Serial.println(); Serial.flush();
   #endif 
  
@@ -114,7 +114,8 @@ void loop ()
     isWater = false;
   };
 
-  /**************************************************   * Проверка №3.                                  *
+  /**************************************************   
+   * Проверка №3.                                  *
    * Давление упало. При этом насос не работает.    *
    * Включаем его.                                  *
    **************************************************/
