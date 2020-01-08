@@ -26,7 +26,7 @@ void printAddress(DeviceAddress deviceAddress)
  * Опредеяем светодиодную ленту
  */
 
-#define NUM_LEDS 130
+#define NUM_LEDS 180
 #define DATA_PIN 12
 CRGB leds[NUM_LEDS];
 
