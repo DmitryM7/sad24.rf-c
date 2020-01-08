@@ -878,7 +878,7 @@ void setup() {
   Serial.begin(19200);
 #endif  
 
-  Connection _connection;
+  
   Globals _globals;
   worker _worker(eeprom_mWorkerStart);
    
@@ -888,43 +888,57 @@ void setup() {
   _worker.stopWater();
   _worker.stopLight();
   
-  EEPROM.get(0, _connection);
+  
   EEPROM.get(eeprom_mGlobalsStart, _globals);
 
 
-  if (strcmp_P(_globals.version, PSTR("INI")) != 0) {
+  if (strcmp_P(_globals.version, PSTR("INI")) != 0) {   
   //  if (true) {
+  
     #ifdef IS_DEBUG
       Serial.println(F("SET"));
       Serial.flush();
     #endif
 
+    noInterrupts();
+
     for (int vI = 0 ; vI < EEPROM.length() ; vI++) {
       EEPROM.write(vI, 0);
     };
 
-    //Признак того, что инициализация выполнена
+    //Признак того, что инициализация выполнена    
     strcpy_P(_globals.version, PSTR("INI"));
-    /*** SITE INIT ***/
-    strcpy_P(_connection.sitePoint, PSTR("\0"));    
-    strcpy_P(_connection.siteLogin, PSTR("\0"));    
-    strcpy_P(_connection.sitePass, PSTR("\0"));
-    
-    /*** APN INIT ***/
-    strcpy_P(_connection.apnPoint, PSTR("\0"));
-    strcpy_P(_connection.apnLogin, PSTR("\0"));
-    strcpy_P(_connection.apnPass, PSTR("\0"));
-
     // Задержка соединения по-умолчанию 15 минут
     _globals.connectPeriod = 15;
+    EEPROM.put(eeprom_mGlobalsStart, _globals);
 
-    _worker.setDateTime(16, 9, 13, 18, 45, 0);
+   {
+      Connection _connection;
+      EEPROM.get(0, _connection);
+      /*** SITE INIT ***/
+      strcpy_P(_connection.sitePoint, PSTR("\0"));    
+      strcpy_P(_connection.siteLogin, PSTR("\0"));    
+      strcpy_P(_connection.sitePass, PSTR("\0"));
+    
+      /*** APN INIT ***/
+     strcpy_P(_connection.apnPoint, PSTR("\0"));
+     strcpy_P(_connection.apnLogin, PSTR("\0"));
+     strcpy_P(_connection.apnPass, PSTR("\0"));
+     EEPROM.put(0, _connection);
+   };
+    
+
+   _worker.setDateTime(16, 9, 13, 18, 45, 0);
+
+   //Устанавливаем умолчательные значения для автономного режима
+   setOfflineLight(-199,199);
+   setOfflineWater(-199,199);
 
     // Сохраняю настройки
-    noInterrupts();
-    EEPROM.put(0, _connection);
-    EEPROM.put(eeprom_mGlobalsStart, _globals);
-    interrupts();
+    
+  
+    
+   interrupts();
 
   #ifdef IS_DEBUG
     Serial.println(F("END SET"));
