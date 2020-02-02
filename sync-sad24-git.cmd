@@ -1,5 +1,4 @@
 REM ######################## Programs ##############################
-robocopy %userprofile%\Documents\Arduino\sad24v2.ino sad24v2.ino
 robocopy %userprofile%\Documents\Arduino\ArduinoISP  ArduinoISP
 robocopy %userprofile%\Documents\Arduino\parilka     parilka
 robocopy %userprofile%\Documents\Arduino\parilkaV2   parilkaV2
