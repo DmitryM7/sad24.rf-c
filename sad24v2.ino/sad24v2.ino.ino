@@ -1,4 +1,4 @@
-#include <avr/wdt.h>
+ #include <avr/wdt.h>
 #include <BMP085.h>
 #include <DHT.h>
 #include <EEPROM.h>
@@ -352,7 +352,6 @@ void sl() {
 bool isDisabledLightRange() {
   offlineParams _offlineParams;
   EEPROM.get(eeprom_mOfflineParamsStart, _offlineParams);
-
   return abs(_offlineParams.tempUpLight1) == 19900 && abs(_offlineParams.tempUpLight2) == 19900;
 }
 bool isDisabledWaterRange() {
@@ -893,19 +892,19 @@ void setup() {
 
 
   if (strcmp_P(_globals.version, PSTR("INI")) != 0) {   
-  //  if (true) {
+   // if (true) {
   
     #ifdef IS_DEBUG
       Serial.println(F("SET"));
       Serial.flush();
     #endif
 
-    noInterrupts();
+    
 
     for (int vI = 0 ; vI < EEPROM.length() ; vI++) {
       EEPROM.write(vI, 0);
     };
-
+  
     //Признак того, что инициализация выполнена    
     strcpy_P(_globals.version, PSTR("INI"));
     // Задержка соединения по-умолчанию 15 минут
@@ -934,11 +933,10 @@ void setup() {
    setOfflineLight(-199,199);
    setOfflineWater(-199,199);
 
-    // Сохраняю настройки
     
   
     
-   interrupts();
+ 
 
   #ifdef IS_DEBUG
     Serial.println(F("END SET"));
