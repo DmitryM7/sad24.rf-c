@@ -40,7 +40,7 @@ struct offlineParams {
 #define eeprom_mGlobalsStart sizeof(Connection)
 #define eeprom_mOfflineParamsStart sizeof(Connection)+sizeof(Globals)
 #define eeprom_mWorkerStart eeprom_mOfflineParamsStart + sizeof(offlineParams)
-#define BLINK_PIN 13
+
 
 long long mCurrTime,vPrevTime2;
 
@@ -851,7 +851,7 @@ void pin_ISR () {
    * флаг считывания СМС сообщений.             *
    **********************************************/
 
- digitalWrite(BLINK_PIN,HIGH); 
+ digitalWrite(LED_BUILTIN,HIGH); 
 
   Connection _connection;
 
@@ -881,8 +881,8 @@ void setup() {
   Globals _globals;
   worker _worker(eeprom_mWorkerStart);
    
-  pinMode(BLINK_PIN, OUTPUT);
-  digitalWrite(BLINK_PIN, LOW);    // turn the LED off by making the voltage LOW
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
 
   _worker.stopWater();
   _worker.stopLight();
@@ -970,9 +970,9 @@ void setup() {
 }
 
 void waitAndBlink() {
-  digitalWrite(BLINK_PIN,HIGH);
+  digitalWrite(LED_BUILTIN,HIGH);
   delay(500);
-  digitalWrite(BLINK_PIN,LOW);
+  digitalWrite(LED_BUILTIN,LOW);
   delay(5000); 
 }
 
@@ -1005,7 +1005,7 @@ void loop()
        while (!isConnectInfoFull()) {
            readSms2();             
        };       
-       digitalWrite(BLINK_PIN,LOW); 
+       digitalWrite(LED_BUILTIN,LOW); 
        mShouldReadSms=false;
     }; 
 
