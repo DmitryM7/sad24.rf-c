@@ -1,4 +1,4 @@
- #include <avr/wdt.h>
+#include <avr/wdt.h>
 #include <BMP085.h>
 #include <DHT.h>
 #include <EEPROM.h>
@@ -249,7 +249,7 @@ void parseSmsParamCommand(char* iCommand) {
       return;
     };
 
-    if (!_mstr.entry(4, iCommand, vTmpStr, SITE_POINT_SIZE, _connection.sitePoint)) {
+    if (!_mstr.entry(4, iCommand, vTmpStr, sizeof(_connection.sitePoint), _connection.sitePoint)) {
       return;
     };
 
@@ -851,7 +851,7 @@ void pin_ISR () {
    * флаг считывания СМС сообщений.             *
    **********************************************/
 
- digitalWrite(LED_BUILTIN,HIGH); 
+  digitalWrite(LED_BUILTIN,HIGH); 
 
   Connection _connection;
 
@@ -980,13 +980,13 @@ void waitAndBlink() {
 void loop() 
 {
     
-  waitAndBlink(); // Мигаем диодом, что живы
+    waitAndBlink(); // Мигаем диодом, что живы
    
     long vD = (long)(mCurrTime-vPrevTime2);  // mCurrTime берем из прерывания по будильнику
       
     loadSensorInfo1(mCurrTempOut,mCurrH, mCurrTempIn, mCurrP);
 
-    #ifdef IS_DEBUG
+   #ifdef IS_DEBUG
      Serial.print(F("T1:")); Serial.print(mCurrTempOut); Serial.print(F("  T2:")); Serial.print(mCurrTempIn); Serial.print(F("  H:")); Serial.print(mCurrH); Serial.print(F("  P:")); Serial.print(mCurrP); Serial.print(F("  W&L:"));     Serial.print(_water.duration); Serial.print(F("&")); Serial.println(_light.duration); Serial.flush();
    #endif
 
@@ -1007,10 +1007,9 @@ void loop()
        };       
        digitalWrite(LED_BUILTIN,LOW); 
        mShouldReadSms=false;
-    }; 
+    };
 
-
-    
+          
 
   if (vD >= connectPeriod()) { 
 
@@ -1045,6 +1044,19 @@ void loop()
       vPrevTime2 = mCurrTime;
       
       /*** Конец блока работы с модемом ***/
+    } else {
+
+     /****************************************************************
+      * Если учетные данные пустые и не нажата кнопка приема СМС,    *
+      * то начинаем все сначала.                                      *
+      ****************************************************************/
+
+
+      #ifdef IS_DEBUG
+       Serial.println(F("NO MODEM CRED"));
+      #endif;
+
+      return;
     };
           
     

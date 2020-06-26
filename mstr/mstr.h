@@ -29,5 +29,7 @@ class mstr
 
     void leftShift2(char* iStr,unsigned int iShift);
 
+    void _emptyBuffer(char* oBuf,size_t iSize);
+
 };
 #endif
