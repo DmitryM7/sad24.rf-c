@@ -159,3 +159,7 @@ void mstr::leftShift2(char* iStr,unsigned int iShift) {
   memmove(iStr,iStr+iShift,vStrLen-iShift);
   memset(iStr + (vStrLen-iShift-1),0,iShift);
 }
+
+void mstr::_emptyBuffer(char* oBuf,size_t iSize) {
+ memset(oBuf,'\0',iSize);
+}

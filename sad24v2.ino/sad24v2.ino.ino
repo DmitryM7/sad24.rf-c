@@ -272,7 +272,7 @@ void parseSmsParamCommand(char* iCommand) {
       return;
     };
 
-    if (!_mstr.entry(4, iCommand, vTmpStr, SITE_POINT_SIZE, _connection.sitePoint)) {
+    if (!_mstr.entry(4, iCommand, vTmpStr, sizeof(_connection.sitePoint), _connection.sitePoint)) {
       return;
     };
 
@@ -874,7 +874,7 @@ void pin_ISR () {
    * флаг считывания СМС сообщений.             *
    **********************************************/
 
- digitalWrite(LED_BUILTIN,HIGH); 
+  digitalWrite(LED_BUILTIN,HIGH); 
 
   Connection _connection;
 
@@ -1004,7 +1004,7 @@ void loop()
 {
   unsigned int vDistance;
     
-  waitAndBlink(); // Мигаем диодом, что живы
+    waitAndBlink(); // Мигаем диодом, что живы
    
     long vD = (long)(mCurrTime-vPrevTime2);  // mCurrTime берем из прерывания по будильнику
       
@@ -1036,10 +1036,9 @@ void loop()
        };       
        digitalWrite(LED_BUILTIN,LOW); 
        mShouldReadSms=false;
-    }; 
+    };
 
-
-    
+          
 
   if (vD >= connectPeriod()) { 
 
@@ -1074,6 +1073,19 @@ void loop()
       vPrevTime2 = mCurrTime;
       
       /*** Конец блока работы с модемом ***/
+    } else {
+
+     /****************************************************************
+      * Если учетные данные пустые и не нажата кнопка приема СМС,    *
+      * то начинаем все сначала.                                      *
+      ****************************************************************/
+
+
+      #ifdef IS_DEBUG
+       Serial.println(F("NO MODEM CRED"));
+      #endif;
+
+      return;
     };
           
     
