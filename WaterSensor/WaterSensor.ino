@@ -48,7 +48,7 @@ void rpm ()     //This is the function that the interupt calls
 } 
 // The setup() method runs once, when the sketch starts
 
-int getDistance() {
+float getDistance() {
     int duration, cm;     
     digitalWrite(TRIG_PIN, LOW); 
     delayMicroseconds(2); 
