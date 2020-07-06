@@ -5,7 +5,6 @@
 #include <TimerOne.h>
 #include <LowPower.h>
 #include <MemoryFree.h>
-
 #include <gprs2.h>
 #include <mstr.h>
 #include <worker.h>
@@ -13,6 +12,12 @@
 #include <debug.h>
 
 #define SITE_POINT_SIZE 40
+
+/************************************
+ * Задаем параметры подключения УЗД * 
+ ************************************/
+#define ECHO_PIN 10
+#define TRIG_PIN 3
 
 
 struct Connection { 
@@ -57,7 +62,6 @@ unsigned long mCurrP;
 
 workerInfo _water;
 workerInfo _light;
-
 
 
 /**********************************************************
@@ -137,12 +141,29 @@ bool isConnectInfoFull() {
   return strlen(_connection.sitePoint)>0 && strlen(_connection.apnPoint)>0;
 }
 
-void loadSensorInfo1(int &oT1, 
-                      int &oH1, 
-                     int &oT2, 
-                     unsigned long &oP1) {
-  unsigned long vCurrTime;
 
+
+int getDistance() {
+    int duration, cm;  
+    pinMode(TRIG_PIN, OUTPUT); 
+    pinMode(ECHO_PIN, INPUT);    
+    digitalWrite(TRIG_PIN, LOW); 
+    delayMicroseconds(2); 
+    digitalWrite(TRIG_PIN, HIGH); 
+    delayMicroseconds(55); 
+    digitalWrite(TRIG_PIN, LOW); 
+    duration = pulseIn(ECHO_PIN, HIGH); 
+    cm = round(duration / 58);    
+    return cm;
+}
+
+void loadSensorInfo1(int &oT1, 
+                     int &oH1, 
+                     int &oT2, 
+                     unsigned long &oP1,
+                     unsigned int &oDistance) {
+  unsigned long vCurrTime;
+   
   BMP085   dps = BMP085();
   DHT dht(5, DHT22);
 
@@ -169,6 +190,8 @@ void loadSensorInfo1(int &oT1,
   } while ((isnan(oH1) || isnan(oT1)) && millis() - vCurrTime < 5000) ;
 
   oH1  = oH1 * 100;
+
+  oDistance=getDistance();
 }
 
 
@@ -442,7 +465,7 @@ byte goSleep(byte iMode,long long iPrevTime) {
  * Метод отправляет информацию об измерения с датчиков.  *
  *********************************************************/
 
-bool updateRemoteMeasure(int t1,  int h1, int t2, long unsigned int p1) {
+bool updateRemoteMeasure(int t1,  int h1, int t2, long unsigned int p1,unsigned int iDistance) {
   char vParams[200],     
        vRes[40],
        sitePoint[SITE_POINT_SIZE];
@@ -456,7 +479,7 @@ bool updateRemoteMeasure(int t1,  int h1, int t2, long unsigned int p1) {
     Connection _connection;      
     EEPROM.get(0, _connection);
     
-    sprintf_P(vParams, PSTR("r=%s&s=%s&t1=%d&h1=%d&t2=%d&p1=%lu&w1=%lu&l1=%lu&d=%lu"), _connection.siteLogin, _connection.sitePass, t1, h1, t2, p1, _water.duration, _light.duration, millis());
+    sprintf_P(vParams, PSTR("r=%s&s=%s&t1=%d&h1=%d&t2=%d&p1=%lu&w1=%lu&l1=%lu&d=%lu&ds=%d"), _connection.siteLogin, _connection.sitePass, t1, h1, t2, p1, _water.duration, _light.duration, millis(),iDistance);
     
     sim900.setInternetSettings(_connection.apnPoint, _connection.apnLogin, _connection.apnPass);
     strncpy(sitePoint,_connection.sitePoint,sizeof(sitePoint));
@@ -979,15 +1002,21 @@ void waitAndBlink() {
 
 void loop() 
 {
+  unsigned int vDistance;
     
     waitAndBlink(); // Мигаем диодом, что живы
    
     long vD = (long)(mCurrTime-vPrevTime2);  // mCurrTime берем из прерывания по будильнику
       
-    loadSensorInfo1(mCurrTempOut,mCurrH, mCurrTempIn, mCurrP);
+    loadSensorInfo1(mCurrTempOut,mCurrH, mCurrTempIn, mCurrP,vDistance);
 
-   #ifdef IS_DEBUG
-     Serial.print(F("T1:")); Serial.print(mCurrTempOut); Serial.print(F("  T2:")); Serial.print(mCurrTempIn); Serial.print(F("  H:")); Serial.print(mCurrH); Serial.print(F("  P:")); Serial.print(mCurrP); Serial.print(F("  W&L:"));     Serial.print(_water.duration); Serial.print(F("&")); Serial.println(_light.duration); Serial.flush();
+    #ifdef IS_DEBUG
+     Serial.print(F("T1:")); Serial.print(mCurrTempOut); Serial.print(F("  T2:")); Serial.print(mCurrTempIn); 
+     Serial.print(F("  H:")); Serial.print(mCurrH); Serial.print(F("  P:")); Serial.print(mCurrP); 
+     Serial.print(F("  DIS:")); Serial.print(vDistance); 
+     Serial.print(F("  W&L:"));     Serial.print(_water.duration); Serial.print(F("&"));      
+     Serial.println(_light.duration); 
+     Serial.flush();
    #endif
 
     /***************************************************************
@@ -1036,7 +1065,7 @@ void loop()
         vAttempt = 0;
         vStatus  = false;
         do {
-          vStatus = updateRemoteMeasure(mCurrTempOut, mCurrH, mCurrTempIn, mCurrP);         
+          vStatus = updateRemoteMeasure(mCurrTempOut, mCurrH, mCurrTempIn, mCurrP, vDistance);         
           vAttempt++;
         } while (!vStatus && vAttempt < 3);
       };            
