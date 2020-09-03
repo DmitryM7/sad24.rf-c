@@ -28,7 +28,9 @@ void DHT::begin(void) {
   // >= MIN_INTERVAL right away. Note that this assignment wraps around,
   // but so will the subtraction.
   _lastreadtime = -MIN_INTERVAL;
-  DEBUG_PRINT("Max clock cycles: "); DEBUG_PRINTLN(_maxcycles, DEC);
+  #ifdef DHT_DEBUG
+    DEBUG_PRINT(F("Max clock cycles: ")); DEBUG_PRINTLN(_maxcycles, DEC);
+  #endif
 }
 
 //boolean S == Scale.  True == Fahrenheit; False == Celcius
@@ -162,12 +164,16 @@ boolean DHT::read(bool force) {
     // First expect a low signal for ~80 microseconds followed by a high signal
     // for ~80 microseconds again.
     if (expectPulse(LOW) == 0) {
-      DEBUG_PRINTLN(F("Timeout waiting for start signal low pulse."));
+       #ifdef DHT_DEBUG
+         DEBUG_PRINTLN(F("Timeout waiting for start signal low pulse."));
+       #endif
       _lastresult = false;
       return _lastresult;
     }
     if (expectPulse(HIGH) == 0) {
+      #ifdef DHT_DEBUG
       DEBUG_PRINTLN(F("Timeout waiting for start signal high pulse."));
+      #endif
       _lastresult = false;
       return _lastresult;
     }
@@ -192,7 +198,9 @@ boolean DHT::read(bool force) {
     uint32_t lowCycles  = cycles[2*i];
     uint32_t highCycles = cycles[2*i+1];
     if ((lowCycles == 0) || (highCycles == 0)) {
+      #ifdef DHT_DEBUG
       DEBUG_PRINTLN(F("Timeout waiting for pulse."));
+      #endif
       _lastresult = false;
       return _lastresult;
     }
@@ -206,7 +214,7 @@ boolean DHT::read(bool force) {
     // cycle count so this must be a zero.  Nothing needs to be changed in the
     // stored data.
   }
-
+  #ifdef DHT_DEBUG
   DEBUG_PRINTLN(F("Received:"));
   DEBUG_PRINT(data[0], HEX); DEBUG_PRINT(F(", "));
   DEBUG_PRINT(data[1], HEX); DEBUG_PRINT(F(", "));
@@ -214,6 +222,7 @@ boolean DHT::read(bool force) {
   DEBUG_PRINT(data[3], HEX); DEBUG_PRINT(F(", "));
   DEBUG_PRINT(data[4], HEX); DEBUG_PRINT(F(" =? "));
   DEBUG_PRINTLN((data[0] + data[1] + data[2] + data[3]) & 0xFF, HEX);
+  #endif
 
   // Check we read 40 bits and that the checksum matches.
   if (data[4] == ((data[0] + data[1] + data[2] + data[3]) & 0xFF)) {
@@ -221,7 +230,9 @@ boolean DHT::read(bool force) {
     return _lastresult;
   }
   else {
+    #ifdef DHT_DEBUG
     DEBUG_PRINTLN(F("Checksum failure!"));
+    #endif
     _lastresult = false;
     return _lastresult;
   }
