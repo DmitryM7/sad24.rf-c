@@ -197,6 +197,7 @@ void worker::_setDateTime(byte iYear,byte iMonth,byte iDay,byte iHour,byte iMinu
   Clock.setYear(iYear);
   Clock.setMonth(iMonth);
   Clock.setDate(iDay);
+  Clock.setClockMode(false);
   Clock.setHour(iHour);
   Clock.setMinute(iMinutes);
   Clock.setSecond(iSec);
