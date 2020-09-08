@@ -4,6 +4,7 @@
 #define DS3231MDA_h
 
 #include <Arduino.h>
+#include <Wire.h>
                                     
 
 class DS3231MDA {
@@ -11,7 +12,7 @@ class DS3231MDA {
 		//Constructor
 		DS3231MDA();    
 		// the get*() functions retrieve current values of the registers.
-                void getNow(uint16_t &y, byte &m, byte &d, byte &hh, byte &mm, byte &ss);
+                void getNow(byte &y, byte &m, byte &d, byte &hh, byte &mm, byte &ss);
 		void setSecond(byte Second); 
 		void setMinute(byte Minute); 
 		void setHour(byte Hour); 

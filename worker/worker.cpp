@@ -147,7 +147,7 @@ byte worker::_DayOfWeek(int y,byte m,byte d) {
 };
 
 byte worker::getDayOfWeek() {
-  DS3231 Clock;
+  DS3231MDA Clock;
   byte dow,m,d,hh,mm,ss,y;
   
 
@@ -171,7 +171,7 @@ void worker::showDateTime() {
  };
 
 unsigned long worker::getSecMidnight(byte &oDayOfWeek) {
-  DS3231 Clock;  
+  DS3231MDA Clock;  
     byte m,d,hh,mm,ss,y;
   Clock.getNow(y,m,d,hh,mm,ss);
 
@@ -193,7 +193,7 @@ unsigned long worker::getSecMidnight(byte &oDayOfWeek) {
 };
 
 void worker::_setDateTime(byte iYear,byte iMonth,byte iDay,byte iHour,byte iMinutes,byte iSec) {
-  DS3231 Clock;  
+  DS3231MDA Clock;  
   Clock.setYear(iYear);
   Clock.setMonth(iMonth);
   Clock.setDate(iDay);
@@ -371,7 +371,7 @@ unsigned long worker::_getMinTaskTime(byte iCurrDayOfWeek,unsigned long iCurrTim
    };
 
 long long worker::getTimestamp(unsigned long &oSecMidnight,byte &oDayOfWeek) {
-  DS3231 Clock;
+  DS3231MDA Clock;
     byte m=0,d,hh,mm,ss,y,vAttempt=0;
   bool hasError;
 

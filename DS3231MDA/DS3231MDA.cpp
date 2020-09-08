@@ -55,7 +55,7 @@ long DS3231MDA::time2long(uint16_t days, uint8_t h, uint8_t m, uint8_t s) {
 
 ///// ERIC'S ORIGINAL CODE FOLLOWS /////
 
-void DS3231MDA::getNow(uint16_t &y, byte &m, byte &d, byte &hh, byte &mm, byte &ss) {
+void DS3231MDA::getNow(byte &y, byte &m, byte &d, byte &hh, byte &mm, byte &ss) {
   volatile unsigned int vAttempt=0;
   unsigned int _maxcycles = microsecondsToClockCycles(65000);  // Пауза приблизительно в 65 мс   
   bool hasError=false;

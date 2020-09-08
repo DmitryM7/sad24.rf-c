@@ -1,7 +1,7 @@
 ﻿#ifndef worker_h
 #define worker_h
 #include "SoftwareSerial.h"
-#include <DS3231.h>
+#include <DS3231MDA.h>
 
 struct task {
   unsigned long startCode = 0;
