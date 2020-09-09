@@ -12,8 +12,8 @@
 
 #include <debug.h>
 
-#define SITE_POINT_SIZE 40
-
+#define __SITE_POINT_SIZE__ 40
+#define __MEASURE_PERIOD__ 60000
 /************************************
  * Задаем параметры подключения УЗД * 
  ************************************/
@@ -25,7 +25,7 @@ struct Connection {
   char apnPoint[35];
   char apnLogin[11];
   char apnPass[11];
-  char sitePoint[SITE_POINT_SIZE];
+  char sitePoint[__SITE_POINT_SIZE__];
   char siteLogin[11];
   char sitePass[20];
 };
@@ -42,6 +42,18 @@ struct offlineParams {
   int  tempUpWater1;
   int  tempUpWater2;
 };
+
+struct sensorInfo {
+             int t1; 
+             int h1; 
+             int t2; 
+             int p1;
+             int distance;
+             unsigned long lastMeasure=0;
+};
+
+sensorInfo mSensorInfo;
+
 
 #define eeprom_mGlobalsStart sizeof(Connection)
 #define eeprom_mOfflineParamsStart sizeof(Connection)+sizeof(Globals)
@@ -158,21 +170,17 @@ int getDistance() {
     return cm;
 }
 
-void loadSensorInfo1(int &oT1, 
-                     int &oH1, 
-                     int &oT2, 
-                     unsigned long &oP1,
-                     unsigned int &oDistance) {
+void loadSensorInfo1(sensorInfo si) {
   unsigned long vCurrTime;
    
   BMP085   dps = BMP085();
   DHT dht(5, DHT22);
 
   dps.init(MODE_STANDARD, 17700, true);
-  oT2=dps.getTemperature2();
+  si.t1=dps.getTemperature2();
 
 
-  oP1=dps.getPressure2();
+  si.p1=dps.getPressure2();
 
   dht.begin();
 
@@ -185,14 +193,14 @@ void loadSensorInfo1(int &oT1,
   vCurrTime = millis();
   
   do {    
-    oH1 = dht.readHumidity();
-    oT1 = dht.readTemperature() * 100;
+    si.t1 = dht.readHumidity();
+    si.h1 = dht.readTemperature() * 100;
     delay(1000);
-  } while ((isnan(oH1) || isnan(oT1)) && millis() - vCurrTime < 5000) ;
+  } while ((isnan(si.h1) || isnan(si.t1)) && millis() - vCurrTime < 5000) ;
 
-  oH1  = oH1 * 100;
+  si.h1  = si.h1 * 100;
 
-  oDistance=getDistance();
+  si.distance=getDistance();
 }
 
 
@@ -245,7 +253,7 @@ void parseSmsParamCommand(char* iCommand) {
       return;
     };
 
-#ifdef IS_DEBUG
+#if IS_DEBUG>1
     Serial.print(F("APN: "));
     Serial.print(_connection.apnLogin);
     Serial.print(F(":"));
@@ -277,7 +285,7 @@ void parseSmsParamCommand(char* iCommand) {
       return;
     };
 
-#ifdef IS_DEBUG
+#if IS_DEBUG>1
     Serial.print(F("SITE: "));
     Serial.print(_connection.siteLogin);
     Serial.print(F(":"));
@@ -352,7 +360,7 @@ bool wk() {
     vAttempt++;
   } while (!vStatus && vAttempt < 3);
 
-#ifdef IS_DEBUG
+#if IS_DEBUG>1
   if (!vStatus) {
       char vError[20];
       sim900.getLastError(vError);
@@ -385,7 +393,7 @@ bool isDisabledWaterRange() {
 }
 void restartModem() {
   gprs2 sim900(7, 8);
-  #ifdef IS_DEBUG
+  #if IS_DEBUG>1
     Serial.println(F("*RST*"));
     Serial.flush();
   #endif
@@ -469,7 +477,7 @@ byte goSleep(byte iMode,long long iPrevTime) {
 bool updateRemoteMeasure(int t1,  int h1, int t2, long unsigned int p1,unsigned int iDistance) {
   char vParams[200],     
        vRes[40],
-       sitePoint[SITE_POINT_SIZE];
+       sitePoint[__SITE_POINT_SIZE__];
   bool vResult;  
 
 
@@ -488,7 +496,7 @@ bool updateRemoteMeasure(int t1,  int h1, int t2, long unsigned int p1,unsigned 
   
 
   if (!sim900.canInternet()) {
-    #ifdef IS_DEBUG
+    #if IS_DEBUG>1
       char vError[20];
       sim900.getLastError(vError);
       Serial.print(F("CI ER:"));
@@ -500,7 +508,7 @@ bool updateRemoteMeasure(int t1,  int h1, int t2, long unsigned int p1,unsigned 
 
   vResult = sim900.postUrl(sitePoint, vParams, vRes, sizeof(vRes));
 
-  #ifdef IS_DEBUG
+  #if IS_DEBUG>1
     Serial.print(F("MEAS "));
   #endif
 
@@ -558,7 +566,7 @@ bool beforeTaskUpdate(char* iStr) {
 
     if (strcmp_P(vCommand, PSTR("C")) == 0) {
       if (_mstr.entry(2, iStr, vDelimiter, 4, vParam1)) {
-        #ifdef IS_DEBUG
+        #if IS_DEBUG>2
             Serial.print(F("Sleep "));
             Serial.println(atoi(vParam1));
             Serial.flush();
@@ -570,7 +578,7 @@ bool beforeTaskUpdate(char* iStr) {
 
     if (strcmp_P(vCommand, PSTR("G")) == 0) {
       if (_mstr.entry(2, iStr, vDelimiter, 4, vParam1) && _mstr.entry(3, iStr, vDelimiter, 4, vParam2)) {
-        #ifdef IS_DEBUG
+        #if IS_DEBUG>2
             Serial.print(F("L off:"));
             Serial.print(vParam1);
             Serial.print(F("&"));
@@ -584,7 +592,7 @@ bool beforeTaskUpdate(char* iStr) {
     
     if (strcmp_P(vCommand, PSTR("J")) == 0) {
       if (_mstr.entry(2, iStr, vDelimiter, 4, vParam1) && _mstr.entry(3, iStr, vDelimiter, 4, vParam2)) {
-        #ifdef IS_DEBUG
+        #if IS_DEBUG>2
             Serial.print(F("W off:"));
             Serial.print(vParam1);
             Serial.print(F("&"));
@@ -629,7 +637,7 @@ bool workWithRes(char* iRes) {
  **********************************************************/
 bool updateRemoteParams() {  
   char vParams[70], 
-       sitePoint[SITE_POINT_SIZE];
+       sitePoint[__SITE_POINT_SIZE__];
   bool vShouldReconnect = true;
   
 
@@ -643,7 +651,7 @@ bool updateRemoteParams() {
     strncpy(sitePoint,_connection.sitePoint,sizeof(sitePoint));
 
     if (!sim900.canInternet()) {
-      #ifdef IS_DEBUG
+      #if IS_DEBUG>2
         char vError[20];
         sim900.getLastError(vError);
         Serial.print(F("CI ER:"));
@@ -1003,19 +1011,22 @@ void waitAndBlink() {
 
 void loop() 
 {
-  unsigned int vDistance;
-    
+   unsigned int vDistance;    
     waitAndBlink(); // Мигаем диодом, что живы
    
     long vD = (long)(mCurrTime-vPrevTime2);  // mCurrTime берем из прерывания по будильнику
-      
-    loadSensorInfo1(mCurrTempOut,mCurrH, mCurrTempIn, mCurrP,vDistance);
 
-    #ifdef IS_DEBUG
-     Serial.print(F("T1:")); Serial.print(mCurrTempOut); Serial.print(F("  T2:")); Serial.print(mCurrTempIn); 
-     Serial.print(F("  H:")); Serial.print(mCurrH); Serial.print(F("  P:")); Serial.print(mCurrP); 
-     Serial.print(F("  DIS:")); Serial.print(vDistance); 
-     Serial.print(F("  W&L:"));     Serial.print(_water.duration); Serial.print(F("&"));      
+
+    if (mSensorInfo.lastMeasure==0 || millis()-mSensorInfo.lastMeasure>__MEASURE_PERIOD__) {
+      loadSensorInfo1(mSensorInfo);
+      mSensorInfo.lastMeasure=millis();
+    };          
+
+   #ifdef IS_DEBUG
+     Serial.print(F("T1:"));    Serial.print(mSensorInfo.t1);  Serial.print(F("  T2:")); Serial.print(mSensorInfo.t2); 
+     Serial.print(F("  H:"));   Serial.print(mSensorInfo.h1);  Serial.print(F("  P:"));  Serial.print(mSensorInfo.p1); 
+     Serial.print(F("  DIS:")); Serial.print(mSensorInfo.distance); 
+     Serial.print(F("  W&L:")); Serial.print(_water.duration); Serial.print(F("&"));      
      Serial.println(_light.duration); 
      Serial.flush();
    #endif
@@ -1066,7 +1077,7 @@ void loop()
         vAttempt = 0;
         vStatus  = false;
         do {
-          vStatus = updateRemoteMeasure(mCurrTempOut, mCurrH, mCurrTempIn, mCurrP, vDistance);         
+          vStatus = updateRemoteMeasure(mSensorInfo.t1, mSensorInfo.h1, mSensorInfo.t2, mSensorInfo.p1, mSensorInfo.distance);         
           vAttempt++;
         } while (!vStatus && vAttempt < 3);
       };            
