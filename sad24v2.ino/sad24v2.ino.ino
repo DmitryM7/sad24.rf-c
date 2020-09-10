@@ -52,9 +52,6 @@ struct sensorInfo {
              unsigned long lastMeasure=0;
 };
 
-sensorInfo mSensorInfo;
-
-
 #define eeprom_mGlobalsStart sizeof(Connection)
 #define eeprom_mOfflineParamsStart sizeof(Connection)+sizeof(Globals)
 #define eeprom_mWorkerStart eeprom_mOfflineParamsStart + sizeof(offlineParams)
@@ -170,7 +167,7 @@ int getDistance() {
     return cm;
 }
 
-void loadSensorInfo1(sensorInfo si) {
+void loadSensorInfo1(sensorInfo &si) {
   unsigned long vCurrTime;
    
   BMP085   dps = BMP085();
@@ -474,7 +471,7 @@ byte goSleep(byte iMode,long long iPrevTime) {
  * Метод отправляет информацию об измерения с датчиков.  *
  *********************************************************/
 
-bool updateRemoteMeasure(int t1,  int h1, int t2, long unsigned int p1,unsigned int iDistance) {
+bool updateRemoteMeasure(sensorInfo si) {
   char vParams[200],     
        vRes[40],
        sitePoint[__SITE_POINT_SIZE__];
@@ -488,7 +485,7 @@ bool updateRemoteMeasure(int t1,  int h1, int t2, long unsigned int p1,unsigned 
     Connection _connection;      
     EEPROM.get(0, _connection);
     
-    sprintf_P(vParams, PSTR("r=%s&s=%s&t1=%d&h1=%d&t2=%d&p1=%lu&w1=%lu&l1=%lu&d=%lu&ds=%d"), _connection.siteLogin, _connection.sitePass, t1, h1, t2, p1, _water.duration, _light.duration, millis(),iDistance);
+    sprintf_P(vParams, PSTR("r=%s&s=%s&t1=%d&h1=%d&t2=%d&p1=%lu&w1=%lu&l1=%lu&d=%lu&ds=%d"), _connection.siteLogin, _connection.sitePass, si.t1, si.h1, si.t2, si.p1, _water.duration, _light.duration, millis(),si.distance);
     
     sim900.setInternetSettings(_connection.apnPoint, _connection.apnLogin, _connection.apnPass);
     strncpy(sitePoint,_connection.sitePoint,sizeof(sitePoint));
@@ -1011,15 +1008,16 @@ void waitAndBlink() {
 
 void loop() 
 {
+   static sensorInfo _sensorInfo;
    unsigned int vDistance;    
     waitAndBlink(); // Мигаем диодом, что живы
    
     long vD = (long)(mCurrTime-vPrevTime2);  // mCurrTime берем из прерывания по будильнику
 
 
-    if (mSensorInfo.lastMeasure==0 || millis()-mSensorInfo.lastMeasure>__MEASURE_PERIOD__) {
-      loadSensorInfo1(mSensorInfo);
-      mSensorInfo.lastMeasure=millis();
+    if (_sensorInfo.lastMeasure==0 || millis()-_sensorInfo.lastMeasure>__MEASURE_PERIOD__) {
+      loadSensorInfo1(_sensorInfo);
+      _sensorInfo.lastMeasure=millis();
     };          
 
    #ifdef IS_DEBUG
@@ -1077,7 +1075,7 @@ void loop()
         vAttempt = 0;
         vStatus  = false;
         do {
-          vStatus = updateRemoteMeasure(mSensorInfo.t1, mSensorInfo.h1, mSensorInfo.t2, mSensorInfo.p1, mSensorInfo.distance);         
+          vStatus = updateRemoteMeasure(_sensorInfo);         
           vAttempt++;
         } while (!vStatus && vAttempt < 3);
       };            
