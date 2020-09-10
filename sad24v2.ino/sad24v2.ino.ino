@@ -9,48 +9,17 @@
 #include <gprs2.h>
 #include <mstr.h>
 #include <worker.h>
-
 #include <debug.h>
 
-#define __SITE_POINT_SIZE__ 40
-#define __MEASURE_PERIOD__ 60000
+#include <structs.h>
+
 /************************************
  * Задаем параметры подключения УЗД * 
  ************************************/
 #define ECHO_PIN 10
 #define TRIG_PIN 3
 
-
-struct Connection { 
-  char apnPoint[35];
-  char apnLogin[11];
-  char apnPass[11];
-  char sitePoint[__SITE_POINT_SIZE__];
-  char siteLogin[11];
-  char sitePass[20];
-};
-
-struct Globals {
-  char version[3];
-  int  sleepTime;
-  int  connectPeriod;
-};
-
-struct offlineParams {
-  int  tempUpLight1;
-  int  tempUpLight2;
-  int  tempUpWater1;
-  int  tempUpWater2;
-};
-
-struct sensorInfo {
-             int t1; 
-             int h1; 
-             int t2; 
-             int p1;
-             int distance;
-             unsigned long lastMeasure=0;
-};
+sensorInfo _sensorInfo;
 
 #define eeprom_mGlobalsStart sizeof(Connection)
 #define eeprom_mOfflineParamsStart sizeof(Connection)+sizeof(Globals)
@@ -61,10 +30,6 @@ long long mCurrTime,vPrevTime2;
 
 volatile bool mCanGoSleep   = true,
               mShouldReadSms = false;
-
-int mCurrTempOut = 19900,
-    mCurrTempIn  = 1990,   
-    mCurrH;
 
 unsigned long mCurrP;
 
@@ -167,17 +132,16 @@ int getDistance() {
     return cm;
 }
 
-void loadSensorInfo1(sensorInfo &si) {
+void loadSensorInfo1() {
   unsigned long vCurrTime;
    
   BMP085   dps = BMP085();
   DHT dht(5, DHT22);
 
   dps.init(MODE_STANDARD, 17700, true);
-  si.t1=dps.getTemperature2();
+  _sensorInfo.t2=dps.getTemperature2();
 
-
-  si.p1=dps.getPressure2();
+  _sensorInfo.p1=dps.getPressure2();
 
   dht.begin();
 
@@ -190,14 +154,12 @@ void loadSensorInfo1(sensorInfo &si) {
   vCurrTime = millis();
   
   do {    
-    si.t1 = dht.readHumidity();
-    si.h1 = dht.readTemperature() * 100;
+    _sensorInfo.h1 = dht.readHumidity() * 100;
+    _sensorInfo.t1 = dht.readTemperature() * 100;
     delay(1000);
-  } while ((isnan(si.h1) || isnan(si.t1)) && millis() - vCurrTime < 5000) ;
+  } while ((isnan(_sensorInfo.h1) || isnan(_sensorInfo.t1)) && millis() - vCurrTime < 5000);
 
-  si.h1  = si.h1 * 100;
-
-  si.distance=getDistance();
+  _sensorInfo.distance=getDistance();
 }
 
 
@@ -722,7 +684,7 @@ void Timer1_doJob(void) {
     * произошло по границе.                                           *
     *******************************************************************/
     
-   if (!isDisabledLightRange() && (mCurrTempOut < _offlineParams.tempUpLight1 || _light.isEdge)) {
+   if (!isDisabledLightRange() && (_sensorInfo.t1 < _offlineParams.tempUpLight1 || _light.isEdge)) {
      isLightShouldWork = true;
      _light.isEdge     = true;
    };
@@ -734,7 +696,7 @@ void Timer1_doJob(void) {
     * то включаем устройство "Вода". При этом отмечаем включение     *
     * по температуре. Делаю эту тему по заказу Юрца Маленького.      *
     ******************************************************************/
-   if (!isDisabledWaterRange() && (mCurrTempIn < _offlineParams.tempUpWater1 || _water.isEdge)) {
+   if (!isDisabledWaterRange() && (_sensorInfo.t2 < _offlineParams.tempUpWater1 || _water.isEdge)) {
      isWaterShouldWork = true;
      _water.isEdge     = true;
    };  
@@ -749,13 +711,13 @@ void Timer1_doJob(void) {
   };
 
      
-   if (mCurrTempOut >= _offlineParams.tempUpLight2) {
+   if (_sensorInfo.t1 >= _offlineParams.tempUpLight2) {
       isLightShouldWork = false;
       _light.isEdge     = false;
    };
 
      
-  if (mCurrTempIn >= _offlineParams.tempUpWater2) {
+  if (_sensorInfo.t2 >= _offlineParams.tempUpWater2) {
       isWaterShouldWork = false;
       _water.isEdge     = false;
    };
@@ -774,9 +736,9 @@ void Timer1_doJob(void) {
      Serial.print(F("   "));
    
      Serial.print(F("T1:"));
-     Serial.print(mCurrTempOut);     
+     Serial.print(_sensorInfo.t1);     
      Serial.print(F("   T2:"));
-     Serial.println(mCurrTempIn);
+     Serial.println(_sensorInfo.t2);
      //Serial.flush();
   #endif
 
@@ -1008,7 +970,7 @@ void waitAndBlink() {
 
 void loop() 
 {
-   static sensorInfo _sensorInfo;
+   
    unsigned int vDistance;    
     waitAndBlink(); // Мигаем диодом, что живы
    
@@ -1016,14 +978,14 @@ void loop()
 
 
     if (_sensorInfo.lastMeasure==0 || millis()-_sensorInfo.lastMeasure>__MEASURE_PERIOD__) {
-      loadSensorInfo1(_sensorInfo);
+      loadSensorInfo1();
       _sensorInfo.lastMeasure=millis();
     };          
 
    #ifdef IS_DEBUG
-     Serial.print(F("T1:"));    Serial.print(mSensorInfo.t1);  Serial.print(F("  T2:")); Serial.print(mSensorInfo.t2); 
-     Serial.print(F("  H:"));   Serial.print(mSensorInfo.h1);  Serial.print(F("  P:"));  Serial.print(mSensorInfo.p1); 
-     Serial.print(F("  DIS:")); Serial.print(mSensorInfo.distance); 
+     Serial.print(F("T1:"));    Serial.print(_sensorInfo.t1);  Serial.print(F("  T2:")); Serial.print(_sensorInfo.t2); 
+     Serial.print(F("  H:"));   Serial.print(_sensorInfo.h1);  Serial.print(F("  P:"));  Serial.print(_sensorInfo.p1); 
+     Serial.print(F("  DIS:")); Serial.print(_sensorInfo.distance); 
      Serial.print(F("  W&L:")); Serial.print(_water.duration); Serial.print(F("&"));      
      Serial.println(_light.duration); 
      Serial.flush();
