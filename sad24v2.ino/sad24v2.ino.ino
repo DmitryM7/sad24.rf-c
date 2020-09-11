@@ -467,7 +467,7 @@ bool updateRemoteMeasure(sensorInfo si) {
 
   vResult = sim900.postUrl(sitePoint, vParams, vRes, sizeof(vRes));
 
-  #if IS_DEBUG>1
+  #ifdef IS_DEBUG
     Serial.print(F("MEAS "));
   #endif
 
@@ -980,17 +980,18 @@ void loop()
     if (_sensorInfo.lastMeasure==0 || millis()-_sensorInfo.lastMeasure>__MEASURE_PERIOD__) {
       loadSensorInfo1();
       _sensorInfo.lastMeasure=millis();
-    };          
+       #ifdef IS_DEBUG
+         Serial.print(F("T1:"));    Serial.print(_sensorInfo.t1);  Serial.print(F("  T2:")); Serial.print(_sensorInfo.t2); 
+         Serial.print(F("  H:"));   Serial.print(_sensorInfo.h1);  Serial.print(F("  P:"));  Serial.print(_sensorInfo.p1); 
+         Serial.print(F("  DIS:")); Serial.print(_sensorInfo.distance); 
+         Serial.print(F("  W&L:")); Serial.print(_water.duration); Serial.print(F("&"));      
+         Serial.println(_light.duration); 
+         Serial.flush();
+      #endif
 
-   #ifdef IS_DEBUG
-     Serial.print(F("T1:"));    Serial.print(_sensorInfo.t1);  Serial.print(F("  T2:")); Serial.print(_sensorInfo.t2); 
-     Serial.print(F("  H:"));   Serial.print(_sensorInfo.h1);  Serial.print(F("  P:"));  Serial.print(_sensorInfo.p1); 
-     Serial.print(F("  DIS:")); Serial.print(_sensorInfo.distance); 
-     Serial.print(F("  W&L:")); Serial.print(_water.duration); Serial.print(F("&"));      
-     Serial.println(_light.duration); 
-     Serial.flush();
-   #endif
+    }          
 
+  
     /***************************************************************
      * Была нажата кнопка считывания СМС сообщения, считываем      * 
      * до тех пор пока не будут заполнены ключевые параметры.      *
