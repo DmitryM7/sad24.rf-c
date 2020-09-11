@@ -667,8 +667,6 @@ void Timer1_doJob(void) {
  
   
   worker _worker(eeprom_mWorkerStart);
-  bool isWaterShouldWork = false,
-       isLightShouldWork = false;
   offlineParams _offlineParams;
   unsigned long vSecMidnight = 0;
   byte vDayOfWeek;
@@ -684,8 +682,7 @@ void Timer1_doJob(void) {
     * произошло по границе.                                           *
     *******************************************************************/
     
-   if (!isDisabledLightRange() && (_sensorInfo.t1 < _offlineParams.tempUpLight1 || _light.isEdge)) {
-     isLightShouldWork = true;
+   if (!isDisabledLightRange() && (_sensorInfo.t1 < _offlineParams.tempUpLight1 || _light.isEdge)) {   
      _light.isEdge     = true;
    };
 
@@ -697,32 +694,43 @@ void Timer1_doJob(void) {
     * по температуре. Делаю эту тему по заказу Юрца Маленького.      *
     ******************************************************************/
    if (!isDisabledWaterRange() && (_sensorInfo.t2 < _offlineParams.tempUpWater1 || _water.isEdge)) {
-     isWaterShouldWork = true;
      _water.isEdge     = true;
    };  
+
+
+  _light.isSchedule=false;
+  _water.isSchedule=false;
 
 
   for (byte vI = 0; vI < _worker.maxTaskCount; vI++) {    
     byte executor = _worker.shouldTaskWork2(vI, vSecMidnight, vDayOfWeek);
 
-    isLightShouldWork = isLightShouldWork || (bool)bitRead(executor, 1);
-    isWaterShouldWork = isWaterShouldWork || (bool)bitRead(executor, 0);
+    _light.isSchedule = _light.isSchedule || (bool)bitRead(executor, 1);
+    _water.isSchedule = _water.isSchedule || (bool)bitRead(executor, 0);
 
   };
 
      
-   if (_sensorInfo.t1 >= _offlineParams.tempUpLight2) {
-      isLightShouldWork = false;
+   if (_sensorInfo.t1 >= _offlineParams.tempUpLight2) { 
       _light.isEdge     = false;
    };
 
      
-  if (_sensorInfo.t2 >= _offlineParams.tempUpWater2) {
-      isWaterShouldWork = false;
+  if (_sensorInfo.t2 >= _offlineParams.tempUpWater2) {      
       _water.isEdge     = false;
    };
 
   #ifdef IS_DEBUG
+     
+     Serial.print(F("VSM "));
+     Serial.print(vSecMidnight);
+     Serial.print(F("   "));
+
+     
+     Serial.print(F("DOW "));
+     Serial.print(vDayOfWeek);
+     Serial.print(F("   "));
+
      Serial.print(F("Mem:"));
      Serial.print(freeMemory());  
      Serial.print(F("   "));
@@ -747,7 +755,7 @@ void Timer1_doJob(void) {
    *                        Останавливаем исполнителей                    *
    ************************************************************************/
 
-  if (!isLightShouldWork && _light.isWork) {
+  if (!_light.isSchedule && !_light.isEdge && _light.isWork) {
 
     #ifdef IS_DEBUG
       Serial.print(F("EL:"));
@@ -758,7 +766,7 @@ void Timer1_doJob(void) {
     _light.isWork = false;    
   };
 
-  if (!isWaterShouldWork && _water.isWork) {
+  if (!_water.isSchedule && !_water.isEdge && _water.isWork) {
 
     #ifdef IS_DEBUG
       Serial.print(F("EW:"));
@@ -774,7 +782,7 @@ void Timer1_doJob(void) {
    *                        Стартуем исполнителей                         *
    ************************************************************************/
    
-  if (isWaterShouldWork && !_water.isWork) {
+  if ((_water.isSchedule || _water.isEdge) && !_water.isWork) {
     #ifdef IS_DEBUG
       Serial.print(F("SW:"));
       Serial.println(vSecMidnight);
@@ -785,7 +793,7 @@ void Timer1_doJob(void) {
     _water.startTime = vSecMidnight;
   };
 
-  if (isLightShouldWork && !_light.isWork) {
+  if ((_light.isSchedule || _light.isEdge) && !_light.isWork) {
     #ifdef IS_DEBUG
       Serial.print(F("SL:"));
       Serial.println(vSecMidnight);

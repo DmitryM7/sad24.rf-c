@@ -9,10 +9,11 @@ struct task {
 };
 
 struct workerInfo {
-  volatile bool          isWork    = false;
-  volatile bool          isEdge    = false;
-  volatile unsigned long startTime = 0;
-  volatile unsigned long duration  = 0;
+  volatile bool          isWork     = false;
+  volatile bool          isEdge     = false;
+  volatile bool          isSchedule = false;
+  volatile unsigned long startTime  = 0;
+  volatile unsigned long duration   = 0;
 };
 
 class worker
