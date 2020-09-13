@@ -78,7 +78,8 @@ int DHT::readTemperature2() {
       f += data[3];
       if (data[2] & 0x80) {
         f *= -1;
-      }
+      };
+      f*=10;
       break;
     }
   }
@@ -125,6 +126,7 @@ int DHT::readHumidity2() {
       f = data[0];
       f *= 256;
       f += data[1];
+      f*=10;
       break;
     }
   }

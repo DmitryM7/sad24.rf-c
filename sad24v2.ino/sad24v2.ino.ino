@@ -746,8 +746,18 @@ void Timer1_doJob(void) {
    
      Serial.print(F("T1:"));
      Serial.print(_sensorInfo.t1);     
+     
      Serial.print(F("   T2:"));
-     Serial.println(_sensorInfo.t2);
+     Serial.print(_sensorInfo.t2);
+
+     Serial.print(F("   UPL1:"));
+     Serial.print(_offlineParams.tempUpLight1);
+
+     Serial.print(F("   UPW1:"));
+     Serial.print(_offlineParams.tempUpWater1);
+
+     Serial.print(F("   LEDG:"));
+     Serial.println(_light.isEdge);
      //Serial.flush();
   #endif
 
@@ -956,6 +966,8 @@ void setup() {
   };
 
   Wire.begin();
+
+  loadSensorInfo1();
   
   Timer1.initialize(3000000);
   Timer1.attachInterrupt(Timer1_doJob);
@@ -986,7 +998,7 @@ void loop()
     long vD = (long)(mCurrTime-vPrevTime2);  // mCurrTime берем из прерывания по будильнику
 
 
-    if (_sensorInfo.lastMeasure==0 || millis()-_sensorInfo.lastMeasure>__MEASURE_PERIOD__) {
+    if (millis()-_sensorInfo.lastMeasure>__MEASURE_PERIOD__) {
       loadSensorInfo1();
       _sensorInfo.lastMeasure=millis();
        #ifdef IS_DEBUG
