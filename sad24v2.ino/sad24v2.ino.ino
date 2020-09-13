@@ -154,10 +154,11 @@ void loadSensorInfo1() {
   vCurrTime = millis();
   
   do {    
-    _sensorInfo.h1 = dht.readHumidity() * 100;
-    _sensorInfo.t1 = dht.readTemperature() * 100;
+    _sensorInfo.h1 = dht.readHumidity2();
     delay(1000);
-  } while ((isnan(_sensorInfo.h1) || isnan(_sensorInfo.t1)) && millis() - vCurrTime < 5000);
+    _sensorInfo.t1 = dht.readTemperature2();
+    delay(1000);
+  } while ((isnan(_sensorInfo.h1) || _sensorInfo.h1==0 || isnan(_sensorInfo.t1)) && millis() - vCurrTime < 5000); //Почему-то иногда датчик выдает нулевые 
 
   _sensorInfo.distance=getDistance();
 }
@@ -979,7 +980,7 @@ void waitAndBlink() {
 void loop() 
 {
    
-   unsigned int vDistance;    
+    unsigned int vDistance;    
     waitAndBlink(); // Мигаем диодом, что живы
    
     long vD = (long)(mCurrTime-vPrevTime2);  // mCurrTime берем из прерывания по будильнику
