@@ -238,7 +238,7 @@ byte worker::shouldTaskWork2(byte iAddress,
      return lowByte(_task.startCode);
   };
 
-    return 0;
+  return 0;
 
 };
 

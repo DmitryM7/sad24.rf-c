@@ -138,7 +138,7 @@ void loadSensorInfo1() {
   BMP085   dps = BMP085();
   DHT dht(5, DHT22);
 
-  dps.init(MODE_STANDARD, 17700, true);
+   dps.init(MODE_STANDARD, 17700, true);
   _sensorInfo.t2=dps.getTemperature2();
 
   _sensorInfo.p1=dps.getPressure2();
@@ -154,9 +154,8 @@ void loadSensorInfo1() {
   vCurrTime = millis();
   
   do {    
-    _sensorInfo.h1 = dht.readHumidity2();
-    delay(1000);
-    _sensorInfo.t1 = dht.readTemperature2();
+     _sensorInfo.t1 = dht.readTemperature2();
+    _sensorInfo.h1 = dht.readHumidity2();   
     delay(1000);
   } while ((isnan(_sensorInfo.h1) || _sensorInfo.h1==0 || isnan(_sensorInfo.t1)) && millis() - vCurrTime < 5000); //Почему-то иногда датчик выдает нулевые 
 
