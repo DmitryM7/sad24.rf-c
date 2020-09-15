@@ -63,8 +63,8 @@ float DHT::readTemperature(bool S, bool force) {
   return f;
 }
 
-int DHT::readTemperature2() {
-  int f = NAN;
+float DHT::readTemperature2() {
+  float f = NAN;
 
   if (read(true)) {
     switch (_type) {
@@ -114,8 +114,8 @@ float DHT::readHumidity(bool force) {
   return f;
 }
 
-int DHT::readHumidity2() {
-  int f = NAN;
+float DHT::readHumidity2() {
+  float f = NAN;
   if (read()) {
     switch (_type) {
     case DHT11:

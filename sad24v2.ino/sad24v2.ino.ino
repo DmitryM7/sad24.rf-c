@@ -126,18 +126,14 @@ int getDistance() {
 }
 
 void loadSensorInfo1() {
-  unsigned long vCurrTime;
-   
+
   {
     BMP085   dps = BMP085();
     dps.init(MODE_STANDARD, 17700, true);
     _sensorInfo.t2=dps.getTemperature2();
     _sensorInfo.p1=dps.getPressure2();
-
   };
 
-  DHT dht(5, DHT22);
-  dht.begin();
 
   /***********************************************************
    *    Датчик влажности тугой. Он может с первого           *
@@ -145,15 +141,28 @@ void loadSensorInfo1() {
    *    его считать столько раз, сколько успеем за 5 секунд. *
    ***********************************************************/
   
-  vCurrTime = millis();
   
-  do {    
-    _sensorInfo.t1 = dht.readTemperature2();
-    _sensorInfo.h1 = dht.readHumidity2();
-    delay(1000);
-  } while ((isnan(_sensorInfo.h1) || _sensorInfo.h1==0 || isnan(_sensorInfo.t1)) && millis() - vCurrTime < 3000); //Почему-то иногда датчик выдает нулевые 
+    {
+ 
+    DHT dht(5, DHT22);
+    dht.begin();
+ 
+    unsigned long vCurrTime = millis();
+    float _t1,_h1;           
+  
+      do {
+          _t1=dht.readTemperature2();
+          _h1=dht.readHumidity2();           
+          delay(1000);
+         } while ((isnan(_t1) || isnan(_h1)) && millis() - vCurrTime < 3000); //Почему-то иногда датчик выдает нулевые 
 
-  _sensorInfo.distance=getDistance();
+      if (!(isnan(_t1) || isnan(_h1))) {
+        _sensorInfo.t1 = _t1;
+        _sensorInfo.h1 = _h1;
+      }  
+   };
+   
+ _sensorInfo.distance=getDistance();
 }
 
 
