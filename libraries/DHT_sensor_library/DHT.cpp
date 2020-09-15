@@ -116,7 +116,7 @@ float DHT::readHumidity(bool force) {
 
 int DHT::readHumidity2() {
   int f = NAN;
-  if (read(true)) {
+  if (read()) {
     switch (_type) {
     case DHT11:
       f = data[0];

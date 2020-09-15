@@ -5,19 +5,12 @@
 #include <TimerOne.h>
 #include <LowPower.h>
 #include <MemoryFree.h>
-
 #include <gprs2.h>
 #include <mstr.h>
 #include <worker.h>
 #include <debug.h>
 
 #include <structs.h>
-
-/************************************
- * Задаем параметры подключения УЗД * 
- ************************************/
-#define ECHO_PIN 10
-#define TRIG_PIN 3
 
 sensorInfo _sensorInfo;
 
@@ -135,14 +128,15 @@ int getDistance() {
 void loadSensorInfo1() {
   unsigned long vCurrTime;
    
-  BMP085   dps = BMP085();
+  {
+    BMP085   dps = BMP085();
+    dps.init(MODE_STANDARD, 17700, true);
+    _sensorInfo.t2=dps.getTemperature2();
+    _sensorInfo.p1=dps.getPressure2();
+
+  };
+
   DHT dht(5, DHT22);
-
-  dps.init(MODE_STANDARD, 17700, true);
-  _sensorInfo.t2=dps.getTemperature2();
-
-  _sensorInfo.p1=dps.getPressure2();
-
   dht.begin();
 
   /***********************************************************
@@ -154,11 +148,10 @@ void loadSensorInfo1() {
   vCurrTime = millis();
   
   do {    
+    _sensorInfo.t1 = dht.readTemperature2();
     _sensorInfo.h1 = dht.readHumidity2();
     delay(1000);
-    _sensorInfo.t1 = dht.readTemperature2();
-    delay(1000);
-  } while ((isnan(_sensorInfo.h1) || _sensorInfo.h1==0 || isnan(_sensorInfo.t1)) && millis() - vCurrTime < 5000); //Почему-то иногда датчик выдает нулевые 
+  } while ((isnan(_sensorInfo.h1) || _sensorInfo.h1==0 || isnan(_sensorInfo.t1)) && millis() - vCurrTime < 3000); //Почему-то иногда датчик выдает нулевые 
 
   _sensorInfo.distance=getDistance();
 }
