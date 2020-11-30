@@ -19,7 +19,7 @@ struct workerInfo {
 class worker
 {
   public:
-   byte maxTaskCount = 5;
+   byte maxTaskCount = 6; // На самом деле заданий будет на одно меньше
    worker(unsigned int iStartAddress);
    bool update(char* iCommand);
    void setTask2(unsigned int iAddress,char* iStr);

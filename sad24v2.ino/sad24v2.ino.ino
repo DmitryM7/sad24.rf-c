@@ -121,7 +121,7 @@ int getDistance() {
     delayMicroseconds(55); 
     digitalWrite(TRIG_PIN, LOW); 
     duration = pulseIn(ECHO_PIN, HIGH); 
-    cm = round(duration / 58);    
+    cm       = round(duration / 58);    
     return cm;
 }
 
@@ -135,32 +135,12 @@ void loadSensorInfo1() {
   };
 
 
-  /***********************************************************
-   *    Датчик влажности тугой. Он может с первого           *
-   *    раза данные не считать. Поэтому пытаемся             *
-   *    его считать столько раз, сколько успеем за 5 секунд. *
-   ***********************************************************/
-  
-  
-    {
- 
+  {
     DHT dht(5, DHT22);
     dht.begin();
- 
-    unsigned long vCurrTime = millis();
-    float _t1,_h1;           
-  
-      do {
-          _t1=dht.readTemperature2();
-          _h1=dht.readHumidity2();           
-          delay(1000);
-         } while ((isnan(_t1) || isnan(_h1)) && millis() - vCurrTime < 3000); //Почему-то иногда датчик выдает нулевые 
-
-      if (!(isnan(_t1) || isnan(_h1))) {
-        _sensorInfo.t1 = _t1;
-        _sensorInfo.h1 = _h1;
-      }  
-   };
+    _sensorInfo.t1 = dht.readTemperature2();
+    _sensorInfo.h1 = dht.readHumidity2();
+  };
    
  _sensorInfo.distance=getDistance();
 }
@@ -381,7 +361,6 @@ byte goSleep(byte iMode,long long iPrevTime) {
 
   byte vWaitTime=0;                 
 
- 
    {
     worker _worker(eeprom_mWorkerStart);    
     vSleepTime   = _worker.getSleepTime();
@@ -750,16 +729,7 @@ void Timer1_doJob(void) {
      Serial.print(_sensorInfo.t1);     
      
      Serial.print(F("   T2:"));
-     Serial.print(_sensorInfo.t2);
-
-     Serial.print(F("   UPL1:"));
-     Serial.print(_offlineParams.tempUpLight1);
-
-     Serial.print(F("   UPW1:"));
-     Serial.print(_offlineParams.tempUpWater1);
-
-     Serial.print(F("   LEDG:"));
-     Serial.println(_light.isEdge);
+     Serial.println(_sensorInfo.t2);
      //Serial.flush();
   #endif
 
@@ -773,7 +743,6 @@ void Timer1_doJob(void) {
     #ifdef IS_DEBUG
       Serial.print(F("EL:"));
       Serial.println(vSecMidnight);
-      //Serial.flush();
     #endif
     _worker.stopLight();
     _light.isWork = false;    
@@ -784,7 +753,6 @@ void Timer1_doJob(void) {
     #ifdef IS_DEBUG
       Serial.print(F("EW:"));
       Serial.println(vSecMidnight);
-      //Serial.flush();
     #endif
     _worker.stopWater();
     _water.isWork = false;
@@ -799,7 +767,6 @@ void Timer1_doJob(void) {
     #ifdef IS_DEBUG
       Serial.print(F("SW:"));
       Serial.println(vSecMidnight);
-      //Serial.flush();
     #endif
     _worker.startWater();
     _water.isWork = true;
@@ -810,7 +777,6 @@ void Timer1_doJob(void) {
     #ifdef IS_DEBUG
       Serial.print(F("SL:"));
       Serial.println(vSecMidnight);
-      //Serial.flush();
     #endif
     _worker.startLight();
     _light.isWork = true;
@@ -880,6 +846,7 @@ void pin_ISR () {
   noInterrupts();
   EEPROM.put(0, _connection);
   interrupts();
+  
 
 }
 
@@ -913,12 +880,14 @@ void setup() {
 
     
 
-    for (int vI = 0 ; vI < EEPROM.length() ; vI++) {
+    for (int vI = 0 ; vI < EEPROM.length() ; vI++) {    
       EEPROM.write(vI, 0);
     };
+
   
     //Признак того, что инициализация выполнена    
     strcpy_P(_globals.version, PSTR("INI"));
+    
     // Задержка соединения по-умолчанию 15 минут
     _globals.connectPeriod = 15;
     EEPROM.put(eeprom_mGlobalsStart, _globals);
@@ -986,8 +955,17 @@ void setup() {
 void waitAndBlink() {
   digitalWrite(LED_BUILTIN,HIGH);
   delay(500);
-  digitalWrite(LED_BUILTIN,LOW);
-  delay(5000); 
+
+  if (!mShouldReadSms) { //Прерывание по кнопке может сработать прям перед этим метстом, в этом случае нам не нужно выключать индикатор
+    digitalWrite(LED_BUILTIN,LOW);  
+  };
+   
+  if (!isConnectInfoFull()) {
+   delay(500);   
+  } else {
+    delay(5000);
+  };
+  
 }
 
 
@@ -1001,8 +979,8 @@ void loop()
 
 
     if (millis()-_sensorInfo.lastMeasure>__MEASURE_PERIOD__) {
-      loadSensorInfo1();
-      _sensorInfo.lastMeasure=millis();
+       loadSensorInfo1();
+       _sensorInfo.lastMeasure=millis();
        #ifdef IS_DEBUG
          Serial.print(F("T1:"));    Serial.print(_sensorInfo.t1);  Serial.print(F("  T2:")); Serial.print(_sensorInfo.t2); 
          Serial.print(F("  H:"));   Serial.print(_sensorInfo.h1);  Serial.print(F("  P:"));  Serial.print(_sensorInfo.p1); 
@@ -1012,7 +990,7 @@ void loop()
          Serial.flush();
       #endif
 
-    }          
+    };          
 
   
     /***************************************************************
