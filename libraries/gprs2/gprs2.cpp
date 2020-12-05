@@ -339,7 +339,7 @@ bool gprs2::canWork() {
    return isPowerUp() && hasNetwork() && isConnect();
 };
 
-bool gprs2::canInternet() {
+bool gprs2::doInternet() {
  return gprsNetworkUp() && gprsUp();
 }
 
@@ -361,7 +361,7 @@ bool gprs2::canInternet() {
 
 
        if (iResLength < 35) {
-           strcpy_P(oRes,PSTR("iRes small"));
+           strcpy_P(oRes,PSTR("IR sm"));
            _setLastError(__LINE__,oRes);
           _sendTermCommand();
           _emptyBuffer(oRes,iResLength);

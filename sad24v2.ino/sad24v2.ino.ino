@@ -377,7 +377,7 @@ bool wk() {
     sim900.setInternetSettings(_connection.apnPoint, _connection.apnLogin, _connection.apnPass); 
     strncpy(sitePoint,_connection.sitePoint,sizeof(sitePoint));
 
-    if (!sim900.canInternet()) {
+    if (!sim900.doInternet()) {
       #if IS_DEBUG>2
         char vError[20];
         sim900.getLastError(vError);
@@ -562,7 +562,7 @@ bool updateRemoteMeasure(sensorInfo si) {
  * Второй раз проверять не нужно. 
 
  
-  if (!sim900.canInternet()) {
+  if (!sim900.doInternet()) {
     #if IS_DEBUG>1
       char vError[20];
       sim900.getLastError(vError);
@@ -720,7 +720,7 @@ bool updateRemoteParams() {
     sim900.setInternetSettings(_connection.apnPoint, _connection.apnLogin, _connection.apnPass); 
     strncpy(sitePoint,_connection.sitePoint,sizeof(sitePoint));
 
-    if (!sim900.canInternet()) {
+    if (!sim900.doInternet()) {
       #if IS_DEBUG>2
         char vError[20];
         sim900.getLastError(vError);

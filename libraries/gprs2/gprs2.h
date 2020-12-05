@@ -28,7 +28,7 @@ class gprs2
 
 
     bool canWork();                        //ќпредел€ет может ли модем установить соединение, при этом пытаетс€ подн€ть несущую и соединение GPRS
-    bool canInternet();                        
+    bool doInternet();                        
 
     bool getCoords(char* iLongitude,char* iLatitdue,char* oRes,size_t iSize);
 
