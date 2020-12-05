@@ -372,15 +372,17 @@ unsigned long worker::_getMinTaskTime(byte iCurrDayOfWeek,unsigned long iCurrTim
 
 long long worker::getTimestamp(unsigned long &oSecMidnight,byte &oDayOfWeek) {
   DS3231MDA Clock;
-  byte m=0,d,hh,mm,ss,y,vAttempt=0;
-  bool hasError;
+  byte m,d,hh,mm,ss,y,vAttempt=0;
+  bool vStatus;
+
 
    do {
-    Clock.getNow(y,m,d,hh,mm,ss);   
-     vAttempt++;
-   } while (vAttempt<3 && (hasError=m<=0 || m>12 || d<=0 || d>31));
-   
-   if (hasError) { oSecMidnight=0; oDayOfWeek=0; return 0; };
+    vStatus=Clock.getNow(y,m,d,hh,mm,ss);   
+    vAttempt++;
+   } while (!vStatus && vAttempt<3);
+
+
+   if (!vStatus) { oSecMidnight=0; oDayOfWeek=0; return 0; };
    
    oDayOfWeek = _DayOfWeek((int)y,m,d);
   /**************************************

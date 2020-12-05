@@ -10,6 +10,7 @@ class gprs2
      * For common use.              *
      ********************************/
     gprs2(int pin1,int pin2);
+    ~gprs2();
 
 
     bool isPowerUp();	                   //Возвращает истину если устройство включено.
@@ -42,6 +43,8 @@ class gprs2
     bool readSms(bool deleteAfterRead=true);
 
     bool setOnSms(bool (*iSmsEvent)(byte iSms, char* oStr));
+    bool setBeforePostParams(bool (*ifunction)(char* iStr));
+    bool setAfterPostParams(bool (*ifunction)());
 
     bool deleteAllSms();
     bool deleteSms(byte iSms);
@@ -66,7 +69,10 @@ class gprs2
     void _emptyBuffer(char* oBuff,size_t iSize);
     void _sendTermCommand(bool iWaitOK=true);
     bool _setSmsTextMode();
+
     bool (*_onSmsRead)(byte iSms,char* oStr);
+    bool (*_onBeforePostParams)(char* iStr);
+    bool (*_onAfterPostParams)();
 
     void _doCmd(char* iStr);
     void _doCmd(const __FlashStringHelper *iStr);        

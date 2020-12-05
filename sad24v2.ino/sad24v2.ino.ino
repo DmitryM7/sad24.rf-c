@@ -258,6 +258,17 @@ bool onSms(byte iSms, char* iCommand) {
   return true;
 }
 
+bool stopTimer(char *iRes) {
+  Serial.print(F("INT"));
+  Serial.flush();
+  //Timer1.stop();
+  return true;
+}
+bool resumeTimer() {
+  //Timer1.start();
+  return true;
+}
+
 void readSms2() {
   
   gprs2 sim900(7, 8);  
@@ -294,7 +305,7 @@ bool wk() {
   };
 
   sim900.wakeUp();  
-  delay(10000);
+  delay(15000);
     
   do {    
     vStatus = sim900.canWork();    
@@ -315,6 +326,107 @@ bool wk() {
   return vStatus;
 
 }
+
+
+/*bool wk2() {
+
+  bool vStatus = false;
+  byte vAttempt = 0;
+    
+  gprs2 sim900(7, 8);
+   
+  {
+    Connection _connection;
+    EEPROM.get(0, _connection);    
+    sim900.setInternetSettings(_connection.apnPoint, _connection.apnLogin, _connection.apnPass);
+  };
+
+  sim900.wakeUp();  
+  delay(10000);
+
+  sim900.setBeforePostParams(stopTimer);
+  sim900.setAfterPostParams(resumeTimer);
+    
+  do {    
+    vStatus = sim900.canWork();    
+    delay(vAttempt * 3000);
+    vAttempt++;
+  } while (!vStatus && vAttempt < 3);
+
+#if IS_DEBUG>1
+  if (!vStatus) {
+      char vError[20];
+      sim900.getLastError(vError);
+      Serial.print(F("WKE:"));
+      Serial.println(vError);
+      Serial.flush();
+  };
+#endif
+
+    char vParams[70], 
+       sitePoint[__SITE_POINT_SIZE__];
+  bool vShouldReconnect = true;
+  
+
+  
+  {
+    char vL[11], vA[11];
+    Connection _connection;
+    
+    EEPROM.get(0, _connection);
+    sim900.setInternetSettings(_connection.apnPoint, _connection.apnLogin, _connection.apnPass); 
+    strncpy(sitePoint,_connection.sitePoint,sizeof(sitePoint));
+
+    if (!sim900.canInternet()) {
+      #if IS_DEBUG>2
+        char vError[20];
+        sim900.getLastError(vError);
+        Serial.print(F("CI ER:"));
+        Serial.println(vError);
+        Serial.flush();
+      #endif
+      return false;
+    };
+
+    sim900.getCoords(vL, vA,vParams,sizeof(vParams));    
+    sprintf_P(vParams, PSTR("r=%s&s=%s&m=c&l=%s&a=%s"), _connection.siteLogin, _connection.sitePass, vL, vA);
+  };
+  
+
+
+
+    while (vShouldReconnect) {      
+      char vRes[250];
+      bool vResult;
+      
+      vResult = sim900.postUrl(sitePoint, vParams, vRes, sizeof(vRes));
+            #ifdef IS_DEBUG
+              Serial.print(F("PARA"));
+              if (vResult) {    
+                Serial.print(F(" : "));
+                Serial.println(vRes);
+                Serial.flush();
+              } else {
+                char vError[20];
+                sim900.getLastError(vError);
+                Serial.print(F(" ER :"));
+                Serial.println(vError);
+                Serial.flush();    
+              };
+            #endif
+
+      if (!vResult) {
+       return false;
+      };
+
+      vShouldReconnect = workWithRes(vRes);
+
+    };
+
+   return true;         
+
+}
+*/
 
 /************************************************************
  * Отправляем модем в сон.                                  *
@@ -429,7 +541,17 @@ bool updateRemoteMeasure(sensorInfo si) {
     Connection _connection;      
     EEPROM.get(0, _connection);
     
-    sprintf_P(vParams, PSTR("r=%s&s=%s&t1=%d&h1=%d&t2=%d&p1=%lu&w1=%lu&l1=%lu&d=%lu&ds=%d"), _connection.siteLogin, _connection.sitePass, si.t1, si.h1, si.t2, si.p1, _water.duration, _light.duration, millis(),si.distance);
+    sprintf_P(vParams, PSTR("r=%s&s=%s&t1=%d&h1=%d&t2=%d&p1=%lu&w1=%lu&l1=%lu&d=%lu&ds=%d"), _connection.siteLogin, 
+                                                                                             _connection.sitePass, 
+                                                                                             si.t1, 
+                                                                                             si.h1, 
+                                                                                             si.t2, 
+                                                                                             si.p1, 
+                                                                                             _water.duration, 
+                                                                                             _light.duration, 
+                                                                                             millis(),
+                                                                                             si.distance
+             );
     
     sim900.setInternetSettings(_connection.apnPoint, _connection.apnLogin, _connection.apnPass);
     strncpy(sitePoint,_connection.sitePoint,sizeof(sitePoint));
@@ -583,6 +705,7 @@ bool updateRemoteParams() {
   
 
   gprs2 sim900(7, 8);
+  
   {
     char vL[11], vA[11];
     Connection _connection;
@@ -656,6 +779,8 @@ void Timer1_doJob(void) {
   EEPROM.get(eeprom_mOfflineParamsStart, _offlineParams);       
  
   mCurrTime=_worker.getTimestamp(vSecMidnight,vDayOfWeek);  
+  
+  
 
 
    /*******************************************************************
@@ -950,6 +1075,7 @@ void setup() {
 #endif
  
  attachInterrupt(0, pin_ISR, FALLING); 
+
 }
 
 void waitAndBlink() {
@@ -971,7 +1097,7 @@ void waitAndBlink() {
 
 void loop() 
 {
-   
+  
     unsigned int vDistance;    
     waitAndBlink(); // Мигаем диодом, что живы
    
@@ -1026,6 +1152,7 @@ void loop()
         isModemWork = wk();
       };
 
+
       if (isModemWork) {
         byte vAttempt = 0;
         bool vStatus  = false;
@@ -1035,14 +1162,17 @@ void loop()
           vAttempt++;
        } while (!vStatus && vAttempt < 3);
 
-        
+
         vAttempt = 0;
         vStatus  = false;
         do {
           vStatus = updateRemoteMeasure(_sensorInfo);         
           vAttempt++;
         } while (!vStatus && vAttempt < 3);
-      };            
+
+
+      };  
+      
 
       vPrevTime2 = mCurrTime;
       

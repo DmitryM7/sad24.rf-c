@@ -127,6 +127,16 @@ int mstr::indexOf(char* iStr, char* iPattern) {
 int mstr::indexOf(char* iStr, char* iPattern,int iStartPosition) {
       char* pch;
 
+      //Паттерн может быть больше самой строки,
+      //тогда сразу возвращаем -1
+
+      //Serial.println(F(">---")); Serial.print(iPattern);  Serial.print(F(" VS ")); Serial.print(iStr);  Serial.print(F(" ___ "));  Serial.print(strlen(iPattern)); Serial.print(F(" VS ")); Serial.println(strlen(iStr));   Serial.println(F("---")); 
+
+     if (strlen(iPattern) > strlen(iStr)) { return -1; }; //Шаблон может быть больше исходной строки и в этом случае предположительно получим ошибку
+ 
+ 
+      // Если же все норм, то выполняем дальнейшую проверку
+
       pch = strstr(iStr + iStartPosition,iPattern);
 
 

@@ -40,11 +40,11 @@ class DHT {
    DHT(uint8_t pin, uint8_t type, uint8_t count=6);
    void begin(void);
    float readTemperature(bool S=false, bool force=false);
-   float readTemperature2();
+   int readTemperature2();
    float convertCtoF(float);
    float convertFtoC(float);
    float readHumidity(bool force=false);
-   float readHumidity2();
+   int readHumidity2();
    boolean read(bool force=false);
 
  private:
