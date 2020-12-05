@@ -167,20 +167,20 @@ bool gprs2::hasGprsNetwork() {
 bool gprs2::gprsNetworkUp(bool iForce=false) {
   char vRes[10],
        vTmpStr[3];
+  bool hasNetwork=hasGprsNetwork();
 
-   strcpy_P(vTmpStr, (char*)OK_M);
-
-   if (!hasGprsNetwork() || iForce) {
+   if (!hasNetwork || iForce) {
      _doCmd(F("AT+CGATT=1"));    
+     strcpy_P(vTmpStr, (char*)OK_M);
 
       if (_getAnswerWait(vRes,sizeof(vRes),vTmpStr)) {
        _setLastError(__LINE__,vRes);      
         return false;
       };
-
+     hasNetwork=hasGprsNetwork();
    };
 
-  return hasGprsNetwork();
+  return hasNetwork;
 };
 
 bool gprs2::gprsNetworkDown() {
