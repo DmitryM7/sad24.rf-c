@@ -558,6 +558,10 @@ bool updateRemoteMeasure(sensorInfo si) {
   };
   
 
+/**
+ * Второй раз проверять не нужно. 
+
+ 
   if (!sim900.canInternet()) {
     #if IS_DEBUG>1
       char vError[20];
@@ -568,6 +572,8 @@ bool updateRemoteMeasure(sensorInfo si) {
     #endif
     return false;
   };
+
+*/
 
   vResult = sim900.postUrl(sitePoint, vParams, vRes, sizeof(vRes));
 
@@ -1163,14 +1169,17 @@ void loop()
        } while (!vStatus && vAttempt < 3);
 
 
-        vAttempt = 0;
-        vStatus  = false;
-        do {
-          vStatus = updateRemoteMeasure(_sensorInfo);         
-          vAttempt++;
-        } while (!vStatus && vAttempt < 3);
-
-
+        if (vStatus) { 
+          //Если предыдущее подключение завершилось успешно, то пробуем передать другие данные.
+          //Если же на предыдущем шаге не получилось, то идем спать.
+          vStatus  = false;
+          vAttempt = 0;
+          do {
+            vStatus = updateRemoteMeasure(_sensorInfo);         
+            vAttempt++;
+          } while (!vStatus && vAttempt < 3);  
+        };
+        
       };  
       
 
