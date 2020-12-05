@@ -305,7 +305,7 @@ bool wk() {
   };
 
   sim900.wakeUp();  
-  delay(15000);
+  delay(__WAIT_MODEM_TIME__);
     
   do {    
     vStatus = sim900.canWork();    
@@ -452,7 +452,7 @@ void restartModem() {
     Serial.flush();
   #endif
   sim900.hardRestart();
-  delay(20000);
+  delay(__WAIT_MODEM_TIME__);
 };
 /**************************************************************************
     Конец методов работы с модемом
