@@ -7,34 +7,33 @@
 #include <SoftwareSerial.h>
 #include <LowPower.h>
 #include <debug.h>
-#include <mstr.h>
+#include <structs.h>
 #include <gprs2.h>
 
+
 bool wk() {
-   char vApn[30],
-        vUser[30],
-        vPass[30];
-       
+
   bool vStatus = false;
   byte vAttempt = 0;
     
   gprs2 sim900(7, 8);
    
+  {
+    char _apnPoint[35],_apnLogin[11],_apnPass[11];      
+    strcpy_P(_apnPoint,PSTR("internet.beeline.ru"));
+    strcpy_P(_apnLogin,PSTR("beeline"));
+    strcpy_P(_apnPass,PSTR("beeline"));
+    sim900.setInternetSettings(_apnPoint, _apnLogin, _apnPass);
+  };
 
-  
-  strcpy_P(vApn,PSTR("internet.beeline.ru"));
-  strcpy_P(vUser,PSTR("beeline"));
-  strcpy_P(vPass,PSTR("beeline"));
-  sim900.wakeUp();      
-  delay(10000);
-  sim900.setInternetSettings(vApn, vUser, vPass);
+  sim900.wakeUp();  
+  delay(__WAIT_MODEM_TIME__);
     
   do {    
     vStatus = sim900.canWork();    
     delay(vAttempt * 3000);
     vAttempt++;
   } while (!vStatus && vAttempt < 3);
-  
 
 #if IS_DEBUG>1
   if (!vStatus) {
@@ -55,10 +54,13 @@ unsigned char buffer[64]; // buffer array for data recieve over serial port
 int count=0;     // counter for buffer array 
 void setup()
 {  
-  wk();
+      /*pinMode(4,OUTPUT);
+      digitalWrite(4,HIGH);*/
+      Serial.begin(19200);             // the Serial port of Arduino baud rate.   
+      wk();
   
   GPRS.begin(19200);               // the GPRS baud rate   
-  Serial.begin(19200);             // the Serial port of Arduino baud rate.   
+  
   Serial.println(F("GO"));
   delay(1000);      
 }
