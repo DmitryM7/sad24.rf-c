@@ -155,7 +155,7 @@ bool mstr::begins(char* iStr,char* iPattern) {
   if (p1 >= iStr) {
     return p1 - iStr == 0;
   };
-  
+                                                                                            
   return false;
 };
 
@@ -165,10 +165,21 @@ void mstr::substr(char* iStr,int iStartPos,int iLength,char* oStr) {
 };
 
 void mstr::leftShift2(char* iStr,unsigned int iShift) { 
-  unsigned int vStrLen=strlen(iStr);
+/*  unsigned int vStrLen=strlen(iStr);
   memmove(iStr,iStr+iShift,vStrLen-iShift);
   memset(iStr + (vStrLen-iShift-1),0,iShift);
-}
+*/ 
+  int vStrLength=strlen(iStr);
+
+  for (int vI=0;vI<vStrLength-iShift;vI++) {
+      iStr[vI]=iStr[vI+iShift];
+  };
+
+  if (vStrLength-iShift>=0) {
+    iStr[vStrLength-iShift]=0;
+  };  
+
+}                           
 
 void mstr::_emptyBuffer(char* oBuf,size_t iSize) {
  memset(oBuf,'\0',iSize);

@@ -490,7 +490,7 @@ bool gprs2::doInternet() {
        _getAnswerWait(oRes,iResLength,_tmpStr);
 
 
-         strcpy_P(_tmpStr, PSTR("+HTTPACTION: 1,200")); 
+         strcpy_P(_tmpStr, PSTR("+HTTPACTION: 1,200"));     
 
          if (_mstr.indexOf(oRes,_tmpStr)==-1) {
               _setLastError(__LINE__,oRes);
@@ -518,40 +518,40 @@ bool gprs2::doInternet() {
            return false;
        };
 
-{
+ {
       char vSplitChar[2];
-      unsigned int  vFirstSpace = 0, vResLength=0;
+      unsigned int  vFirstSpace = 0;
+      int vResLength=0;
 
-      strcpy_P(vSplitChar, (char*)SPACE_M);
-      _mstr.trim(oRes,vSplitChar);
-
+      /* Убираем крайний OK */
      vResLength=strlen(oRes) - 3;
      vResLength=max(0,vResLength);
+     oRes[vResLength] = 0;
 
-     oRes[vResLength] = '\0';
+     vResLength=strlen(oRes);
 
-      if (strlen(oRes)<=0) {
-	   strcpy_P(_tmpStr,PSTR("*NO POST*"));
+     /* Результат пустой */
+
+      if (vResLength==0) {
            _setLastError(__LINE__,_tmpStr);
            _emptyBuffer(oRes,iResLength);
            _sendTermCommand();
            return false;
       };
 
+      // Здесь мы наши первый разделитель двоеточие, после него по станадрту идет пробел и кол-во байт
       strcpy_P(vSplitChar,PSTR(":"));
-      vFirstSpace = _mstr.indexOf(oRes,vSplitChar);       
+      vFirstSpace = _mstr.indexOf(oRes,vSplitChar);
 
+      //Здесь мы нашли пробел после кол-ва байт
       strcpy_P(vSplitChar, (char*)SPACE_M);
-      vFirstSpace = _mstr.indexOf(oRes,vSplitChar,vFirstSpace+2);
+      vFirstSpace = _mstr.indexOf(oRes,vSplitChar,vFirstSpace+2);       
 
-      for (int vI = 0; vI < vFirstSpace; vI++) {
-          oRes[vI] = ' ';
-      };
+     _mstr.leftShift2(oRes,vFirstSpace+1);
+ };
 
-      _mstr.trim(oRes,vSplitChar);
-}
      _sendTermCommand();
-   return true;
+     return true;
 
   }
 
