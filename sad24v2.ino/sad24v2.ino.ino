@@ -1170,10 +1170,16 @@ void loop()
        } while (!vStatus && vAttempt < 3);
 
 
+        
         if (vStatus) { 
           //Если предыдущее подключение завершилось успешно, то пробуем передать другие данные.
           //Если же на предыдущем шаге не получилось, то идем спать.          
-            vStatus = updateRemoteMeasure(_sensorInfo);                   
+          vAttempt=0;
+          do {
+            vStatus = updateRemoteMeasure(_sensorInfo);                    //Бывают ситуации когда нужно повторно передать данные.
+            vAttempt++;
+          } while (!vStatus && vAttempt<3);
+            
         };
         
       };  
