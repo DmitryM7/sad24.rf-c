@@ -365,25 +365,31 @@ byte goSleep(byte iMode, long long iPrevTime) {
   unsigned long  vSleepTime   = 0,
                  vPeriodSleep = 0,
                  vFirstLoop   = 0,
-                 vSecondLoop  = 0;
+                 vSecondLoop  = 0,
+                 vCurrTime;
+
+                 
 
 
   long  vNextModem   = 0;
   long long vTimeStamp;
+  byte vDayOfWeek;
 
   byte vWaitTime = 0;
 
   {
     worker _worker(eeprom_mWorkerStart);
-    vSleepTime   = _worker.getSleepTime();
+    vTimeStamp   = _worker.getTimestamp(vCurrTime,vDayOfWeek);
+    vSleepTime   = _worker.getSleepTime(vCurrTime);
 
-#ifdef IS_DEBUG
-    Serial.print(F("Slp tm = "));
+  #ifdef IS_DEBUG
+    Serial.print(F("MID:"));
+    Serial.print(vCurrTime);
+    Serial.print(F("  Slp tm = "));
     Serial.println(vSleepTime);
-#endif
-    vTimeStamp   = _worker.getTimestamp();
+  #endif
+    
   };
-
 
 
   vNextModem   = (long)(iPrevTime + connectPeriod() - vTimeStamp);
@@ -394,7 +400,8 @@ byte goSleep(byte iMode, long long iPrevTime) {
 
   vSleepTime   = min(vNextModem, vSleepTime);
 
-  vSleepTime   = (unsigned long) vSleepTime * iMode / 100;
+  vSleepTime   = vSleepTime * iMode / 100U;
+  
 #ifdef IS_DEBUG
   Serial.print(F("Slp tm * "));
   Serial.print(iMode);
@@ -404,11 +411,19 @@ byte goSleep(byte iMode, long long iPrevTime) {
   Serial.flush();
 #endif
 
-  vPeriodSleep = (unsigned int)(vSleepTime / 8U);
+  vPeriodSleep = vSleepTime / 8U;
 
 
-  vFirstLoop   = (unsigned int)  vPeriodSleep / 37;
+  vFirstLoop   = vPeriodSleep / 37U;
   vSecondLoop  = vPeriodSleep % 37;
+
+  #ifdef IS_DEBUG
+    Serial.print(F("FL:"));
+    Serial.print(vFirstLoop);
+    Serial.print(F(" SL:"));
+    Serial.println(vSecondLoop);
+    Serial.flush();
+  #endif
 
   vWaitTime    = vSleepTime - vFirstLoop * 37 * 8 - vSecondLoop * 8;
 

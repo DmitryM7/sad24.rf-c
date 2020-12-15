@@ -39,7 +39,7 @@ class worker
    byte shouldTaskWork2(byte iAddress,unsigned long iSecMidnight,byte iDayOfWeek);
    void setTime(char* vCommand);
    void setDateTime(byte iYear,byte iMonth,byte iDay,byte iHour,byte iMinutes,byte iSec);
-   unsigned long getSleepTime();
+   unsigned long getSleepTime(unsigned int iCurrTime);
 
   private:
    task _getTask(int iAddress);   

@@ -303,17 +303,12 @@ void worker::setDateTime(byte iYear,byte iMonth,byte iDay,byte iHour,byte iMinut
      _setDateTime(iYear,iMonth,iDay,iHour,iMinutes,iSec);
 };
 
-unsigned long worker::getSleepTime() {
+unsigned long worker::getSleepTime(unsigned int iCurrTime) {
    byte vCurrDayOfWeek;
-   unsigned long vNextTime,
-                 vCurrTime = getSecMidnight(vCurrDayOfWeek);
+   unsigned long vNextTime;
 
-   vNextTime = _getMinTaskTime(vCurrDayOfWeek,vCurrTime);
+   vNextTime = _getMinTaskTime(vCurrDayOfWeek,iCurrTime);
 
-   #ifdef IS_DEBUG
-    Serial.print(F("MID:"));
-    Serial.println(vCurrTime);
-   #endif
 
    if (vNextTime == NEAREST_TIME_BORDER) { return NEAREST_TIME_BORDER; };
 
@@ -322,9 +317,9 @@ unsigned long worker::getSleepTime() {
      vNextDayOfWeek   = (byte) (vNextTime / NEAREST_TIME_MULT);
      vNextTime = vNextTime - vNextDayOfWeek * NEAREST_TIME_MULT;
 
-     if (vNextDayOfWeek < vCurrDayOfWeek || (vNextDayOfWeek==vCurrDayOfWeek && vCurrTime > vNextTime)) { vNextTime = 86400 - vCurrTime + (7 - vCurrDayOfWeek) * 86400 + (vNextDayOfWeek - 1) * 86400 + vNextTime;   };
+     if (vNextDayOfWeek < vCurrDayOfWeek || (vNextDayOfWeek==vCurrDayOfWeek && iCurrTime > vNextTime)) { vNextTime = 86400 - iCurrTime + (7 - vCurrDayOfWeek) * 86400 + (vNextDayOfWeek - 1) * 86400 + vNextTime;   };
 
-     if (vNextDayOfWeek > vCurrDayOfWeek || (vNextDayOfWeek==vCurrDayOfWeek && vCurrTime < vNextTime)) { vNextTime = vNextTime + (vNextDayOfWeek - vCurrDayOfWeek) * 86400 - vCurrTime; };
+     if (vNextDayOfWeek > vCurrDayOfWeek || (vNextDayOfWeek==vCurrDayOfWeek && iCurrTime < vNextTime)) { vNextTime = vNextTime + (vNextDayOfWeek - vCurrDayOfWeek) * 86400 - iCurrTime; };
 
 
   };
@@ -349,10 +344,10 @@ unsigned long worker::_getMinTaskTime(byte iCurrDayOfWeek,unsigned long iCurrTim
    
    for (byte vI=0;vI<maxTaskCount;vI++) {
         task vTask = _getTask(vI);      
-            for (byte vJ=31;vJ>24;vJ--) {
+            for (byte vJ=31;vJ>24;vJ--) { //Здесь смотрим дни недели в которых запланировано задание
                 
                 byte vIsWorkDay = bitRead(vTask.startCode,vJ);
-                unsigned long vStartTask = vIsWorkDay == 0 ? NEAREST_TIME_BORDER : (32-vJ) * NEAREST_TIME_MULT + _getTaskStart(vTask);
+                unsigned long vStartTask = (vIsWorkDay == 0 ? NEAREST_TIME_BORDER : (32-vJ) * NEAREST_TIME_MULT + _getTaskStart(vTask));
 
                    {
                       unsigned long vStartCurr = iCurrDayOfWeek * NEAREST_TIME_MULT + iCurrTime;
