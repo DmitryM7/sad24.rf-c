@@ -9,7 +9,6 @@
 #include <mstr.h>
 #include <worker.h>
 #include <debug.h>
-
 #include <structs.h>
 
 sensorInfo _sensorInfo;
@@ -488,7 +487,7 @@ bool updateRemoteMeasure(sensorInfo si) {
      **************************************************************************/
 
       #ifdef IS_DEBUG
-        Serial.print(F(": "));
+        Serial.print(F(":"));
         Serial.println(vRes);
         Serial.flush();
       #endif
@@ -523,6 +522,7 @@ bool beforeTaskUpdate(char* iStr) {
 
   mstr _mstr;
 
+
   strcpy_P(vDelimiter, PSTR(";"));
 
   if (_mstr.numEntries(iStr, vDelimiter) < 2) {
@@ -533,9 +533,13 @@ bool beforeTaskUpdate(char* iStr) {
       return false;
   };
 
+
+       
     if (strcmp_P(vCommand, PSTR("C")) == 0) {
+
       if (_mstr.entry(2, iStr, vDelimiter, 4, vParam1)) {
-        #if IS_DEBUG>2
+       
+        #if IS_DEBUG
             Serial.print(F("Sleep "));
             Serial.println(atoi(vParam1));
             Serial.flush();
@@ -547,7 +551,7 @@ bool beforeTaskUpdate(char* iStr) {
 
     if (strcmp_P(vCommand, PSTR("G")) == 0) {
       if (_mstr.entry(2, iStr, vDelimiter, 4, vParam1) && _mstr.entry(3, iStr, vDelimiter, 4, vParam2)) {
-        #if IS_DEBUG>2
+        #if IS_DEBUG
             Serial.print(F("L off:"));
             Serial.print(vParam1);
             Serial.print(F("&"));
@@ -561,7 +565,7 @@ bool beforeTaskUpdate(char* iStr) {
     
     if (strcmp_P(vCommand, PSTR("J")) == 0) {
       if (_mstr.entry(2, iStr, vDelimiter, 4, vParam1) && _mstr.entry(3, iStr, vDelimiter, 4, vParam2)) {
-        #if IS_DEBUG>2
+        #if IS_DEBUG
             Serial.print(F("W off:"));
             Serial.print(vParam1);
             Serial.print(F("&"));
@@ -596,7 +600,7 @@ bool workWithRes(char* iRes) {
     return _worker.update(iRes);
   };
 
-  return 0;
+  return false;
 
 }
 
@@ -607,7 +611,8 @@ bool workWithRes(char* iRes) {
 bool updateRemoteParams() {  
   char vParams[70], 
        sitePoint[__SITE_POINT_SIZE__];
-  bool vShouldReconnect = true;
+  bool vShouldReconnect = true,
+       vResult=false;
   
 
   gprs2 sim900(7, 8);
@@ -640,13 +645,13 @@ bool updateRemoteParams() {
 
     while (vShouldReconnect) {      
       char vRes[250];
-      bool vResult;
+
       
       vResult = sim900.postUrl(sitePoint, vParams, vRes, sizeof(vRes));
             #ifdef IS_DEBUG
               Serial.print(F("PARA"));
               if (vResult) {    
-                Serial.print(F(" : "));
+                Serial.print(F(" :"));
                 Serial.println(vRes);
                 Serial.flush();
               } else {
@@ -658,16 +663,12 @@ bool updateRemoteParams() {
               };
             #endif
 
-      if (!vResult) {
-       return false;
-      };
-
-      vShouldReconnect = workWithRes(vRes);
+    
+          vShouldReconnect = workWithRes(vRes);
 
     };
-
-   return true;         
-
+   
+   return vResult;
 }
 
 void Timer1_doJob(void) {
@@ -1079,15 +1080,16 @@ void loop()
        } while (!vStatus && vAttempt < 3);
 
 
+        
         if (vStatus) { 
           //Если предыдущее подключение завершилось успешно, то пробуем передать другие данные.
-          //Если же на предыдущем шаге не получилось, то идем спать.
-          vStatus  = false;
-          vAttempt = 0;
+          //Если же на предыдущем шаге не получилось, то идем спать.          
+          vAttempt=0;
           do {
-            vStatus = updateRemoteMeasure(_sensorInfo);         
+            vStatus = updateRemoteMeasure(_sensorInfo);                    //Бывают ситуации когда нужно повторно передать данные.
             vAttempt++;
-          } while (!vStatus && vAttempt < 3);  
+          } while (!vStatus && vAttempt<3);
+            
         };
         
       };  
