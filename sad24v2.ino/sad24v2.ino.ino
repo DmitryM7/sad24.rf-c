@@ -785,9 +785,7 @@ void Timer1_doJob(void) {
   EEPROM.get(eeprom_mOfflineParamsStart, _offlineParams);       
  
   mCurrTime=_worker.getTimestamp(vSecMidnight,vDayOfWeek);  
-  
-  
-
+    
 
    /*******************************************************************
     * Если достигли минимального значения по температе,               *
@@ -858,9 +856,21 @@ void Timer1_doJob(void) {
    
      Serial.print(F("T1:"));
      Serial.print(_sensorInfo.t1);     
+
+     Serial.print(F(" TUPL1:"));
+     Serial.print(_offlineParams.tempUpLight1);
+
+     Serial.print(F(" TUPL2:"));
+     Serial.print(_offlineParams.tempUpLight2);
      
      Serial.print(F("   T2:"));
-     Serial.println(_sensorInfo.t2);
+     Serial.print(_sensorInfo.t2);
+
+     Serial.print(F(" TUPW1:"));
+     Serial.print(_offlineParams.tempUpWater1);
+
+     Serial.print(F(" TUPW2:"));
+     Serial.println(_offlineParams.tempUpWater2);
      //Serial.flush();
   #endif
 
