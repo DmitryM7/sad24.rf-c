@@ -310,6 +310,11 @@ unsigned long worker::getSleepTime() {
 
    vNextTime = _getMinTaskTime(vCurrDayOfWeek,vCurrTime);
 
+   #ifdef IS_DEBUG
+    Serial.print(F("MID:"));
+    Serial.println(vCurrTime);
+   #endif
+
    if (vNextTime == NEAREST_TIME_BORDER) { return NEAREST_TIME_BORDER; };
 
   {
