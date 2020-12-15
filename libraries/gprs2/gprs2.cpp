@@ -91,7 +91,8 @@ bool gprs2::_getAnswer3(char* oRes,size_t iSize,bool saveCRLF,bool showAnswer) {
     }; // end while _modem.available
 
 
-  } while ((millis() - vCurrTime < 2000UL) && (!wasRead || (wasRead && millis() - vLastReadTime < 850UL))); //Читаем пока не прошло три секунды и либо ничего не было прочитано, либо уже были прочитаны, но между считываниями прошло не более 750 мс
+//  } while ((millis() - vCurrTime < 2000UL) && (!wasRead || (wasRead && millis() - vLastReadTime < 850UL))); //Читаем пока не прошло три секунды и либо ничего не было прочитано, либо уже были прочитаны, но между считываниями прошло не более 750 мс
+   } while (millis() - vCurrTime < 1000UL || (wasRead && millis() - vLastReadTime < 1200UL)); // Читаем пока не прошло 2 секунды, или если что-то считали, то пока между символами не пройдет > 850 мс
 
 
   if (wasRead) {
