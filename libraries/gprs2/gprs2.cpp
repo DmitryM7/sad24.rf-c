@@ -34,7 +34,13 @@ bool gprs2::_getAnswer3(char* oRes,size_t iSize,bool saveCRLF) {
   return _getAnswer3(oRes,iSize,saveCRLF,false);
 };
 
-bool gprs2::_getAnswer3(char* oRes,size_t iSize,bool saveCRLF,bool showAnswer) {
+bool gprs2::_getAnswer3(
+                        char* oRes,
+                        size_t iSize,
+                        bool saveCRLF,
+                        bool showAnswer,
+                        unsigned long iTimeOut=1000
+                       ) {
   unsigned long vCurrTime = millis(), 
                 vLastReadTime=0;
   size_t vI = 0;
@@ -92,7 +98,7 @@ bool gprs2::_getAnswer3(char* oRes,size_t iSize,bool saveCRLF,bool showAnswer) {
 
 
 //  } while ((millis() - vCurrTime < 2000UL) && (!wasRead || (wasRead && millis() - vLastReadTime < 850UL))); //Читаем пока не прошло три секунды и либо ничего не было прочитано, либо уже были прочитаны, но между считываниями прошло не более 750 мс
-   } while (millis() - vCurrTime < 1000UL || (wasRead && millis() - vLastReadTime < 1200UL)); // Читаем пока не прошло 2 секунды, или если что-то считали, то пока между символами не пройдет > 850 мс
+   } while (millis() - vCurrTime < iTimeOut || (wasRead && millis() - vLastReadTime < 2000UL)); // Читаем пока не прошло 2 секунды, или если что-то считали, то пока между символами не пройдет > 850 мс
 
 
   if (wasRead) {
@@ -110,7 +116,8 @@ bool gprs2::_getAnswerWait(char* oRes,
                            size_t iSize,
                            char* iNeedStr,
                            bool iSaveCRLF=false,
-                           bool iDebug=false) {
+                           bool iDebug=false,
+                           unsigned long iTimeOut=1000) {
      byte vAttempt = 0;
      bool vStatus;
 
@@ -118,7 +125,7 @@ bool gprs2::_getAnswerWait(char* oRes,
 
 
      do {
-       _getAnswer3(oRes,iSize,iSaveCRLF);  
+       _getAnswer3(oRes,iSize,iSaveCRLF,iTimeOut);  
        vAttempt++;
      }  while ((vStatus=_mstr.indexOf(oRes,iNeedStr)==-1) && vAttempt < 5);
 
@@ -172,12 +179,13 @@ bool gprs2::gprsNetworkUp(bool iForce=false) {
 
    if (!hasNetwork || iForce) {
      _doCmd(F("AT+CGATT=1"));    
-     strcpy_P(vTmpStr, (char*)OK_M);
 
+      strcpy_P(vTmpStr, (char*)OK_M);
       if (_getAnswerWait(vRes,sizeof(vRes),vTmpStr)) {
        _setLastError(__LINE__,vRes);      
         return false;
       };
+
      hasNetwork=hasGprsNetwork();
    };
 
@@ -488,7 +496,7 @@ bool gprs2::doInternet() {
 
        strcpy_P(_tmpStr,PSTR("+HTTPACTION")); 
 
-       _getAnswerWait(oRes,iResLength,_tmpStr);
+       _getAnswerWait(oRes,iResLength,_tmpStr,false,false,5000);
 
 
          strcpy_P(_tmpStr, PSTR("+HTTPACTION: 1,200"));     

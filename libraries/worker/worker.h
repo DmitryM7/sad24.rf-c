@@ -1,7 +1,6 @@
 ﻿#ifndef worker_h
 #define worker_h
-#include "SoftwareSerial.h"
-#include <DS3231MDA.h>
+#include <Wire.h>
 
 struct task {
   unsigned long startCode = 0;
@@ -19,7 +18,7 @@ struct workerInfo {
 class worker
 {
   public:
-   byte maxTaskCount = 6; // На самом деле заданий будет на одно меньше
+   byte maxTaskCount = 5;
    worker(unsigned int iStartAddress);
    bool update(char* iCommand);
    void setTask2(unsigned int iAddress,char* iStr);
@@ -39,7 +38,7 @@ class worker
    byte shouldTaskWork2(byte iAddress,unsigned long iSecMidnight,byte iDayOfWeek);
    void setTime(char* vCommand);
    void setDateTime(byte iYear,byte iMonth,byte iDay,byte iHour,byte iMinutes,byte iSec);
-   unsigned long getSleepTime(unsigned int iCurrTime);
+   unsigned long getSleepTime(byte iCurrDayOfWeek,unsigned long iCurrTime);
 
   private:
    task _getTask(int iAddress);   

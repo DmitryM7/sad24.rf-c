@@ -14,10 +14,6 @@
 
 sensorInfo _sensorInfo;
 
-#define eeprom_mGlobalsStart sizeof(Connection)
-#define eeprom_mOfflineParamsStart sizeof(Connection)+sizeof(Globals)
-#define eeprom_mWorkerStart eeprom_mOfflineParamsStart + sizeof(offlineParams)
-
 
 long long mCurrTime, vPrevTime2;
 
@@ -146,16 +142,6 @@ void loadSensorInfo1() {
 }
 
 
-void showLong(long long iVal) {
-
-  char buffer[25];
-  sprintf_P(buffer, PSTR("%0ld"), iVal / 1000000L);
-  sprintf_P(buffer, PSTR("%0ld"), iVal % 1000000L);
-  Serial.print(buffer);
-  Serial.flush();
-}
-
-
 
 /**************************************************************
     Конец доп.методов
@@ -196,7 +182,7 @@ void parseSmsParamCommand(char* iCommand) {
     };
 
 #if IS_DEBUG>1
-    Serial.print(F("APN: "));
+    Serial.print(F("A: "));
     Serial.print(_connection.apnLogin);
     Serial.print(F(":"));
     Serial.print(_connection.apnPass);
@@ -228,7 +214,7 @@ void parseSmsParamCommand(char* iCommand) {
     };
 
 #if IS_DEBUG>1
-    Serial.print(F("SITE: "));
+    Serial.print(F("ST: "));
     Serial.print(_connection.siteLogin);
     Serial.print(F(":"));
     Serial.print(_connection.sitePass);
@@ -276,13 +262,13 @@ void readSms2() {
   sim900.setOnSms(onSms);
 
 #ifdef IS_DEBUG
-  Serial.println(F("*SMS*"));
+  Serial.println(F("*S*"));
   Serial.flush();
 #endif
   delay(500); //Не знаю почему, но без этой конструкции freemem показывает, что сожрано на 200байт больше памяти.
   sim900.readSms();
 #ifdef IS_DEBUG
-  Serial.println(F("*ESMS*"));
+  Serial.println(F("*ES*"));
   Serial.flush();
 #endif
 }
@@ -348,7 +334,7 @@ bool isDisabledWaterRange() {
 void restartModem() {
   gprs2 sim900(7, 8);
 #if IS_DEBUG>1
-  Serial.println(F("*RST*"));
+  Serial.println(F("*R*"));
   Serial.flush();
 #endif
   sim900.hardRestart();
@@ -361,11 +347,12 @@ bool canGoSleep() {
   return mCanGoSleep && isDisabledLightRange() && isDisabledWaterRange();
 }
 
-byte goSleep(byte iMode, long long iPrevTime) {
-  unsigned long  vSleepTime   = 0,
-                 vPeriodSleep = 0,
-                 vFirstLoop   = 0,
-                 vSecondLoop  = 0,
+byte goSleep(byte iMode, 
+             long long iPrevTime
+            ) {
+  unsigned long  vSleepTime     = 0,
+                 vCalcSleepTime = 0,
+                 vPeriodSleep   = 0,
                  vCurrTime;
 
                  
@@ -375,70 +362,63 @@ byte goSleep(byte iMode, long long iPrevTime) {
   long long vTimeStamp;
   byte vDayOfWeek;
 
-  byte vWaitTime = 0;
-
   {
     worker _worker(eeprom_mWorkerStart);
     vTimeStamp   = _worker.getTimestamp(vCurrTime,vDayOfWeek);
-    vSleepTime   = _worker.getSleepTime(vCurrTime);
+    vSleepTime   = _worker.getSleepTime(vDayOfWeek,vCurrTime);
+
 
   #ifdef IS_DEBUG
-    Serial.print(F("MID:"));
+    Serial.print(F("M:"));
     Serial.print(vCurrTime);
-    Serial.print(F("  Slp tm = "));
-    Serial.println(vSleepTime);
+    Serial.print(F(" Stm="));
+    Serial.print(vSleepTime);
+    Serial.print(F(" Wup="));
+    Serial.print(vCurrTime+vSleepTime);
   #endif
     
   };
 
-
   vNextModem   = (long)(iPrevTime + connectPeriod() - vTimeStamp);
+
+  
+  #ifdef IS_DEBUG
+    Serial.print(F(" Ndm="));
+    Serial.println(vNextModem);
+  #endif
 
   /* Если по каким-то причинам было пропущено несколько подключений, то принудительно подключаемся */
   vNextModem    = max(0, vNextModem);
 
+  vSleepTime    = min(vNextModem, vSleepTime);
 
-  vSleepTime   = min(vNextModem, vSleepTime);
+  if (vSleepTime<30) {
+    return vSleepTime;    
+  }
 
-  vSleepTime   = vSleepTime * iMode / 100U;
+  vCalcSleepTime   = vSleepTime * iMode / 100U;
+
+  /* Считаем кол-во циклов */
+  vPeriodSleep = vCalcSleepTime / 8U;
   
-#ifdef IS_DEBUG
-  Serial.print(F("Slp tm * "));
-  Serial.print(iMode);
-  Serial.print(F("%="));
-  Serial.print(vSleepTime);
-  Serial.println(F(" (s)"));
-  Serial.flush();
-#endif
-
-  vPeriodSleep = vSleepTime / 8U;
-
-
-  vFirstLoop   = vPeriodSleep / 37U;
-  vSecondLoop  = vPeriodSleep % 37;
-
   #ifdef IS_DEBUG
-    Serial.print(F("FL:"));
-    Serial.print(vFirstLoop);
-    Serial.print(F(" SL:"));
-    Serial.println(vSecondLoop);
+    Serial.print(F("Stm * "));
+    Serial.print(iMode);
+    Serial.print(F("%="));
+    Serial.print(vCalcSleepTime);
+    Serial.print(F(" (s)"));
+    Serial.print(F(" P="));
+    Serial.println(vPeriodSleep);
     Serial.flush();
   #endif
 
-  vWaitTime    = vSleepTime - vFirstLoop * 37 * 8 - vSecondLoop * 8;
+ 
 
-  for (unsigned int vJ = 0; vJ < vFirstLoop; vJ++) {
-    for (unsigned int vK = 0; vK < 37; vK++) {
+  for (unsigned int vJ = 0; vJ < vPeriodSleep; vJ++) {
       LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
-    };
   };
 
-
-  for (unsigned int vJ = 0; vJ < vSecondLoop; vJ++) {
-    LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
-  };
-
-  return vWaitTime;
+  return 0;
 
 };
 
@@ -478,23 +458,7 @@ bool updateRemoteMeasure(sensorInfo si) {
   };
 
 
-  /**
-     Второй раз проверять не нужно.
-
-
-    if (!sim900.doInternet()) {
-      #if IS_DEBUG>1
-        char vError[20];
-        sim900.getLastError(vError);
-        Serial.print(F("CI ER:"));
-        Serial.println(vError);
-        Serial.flush();
-      #endif
-      return false;
-    };
-
-  */
-
+  
   vResult = sim900.postUrl(sitePoint, vParams, vRes, sizeof(vRes));
 
 #ifdef IS_DEBUG
@@ -555,11 +519,6 @@ bool beforeTaskUpdate(char* iStr) {
 
   if (strcmp_P(vCommand, PSTR("C")) == 0) {
     if (_mstr.entry(2, iStr, vDelimiter, 4, vParam1)) {
-#if IS_DEBUG>2
-      Serial.print(F("Sleep "));
-      Serial.println(atoi(vParam1));
-      Serial.flush();
-#endif
       setConnectPeriod(atoi(vParam1));
       return false;
     };
@@ -633,7 +592,6 @@ bool updateRemoteParams() {
   gprs2 sim900(7, 8);
 
   {
-    char vL[11], vA[11];
     Connection _connection;
 
     EEPROM.get(0, _connection);
@@ -641,18 +599,18 @@ bool updateRemoteParams() {
     strncpy(sitePoint, _connection.sitePoint, sizeof(sitePoint));
 
     if (!sim900.doInternet()) {
-#if IS_DEBUG>2
-      char vError[20];
-      sim900.getLastError(vError);
-      Serial.print(F("CI ER:"));
-      Serial.println(vError);
-      Serial.flush();
-#endif
+
+      #if IS_DEBUG>2
+        char vError[20];
+        sim900.getLastError(vError);
+        Serial.print(F("CI ER:"));
+        Serial.println(vError);
+        Serial.flush();
+      #endif
       return false;
     };
 
-    sim900.getCoords(vL, vA, vParams, sizeof(vParams));
-    sprintf_P(vParams, PSTR("r=%s&s=%s&m=c&l=%s&a=%s"), _connection.siteLogin, _connection.sitePass, vL, vA);
+    sprintf_P(vParams, PSTR("r=%s&s=%s&m=c&l=%u&a=%u"), _connection.siteLogin, _connection.sitePass, 0, 0);
   };
 
 
@@ -664,7 +622,7 @@ bool updateRemoteParams() {
 
     vResult = sim900.postUrl(sitePoint, vParams, vRes, sizeof(vRes));
 #ifdef IS_DEBUG
-    Serial.print(F("PARA"));
+    Serial.print(F("P"));
     if (vResult) {
       Serial.print(F(" : "));
       Serial.println(vRes);
@@ -762,34 +720,30 @@ void Timer1_doJob(void) {
   Serial.print(vDayOfWeek);
   Serial.print(F("   "));
 
-  Serial.print(F("Mem:"));
+  Serial.print(F("Mem"));
   Serial.print(freeMemory());
-  Serial.print(F("   "));
+  Serial.print(F("   "));  
 
-  Serial.print(F("MID:"));
-  Serial.print(vSecMidnight);
-  Serial.print(F("   "));
-
-  Serial.print(F("Mil:"));
+  Serial.print(F("Mil"));
   Serial.print(millis());
   Serial.print(F("   "));
 
   Serial.print(F("T1:"));
   Serial.print(_sensorInfo.t1);
 
-  Serial.print(F(" TUPL1:"));
+  Serial.print(F(" TUL1:"));
   Serial.print(_offlineParams.tempUpLight1);
 
-  Serial.print(F(" TUPL2:"));
+  Serial.print(F(" TUL2:"));
   Serial.print(_offlineParams.tempUpLight2);
 
   Serial.print(F("   T2:"));
   Serial.print(_sensorInfo.t2);
 
-  Serial.print(F(" TUPW1:"));
+  Serial.print(F(" TUW1:"));
   Serial.print(_offlineParams.tempUpWater1);
 
-  Serial.print(F(" TUPW2:"));
+  Serial.print(F(" TUW2:"));
   Serial.println(_offlineParams.tempUpWater2);
   //Serial.flush();
 #endif
@@ -900,7 +854,7 @@ void pin_ISR () {
   strcpy_P(_connection.apnPoint, PSTR("\0"));
 
 #ifdef IS_DEBUG
-  Serial.println(F("SMS|^"));
+  Serial.println(F("S|^"));
 #endif
   mShouldReadSms = true;
 
@@ -933,13 +887,6 @@ void setup() {
 
   if (strcmp_P(_globals.version, PSTR("INI")) != 0) {
     // if (true) {
-
-#ifdef IS_DEBUG
-    Serial.println(F("SET"));
-    Serial.flush();
-#endif
-
-
 
     for (int vI = 0 ; vI < EEPROM.length() ; vI++) {
       EEPROM.write(vI, 0);
@@ -976,14 +923,6 @@ void setup() {
     setOfflineWater(-199, 199);
 
 
-
-
-
-
-#ifdef IS_DEBUG
-    Serial.println(F("END SET"));
-    Serial.flush();
-#endif
   };
 
   /*********************************
@@ -1125,7 +1064,7 @@ void loop()
 
 
 #ifdef IS_DEBUG
-      Serial.println(F("NO MODEM CRED"));
+      Serial.println(F("NO MDM"));
 #endif;
 
       return;
@@ -1142,19 +1081,15 @@ void loop()
 
 
   Timer1.stop();
-  goSleep(50, vPrevTime2);
-  goSleep(75, vPrevTime2);
-  goSleep(90, vPrevTime2);
 
-  /************************************************
-     Гарантировано даем включиться исполнителям.
-   ************************************************/
-  {
-    byte vDelay = goSleep(100, vPrevTime2);
+{
+  byte waitTime=0;
+ do {
+    waitTime=goSleep(50, vPrevTime2);
+ } while (waitTime==0);
+ 
     Timer1.start();
-    delay(vDelay * 1000 + 2000);
-  };
-
-
+    delay(waitTime * 1000 + 2000);
+}   
 
 }

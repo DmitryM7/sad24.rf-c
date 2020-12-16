@@ -1,3 +1,5 @@
+#ifndef structs_h
+#define structs_h
 /************************************
  * Задаем параметры подключения УЗД * 
  ************************************/
@@ -51,4 +53,7 @@ struct sensorInfo {
              unsigned long lastMeasure=0;
 };
 
-
+#define eeprom_mGlobalsStart sizeof(Connection)
+#define eeprom_mOfflineParamsStart sizeof(Connection)+sizeof(Globals)
+#define eeprom_mWorkerStart eeprom_mOfflineParamsStart + sizeof(offlineParams)
+#endif
