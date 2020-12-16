@@ -64,8 +64,7 @@ class gprs2
     String _apn, _login, _pass,_lastError;
     uint8_t _lastErrorNum;
     bool   getAnswer3(char* oRes,size_t iSize);
-    bool   _getAnswer3(char* oRes,size_t iSize,bool saveCRLF);
-    bool   _getAnswer3(char* oRes,size_t iSize,bool saveCRLF,bool showAnswer,unsigned long iTimeOut=1000);
+    bool   _getAnswer3(char* oRes,size_t iSize,bool saveCRLF,unsigned long iTimeOut=1000);
     bool  _getAnswerWait(char* oRes,size_t iSize,char* iPattern,bool iSaveCRLF=false,bool iDebug=false,unsigned long iTimeOut=1000);
     bool _getAnswerWaitLong(char* oRes,size_t iSize,char* iNeedStr,unsigned long iTimeOut=1000);
     void _setLastError(unsigned int iErrorNum,char* iErrorText);

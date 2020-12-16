@@ -27,18 +27,14 @@ void gprs2::setInternetSettings(char* iApn,char* iLogin,char* iPass) {
 
 
 bool gprs2::getAnswer3(char* oRes,size_t iSize) {
-  return _getAnswer3(oRes,iSize,false,false);
+  return _getAnswer3(oRes,iSize,false);
 };
 
-bool gprs2::_getAnswer3(char* oRes,size_t iSize,bool saveCRLF) {
-  return _getAnswer3(oRes,iSize,saveCRLF,false);
-};
 
 bool gprs2::_getAnswer3(
                         char* oRes,
                         size_t iSize,
                         bool saveCRLF,
-                        bool showAnswer,
                         unsigned long iTimeOut=1000
                        ) {
   unsigned long vCurrTime = millis(), 
