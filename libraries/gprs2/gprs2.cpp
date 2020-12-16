@@ -457,12 +457,6 @@ bool gprs2::doInternet() {
 
          if (vFactSize>0) {
 
-	 #if IS_DEBUG
-          Serial.println(iPar);
-         #endif
-
-
-
             sprintf(_tmpStr,"%u",vFactSize);          
            _doCmd3(F("AT+HTTPDATA="),_tmpStr,F(",6000"));           
 
@@ -785,7 +779,9 @@ void gprs2::_doCmd(char* iStr) {
 
 
 void gprs2::_doCmd(const __FlashStringHelper *iStr) {
-  Serial.println(iStr);
+  #ifdef IS_DEBUG
+   Serial.println(iStr);
+  #endif
   _modem.println(iStr);
   _modem.flush();
 }

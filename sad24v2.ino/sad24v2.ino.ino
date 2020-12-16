@@ -244,17 +244,6 @@ bool onSms(byte iSms, char* iCommand) {
   return true;
 }
 
-bool stopTimer(char *iRes) {
-  Serial.print(F("INT"));
-  Serial.flush();
-  //Timer1.stop();
-  return true;
-}
-bool resumeTimer() {
-  //Timer1.start();
-  return true;
-}
-
 void readSms2() {
 
   gprs2 sim900(7, 8);
