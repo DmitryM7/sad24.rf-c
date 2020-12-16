@@ -94,7 +94,7 @@ bool gprs2::_getAnswer3(
 
 
 //  } while ((millis() - vCurrTime < 2000UL) && (!wasRead || (wasRead && millis() - vLastReadTime < 850UL))); //Читаем пока не прошло три секунды и либо ничего не было прочитано, либо уже были прочитаны, но между считываниями прошло не более 750 мс
-   } while (millis() - vCurrTime < iTimeOut || (wasRead && millis() - vLastReadTime < 2000UL)); // Читаем пока не прошло 2 секунды, или если что-то считали, то пока между символами не пройдет > 850 мс
+   } while ((!wasRead && millis() - vCurrTime < iTimeOut) || (wasRead && millis() - vLastReadTime < 2000UL)); // Читаем пока не прошло 2 секунды, или если что-то считали, то пока между символами не пройдет > 850 мс
 
 
   if (wasRead) {
@@ -112,7 +112,6 @@ bool gprs2::_getAnswerWait(char* oRes,
                            size_t iSize,
                            char* iNeedStr,
                            bool iSaveCRLF=false,
-                           bool iDebug=false,
                            unsigned long iTimeOut=1000) {
      byte vAttempt = 0;
      bool vStatus;
@@ -278,13 +277,13 @@ bool gprs2::gprsUp(bool iForce=false) {
 
     _doCmd(F("AT+SAPBR=1,1"));
 
-    if (_getAnswerWaitLong(vRes,sizeof(vRes),vTmpStr,85000)) {
+    if (_getAnswerWaitLong(vRes,sizeof(vRes),vTmpStr,5000)) {
      _setLastError(__LINE__,vRes);
       return false;
     };
 
     
-    return hasGprs();
+    return true;
 }
 
 bool gprs2::gprsDown() {
@@ -350,7 +349,18 @@ bool gprs2::canWork() {
 };
 
 bool gprs2::doInternet() {
- return gprsNetworkUp() && !hasGprs() && gprsUp();
+
+ if (!gprsNetworkUp()) {
+   return false;
+ };
+
+  if(hasGprs()) {
+     return true;
+  };
+
+  gprsUp();
+
+  return hasGprs();
 }
 
   bool gprs2::postUrl(char* iUrl, char* iPar, char* oRes) {
@@ -454,7 +464,6 @@ bool gprs2::doInternet() {
 
 
             sprintf(_tmpStr,"%u",vFactSize);          
-//           TCCR1B = _BV(WGM13);            //Отключаю таймер
            _doCmd3(F("AT+HTTPDATA="),_tmpStr,F(",6000"));           
 
            strcpy_P(_tmpStr, PSTR("DOWNLOAD")); 
@@ -466,14 +475,7 @@ bool gprs2::doInternet() {
              return false;
            }; 
 
-
-
-
          _doCmd(iPar);
-         //Запускаю таймер
-
-  //       TCCR1B = _BV(WGM13) | _BV(CS12) | _BV(CS10);
-
 
          strcpy_P(_tmpStr, (char*)OK_M);
 
@@ -497,7 +499,7 @@ bool gprs2::doInternet() {
 
        strcpy_P(_tmpStr,PSTR("+HTTPACTION")); 
 
-       _getAnswerWaitLong(oRes,iResLength,_tmpStr,7000);
+       _getAnswerWait(oRes,iResLength,_tmpStr,10000); //Он выдает ОК, потом может долго думать и выдать уже искомвый ответ
 
 
          strcpy_P(_tmpStr, PSTR("+HTTPACTION: 1,200"));     
@@ -783,6 +785,7 @@ void gprs2::_doCmd(char* iStr) {
 
 
 void gprs2::_doCmd(const __FlashStringHelper *iStr) {
+  Serial.println(iStr);
   _modem.println(iStr);
   _modem.flush();
 }
