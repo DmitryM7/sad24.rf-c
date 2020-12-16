@@ -67,6 +67,7 @@ class gprs2
     bool   _getAnswer3(char* oRes,size_t iSize,bool saveCRLF);
     bool   _getAnswer3(char* oRes,size_t iSize,bool saveCRLF,bool showAnswer,unsigned long iTimeOut=1000);
     bool  _getAnswerWait(char* oRes,size_t iSize,char* iPattern,bool iSaveCRLF=false,bool iDebug=false,unsigned long iTimeOut=1000);
+    bool _getAnswerWaitLong(char* oRes,size_t iSize,char* iNeedStr,unsigned long iTimeOut=1000);
     void _setLastError(unsigned int iErrorNum,char* iErrorText);
     void _emptyBuffer(char* oBuff,size_t iSize);
     void _sendTermCommand(bool iWaitOK=true);

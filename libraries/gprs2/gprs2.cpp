@@ -132,6 +132,15 @@ bool gprs2::_getAnswerWait(char* oRes,
    return vStatus;
 }
 
+bool gprs2::_getAnswerWaitLong(char* oRes,
+	                       size_t iSize,
+	                       char* iNeedStr,
+                               unsigned long iTimeOut=1000) {
+     mstr _mstr;
+    _getAnswer3(oRes,iSize,false,iTimeOut);  
+     return _mstr.indexOf(oRes,iNeedStr)==-1;
+}
+
 
  bool gprs2::isPowerUp() {
      char vTmpStr[3],
@@ -241,8 +250,6 @@ bool gprs2::gprsUp(bool iForce=false) {
 
      strcpy_P(vTmpStr, (char*)OK_M);
 
-    if (!hasGprs() || iForce) {
-
                  
     _doCmd(F("AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\""));
 
@@ -275,12 +282,10 @@ bool gprs2::gprsUp(bool iForce=false) {
 
     _doCmd(F("AT+SAPBR=1,1"));
 
-    if (_getAnswerWait(vRes,sizeof(vRes),vTmpStr)) {
+    if (_getAnswerWaitLong(vRes,sizeof(vRes),vTmpStr,85000)) {
      _setLastError(__LINE__,vRes);
       return false;
     };
-
-  };
 
     
     return hasGprs();
@@ -349,7 +354,7 @@ bool gprs2::canWork() {
 };
 
 bool gprs2::doInternet() {
- return gprsNetworkUp() && gprsUp();
+ return gprsNetworkUp() && !hasGprs() && gprsUp();
 }
 
   bool gprs2::postUrl(char* iUrl, char* iPar, char* oRes) {
@@ -496,7 +501,7 @@ bool gprs2::doInternet() {
 
        strcpy_P(_tmpStr,PSTR("+HTTPACTION")); 
 
-       _getAnswerWait(oRes,iResLength,_tmpStr,false,false,5000);
+       _getAnswerWaitLong(oRes,iResLength,_tmpStr,7000);
 
 
          strcpy_P(_tmpStr, PSTR("+HTTPACTION: 1,200"));     
