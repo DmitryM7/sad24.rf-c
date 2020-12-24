@@ -700,20 +700,20 @@ void Timer1_doJob(void) {
 
 #ifdef IS_DEBUG
 
-  Serial.print(F("VSM "));
+  Serial.print(F("VSM:"));
   Serial.print(vSecMidnight);
   Serial.print(F("   "));
 
 
-  Serial.print(F("DOW "));
+  Serial.print(F("DOW:"));
   Serial.print(vDayOfWeek);
   Serial.print(F("   "));
 
-  Serial.print(F("Mem"));
+  Serial.print(F("Mem:"));
   Serial.print(freeMemory());
   Serial.print(F("   "));  
 
-  Serial.print(F("Mil"));
+  Serial.print(F("Mil:"));
   Serial.print(millis());
   Serial.print(F("   "));
 
