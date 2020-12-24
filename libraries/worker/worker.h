@@ -1,7 +1,6 @@
 ﻿#ifndef worker_h
 #define worker_h
-#include "SoftwareSerial.h"
-#include <DS3231MDA.h>
+#include <Wire.h>
 
 struct task {
   unsigned long startCode = 0;
@@ -9,10 +8,11 @@ struct task {
 };
 
 struct workerInfo {
-  volatile bool          isWork    = false;
-  volatile bool          isEdge    = false;
-  volatile unsigned long startTime = 0;
-  volatile unsigned long duration  = 0;
+  volatile bool          isWork     = false;
+  volatile bool          isEdge     = false;
+  volatile bool          isSchedule = false;
+  volatile unsigned long startTime  = 0;
+  volatile unsigned long duration   = 0;
 };
 
 class worker
@@ -38,7 +38,7 @@ class worker
    byte shouldTaskWork2(byte iAddress,unsigned long iSecMidnight,byte iDayOfWeek);
    void setTime(char* vCommand);
    void setDateTime(byte iYear,byte iMonth,byte iDay,byte iHour,byte iMinutes,byte iSec);
-   unsigned long getSleepTime();
+   unsigned long getSleepTime(byte iCurrDayOfWeek,unsigned long iCurrTime);
 
   private:
    task _getTask(int iAddress);   

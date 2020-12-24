@@ -127,6 +127,16 @@ int mstr::indexOf(char* iStr, char* iPattern) {
 int mstr::indexOf(char* iStr, char* iPattern,int iStartPosition) {
       char* pch;
 
+      //Паттерн может быть больше самой строки,
+      //тогда сразу возвращаем -1
+
+      //Serial.println(F(">---")); Serial.print(iPattern);  Serial.print(F(" VS ")); Serial.print(iStr);  Serial.print(F(" ___ "));  Serial.print(strlen(iPattern)); Serial.print(F(" VS ")); Serial.println(strlen(iStr));   Serial.println(F("---")); 
+
+     if (strlen(iPattern) > strlen(iStr)) { return -1; }; //Шаблон может быть больше исходной строки и в этом случае предположительно получим ошибку
+ 
+ 
+      // Если же все норм, то выполняем дальнейшую проверку
+
       pch = strstr(iStr + iStartPosition,iPattern);
 
 
@@ -145,7 +155,7 @@ bool mstr::begins(char* iStr,char* iPattern) {
   if (p1 >= iStr) {
     return p1 - iStr == 0;
   };
-  
+                                                                                            
   return false;
 };
 
@@ -155,10 +165,21 @@ void mstr::substr(char* iStr,int iStartPos,int iLength,char* oStr) {
 };
 
 void mstr::leftShift2(char* iStr,unsigned int iShift) { 
-  unsigned int vStrLen=strlen(iStr);
+/*  unsigned int vStrLen=strlen(iStr);
   memmove(iStr,iStr+iShift,vStrLen-iShift);
   memset(iStr + (vStrLen-iShift-1),0,iShift);
-}
+*/ 
+  int vStrLength=strlen(iStr);
+
+  for (int vI=0;vI<vStrLength-iShift;vI++) {
+      iStr[vI]=iStr[vI+iShift];
+  };
+
+  if (vStrLength-iShift>=0) {
+    iStr[vStrLength-iShift]=0;
+  };  
+
+}                           
 
 void mstr::_emptyBuffer(char* oBuf,size_t iSize) {
  memset(oBuf,'\0',iSize);

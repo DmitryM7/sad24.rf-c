@@ -55,9 +55,9 @@ long DS3231MDA::time2long(uint16_t days, uint8_t h, uint8_t m, uint8_t s) {
 
 ///// ERIC'S ORIGINAL CODE FOLLOWS /////
 
-void DS3231MDA::getNow(byte &y, byte &m, byte &d, byte &hh, byte &mm, byte &ss) {
-  volatile unsigned int vAttempt=0;
-  unsigned int _maxcycles = microsecondsToClockCycles(65000);  // Пауза приблизительно в 65 мс   
+bool DS3231MDA::getNow(byte &y, byte &m, byte &d, byte &hh, byte &mm, byte &ss) {
+  volatile unsigned long vAttempt=0;
+  unsigned long _maxcycles = microsecondsToClockCycles(65000);  // Пауза приблизительно в 65 мс   
   bool hasError=false;
   
  /****************************************************
@@ -74,15 +74,15 @@ void DS3231MDA::getNow(byte &y, byte &m, byte &d, byte &hh, byte &mm, byte &ss) 
   Wire.write(0);	         // This is the first register address (Seconds)  			// We'll read from here on for 7 bytes: secs reg, minutes reg, hours, days, months and years.
   Wire.endTransmission();
 
-  vAttempt=0;
   Wire.requestFrom(CLOCK_ADDRESS, 7);
-  
+
+  vAttempt=0;  
   do {
     vAttempt++;  
   } while (hasError=!Wire.available() && vAttempt<1000);
 
   if (hasError) {
-    return;
+    return false;
   };
 
   ss = bcd2bin(Wire.read() & 0x7F);
@@ -93,7 +93,7 @@ void DS3231MDA::getNow(byte &y, byte &m, byte &d, byte &hh, byte &mm, byte &ss) 
   m = bcd2bin(Wire.read());
   y = bcd2bin(Wire.read());
 
-
+  return true;
 }
 
 void DS3231MDA::setSecond(byte Second) {

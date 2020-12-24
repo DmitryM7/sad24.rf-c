@@ -5,11 +5,14 @@
 class gprs2
 {
 
+  //Revision:1418B05SIM800L24
+
   public:
     /********************************
      * For common use.              *
      ********************************/
     gprs2(int pin1,int pin2);
+    ~gprs2();
 
 
     bool isPowerUp();	                   //¬озвращает истину если устройство включено.
@@ -27,7 +30,7 @@ class gprs2
 
 
     bool canWork();                        //ќпредел€ет может ли модем установить соединение, при этом пытаетс€ подн€ть несущую и соединение GPRS
-    bool canInternet();                        
+    bool doInternet();                        
 
     bool getCoords(char* iLongitude,char* iLatitdue,char* oRes,size_t iSize);
 
@@ -42,6 +45,8 @@ class gprs2
     bool readSms(bool deleteAfterRead=true);
 
     bool setOnSms(bool (*iSmsEvent)(byte iSms, char* oStr));
+    bool setBeforePostParams(bool (*ifunction)(char* iStr));
+    bool setAfterPostParams(bool (*ifunction)());
 
     bool deleteAllSms();
     bool deleteSms(byte iSms);
@@ -59,14 +64,17 @@ class gprs2
     String _apn, _login, _pass,_lastError;
     uint8_t _lastErrorNum;
     bool   getAnswer3(char* oRes,size_t iSize);
-    bool   _getAnswer3(char* oRes,size_t iSize,bool saveCRLF);
-    bool   _getAnswer3(char* oRes,size_t iSize,bool saveCRLF,bool showAnswer);
-    bool  _getAnswerWait(char* oRes,size_t iSize,char* iPattern,bool iSaveCRLF=false,bool iDebug=false);
+    bool   _getAnswer3(char* oRes,size_t iSize,bool saveCRLF,unsigned long iTimeOut=1000);
+    bool  _getAnswerWait(char* oRes,size_t iSize,char* iPattern,bool iSaveCRLF=false,unsigned long iTimeOut=1000);
+    bool _getAnswerWaitLong(char* oRes,size_t iSize,char* iNeedStr,unsigned long iTimeOut=1000);
     void _setLastError(unsigned int iErrorNum,char* iErrorText);
     void _emptyBuffer(char* oBuff,size_t iSize);
     void _sendTermCommand(bool iWaitOK=true);
     bool _setSmsTextMode();
+
     bool (*_onSmsRead)(byte iSms,char* oStr);
+    bool (*_onBeforePostParams)(char* iStr);
+    bool (*_onAfterPostParams)();
 
     void _doCmd(char* iStr);
     void _doCmd(const __FlashStringHelper *iStr);        

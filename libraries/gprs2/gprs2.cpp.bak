@@ -27,16 +27,14 @@ void gprs2::setInternetSettings(char* iApn,char* iLogin,char* iPass) {
 
 
 bool gprs2::getAnswer3(char* oRes,size_t iSize) {
-  return _getAnswer3(oRes,iSize,false);
+  return _getAnswer3(oRes,iSize,false,false);
 };
 
+bool gprs2::_getAnswer3(char* oRes,size_t iSize,bool saveCRLF) {
+  return _getAnswer3(oRes,iSize,saveCRLF,false);
+};
 
-bool gprs2::_getAnswer3(
-                        char* oRes,
-                        size_t iSize,
-                        bool saveCRLF,
-                        unsigned long iTimeOut=1000
-                       ) {
+bool gprs2::_getAnswer3(char* oRes,size_t iSize,bool saveCRLF,bool showAnswer) {
   unsigned long vCurrTime = millis(), 
                 vLastReadTime=0;
   size_t vI = 0;
@@ -93,8 +91,7 @@ bool gprs2::_getAnswer3(
     }; // end while _modem.available
 
 
-//  } while ((millis() - vCurrTime < 2000UL) && (!wasRead || (wasRead && millis() - vLastReadTime < 850UL))); //Читаем пока не прошло три секунды и либо ничего не было прочитано, либо уже были прочитаны, но между считываниями прошло не более 750 мс
-   } while ((!wasRead && millis() - vCurrTime < iTimeOut) || (wasRead && millis() - vLastReadTime < 2000UL)); // Читаем пока не прошло 2 секунды, или если что-то считали, то пока между символами не пройдет > 850 мс
+  } while ((millis() - vCurrTime < 2000UL) && (!wasRead || (wasRead && millis() - vLastReadTime < 850UL))); //Читаем пока не прошло три секунды и либо ничего не было прочитано, либо уже были прочитаны, но между считываниями прошло не более 750 мс
 
 
   if (wasRead) {
@@ -102,9 +99,7 @@ bool gprs2::_getAnswer3(
       if (oRes[vI-1]==' ') { oRes[vI] = '\0'; oRes[vI-1] = '\0'; } else { oRes[vI] = '\0'; };
    };   
 
-  #if IS_DEBUG
-    Serial.print(millis()); Serial.print(F("  :")); Serial.println(oRes); Serial.flush();
-  #endif
+
   return wasRead;         
 }                                     
 
@@ -112,7 +107,7 @@ bool gprs2::_getAnswerWait(char* oRes,
                            size_t iSize,
                            char* iNeedStr,
                            bool iSaveCRLF=false,
-                           unsigned long iTimeOut=1000) {
+                           bool iDebug=false) {
      byte vAttempt = 0;
      bool vStatus;
 
@@ -120,20 +115,11 @@ bool gprs2::_getAnswerWait(char* oRes,
 
 
      do {
-       _getAnswer3(oRes,iSize,iSaveCRLF,iTimeOut);  
+       _getAnswer3(oRes,iSize,iSaveCRLF);  
        vAttempt++;
-     }  while ((vStatus=_mstr.indexOf(oRes,iNeedStr)==-1) && vAttempt < 5);
+     }  while ((vStatus=_mstr.indexOf(oRes,iNeedStr)==-1) && vAttempt < 10);
 
    return vStatus;
-}
-
-bool gprs2::_getAnswerWaitLong(char* oRes,
-	                       size_t iSize,
-	                       char* iNeedStr,
-                               unsigned long iTimeOut=1000) {
-     mstr _mstr;
-    _getAnswer3(oRes,iSize,false,iTimeOut);  
-     return _mstr.indexOf(oRes,iNeedStr)==-1;
 }
 
 
@@ -179,21 +165,22 @@ bool gprs2::hasGprsNetwork() {
 bool gprs2::gprsNetworkUp(bool iForce=false) {
   char vRes[10],
        vTmpStr[3];
-  bool hasNetwork=hasGprsNetwork();
 
-   if (!hasNetwork || iForce) {
+   strcpy_P(vTmpStr, (char*)OK_M);
+
+   if (!hasGprsNetwork() || iForce) {
      _doCmd(F("AT+CGATT=1"));    
 
-      strcpy_P(vTmpStr, (char*)OK_M);
       if (_getAnswerWait(vRes,sizeof(vRes),vTmpStr)) {
        _setLastError(__LINE__,vRes);      
         return false;
       };
 
-     hasNetwork=hasGprsNetwork();
+     delay(3000);
+
    };
 
-  return hasNetwork;
+  return hasGprsNetwork();
 };
 
 bool gprs2::gprsNetworkDown() {
@@ -245,6 +232,8 @@ bool gprs2::gprsUp(bool iForce=false) {
 
      strcpy_P(vTmpStr, (char*)OK_M);
 
+    if (!hasGprs() || iForce) {
+
                  
     _doCmd(F("AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\""));
 
@@ -277,13 +266,15 @@ bool gprs2::gprsUp(bool iForce=false) {
 
     _doCmd(F("AT+SAPBR=1,1"));
 
-    if (_getAnswerWaitLong(vRes,sizeof(vRes),vTmpStr,5000)) {
+    if (_getAnswerWait(vRes,sizeof(vRes),vTmpStr)) {
      _setLastError(__LINE__,vRes);
       return false;
     };
 
+  };
+
     
-    return true;
+    return hasGprs();
 }
 
 bool gprs2::gprsDown() {
@@ -325,11 +316,13 @@ bool gprs2::isConnect() {
      char vTmpStr[8],
           vRes[20];
      mstr _mstr;
+     _emptyBuffer(vRes,sizeof(vRes));
 
      _doCmd(F("AT+CREG?"));
      strcpy_P(vTmpStr, PSTR("+CREG")); 
 
      if (_getAnswerWait(vRes,sizeof(vRes),vTmpStr)) {
+        strcpy_P(vTmpStr, PSTR("- CON"));
         _setLastError(__LINE__,vTmpStr);       
         return false;
      };
@@ -348,19 +341,8 @@ bool gprs2::canWork() {
    return isPowerUp() && hasNetwork() && isConnect();
 };
 
-bool gprs2::doInternet() {
-
- if (!gprsNetworkUp()) {
-   return false;
- };
-
-  if(hasGprs()) {
-     return true;
-  };
-
-  gprsUp();
-
-  return hasGprs();
+bool gprs2::canInternet() {
+ return gprsNetworkUp() && gprsUp();
 }
 
   bool gprs2::postUrl(char* iUrl, char* iPar, char* oRes) {
@@ -381,7 +363,7 @@ bool gprs2::doInternet() {
 
 
        if (iResLength < 35) {
-           strcpy_P(oRes,PSTR("IR sm"));
+           strcpy_P(oRes,PSTR("iRes small"));
            _setLastError(__LINE__,oRes);
           _sendTermCommand();
           _emptyBuffer(oRes,iResLength);
@@ -457,7 +439,14 @@ bool gprs2::doInternet() {
 
          if (vFactSize>0) {
 
+	 #if IS_DEBUG
+          Serial.println(iPar);
+         #endif
+
+
+
             sprintf(_tmpStr,"%u",vFactSize);          
+//           TCCR1B = _BV(WGM13);            //Отключаю таймер
            _doCmd3(F("AT+HTTPDATA="),_tmpStr,F(",6000"));           
 
            strcpy_P(_tmpStr, PSTR("DOWNLOAD")); 
@@ -469,7 +458,14 @@ bool gprs2::doInternet() {
              return false;
            }; 
 
+
+
+
          _doCmd(iPar);
+         //Запускаю таймер
+
+  //       TCCR1B = _BV(WGM13) | _BV(CS12) | _BV(CS10);
+
 
          strcpy_P(_tmpStr, (char*)OK_M);
 
@@ -493,10 +489,10 @@ bool gprs2::doInternet() {
 
        strcpy_P(_tmpStr,PSTR("+HTTPACTION")); 
 
-       _getAnswerWait(oRes,iResLength,_tmpStr,10000); //Он выдает ОК, потом может долго думать и выдать уже искомвый ответ
+       _getAnswerWait(oRes,iResLength,_tmpStr);
 
 
-         strcpy_P(_tmpStr, PSTR("+HTTPACTION: 1,200"));     
+         strcpy_P(_tmpStr, PSTR("+HTTPACTION: 1,200")); 
 
          if (_mstr.indexOf(oRes,_tmpStr)==-1) {
               _setLastError(__LINE__,oRes);
@@ -524,40 +520,40 @@ bool gprs2::doInternet() {
            return false;
        };
 
- {
+{
       char vSplitChar[2];
-      unsigned int  vFirstSpace = 0;
-      int vResLength=0;
+      unsigned int  vFirstSpace = 0, vResLength=0;
 
-      /* Убираем крайний OK */
+      strcpy_P(vSplitChar, (char*)SPACE_M);
+      _mstr.trim(oRes,vSplitChar);
+
      vResLength=strlen(oRes) - 3;
      vResLength=max(0,vResLength);
-     oRes[vResLength] = 0;
 
-     vResLength=strlen(oRes);
+     oRes[vResLength] = '\0';
 
-     /* Результат пустой */
-
-      if (vResLength==0) {
+      if (strlen(oRes)<=0) {
+	   strcpy_P(_tmpStr,PSTR("*NO POST*"));
            _setLastError(__LINE__,_tmpStr);
            _emptyBuffer(oRes,iResLength);
            _sendTermCommand();
            return false;
       };
 
-      // Здесь мы наши первый разделитель двоеточие, после него по станадрту идет пробел и кол-во байт
       strcpy_P(vSplitChar,PSTR(":"));
-      vFirstSpace = _mstr.indexOf(oRes,vSplitChar);
+      vFirstSpace = _mstr.indexOf(oRes,vSplitChar);       
 
-      //Здесь мы нашли пробел после кол-ва байт
       strcpy_P(vSplitChar, (char*)SPACE_M);
-      vFirstSpace = _mstr.indexOf(oRes,vSplitChar,vFirstSpace+2);       
+      vFirstSpace = _mstr.indexOf(oRes,vSplitChar,vFirstSpace+2);
 
-     _mstr.leftShift2(oRes,vFirstSpace+1);
- };
+      for (int vI = 0; vI < vFirstSpace; vI++) {
+          oRes[vI] = ' ';
+      };
 
+      _mstr.trim(oRes,vSplitChar);
+}
      _sendTermCommand();
-     return true;
+   return true;
 
   }
 
@@ -665,7 +661,8 @@ bool gprs2::hasNetwork() {
        strcpy_P(vTmpStr, PSTR(" 0,0")); // Ведущий пробел обязателен. Без пробела под ошибку попадет 20,0
 
        if (_mstr.indexOf(vRes,vTmpStr)>-1) {
-        _setLastError(__LINE__,vRes);
+        strcpy_P(vTmpStr, PSTR("- NET"));
+        _setLastError(__LINE__,vTmpStr);
          return false;
        };
 
@@ -779,9 +776,6 @@ void gprs2::_doCmd(char* iStr) {
 
 
 void gprs2::_doCmd(const __FlashStringHelper *iStr) {
-  #ifdef IS_DEBUG
-   Serial.println(iStr);
-  #endif
   _modem.println(iStr);
   _modem.flush();
 }

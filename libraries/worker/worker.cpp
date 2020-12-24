@@ -4,9 +4,10 @@
 #include <EEPROM.h>
 #include <MemoryFree.h>
 #include <debug.h>
+#include <DS3231MDA.h>
 
-#define NEAREST_TIME_BORDER 900000
-#define NEAREST_TIME_MULT 100000
+#define NEAREST_TIME_BORDER 900000 //Очень большое значение
+#define NEAREST_TIME_MULT 86400
 
 
 
@@ -44,9 +45,11 @@ bool worker::update(char* iCommand) {
    while ((str1 = strtok_r(iCommand,_tmpStr1,&iCommand))!=NULL) {
 
       if (_beforeTaskUpdate) {
+
          if (!_beforeTaskUpdate(str1)) {
             continue;
          };
+
       };
       
 
@@ -67,8 +70,12 @@ bool worker::update(char* iCommand) {
          continue;
       };
 
-       setTask2(vAddress,str1);
-       vAddress++;
+      if (strcmp_P(vCommand,PSTR("W"))==0) {
+         setTask2(vAddress,str1);
+         vAddress++;
+ 	 continue;
+      };
+
    };
 
    return vNeedReconnect;
@@ -107,9 +114,9 @@ void worker::setTask2(unsigned int iAddress,char* iStr) {
          Serial.print(iAddress);
          Serial.print(F(" = "));
          Serial.print(_task.startCode);
-         Serial.print(F(" -> "));
+         Serial.print(F("->"));
          Serial.print(_task.duration);
-         Serial.println(F(" write OK"));
+         Serial.println(F(" OK"));
         #endif
 
 }
@@ -215,9 +222,8 @@ byte worker::shouldTaskWork2(byte iAddress,
                             ) {
   unsigned long secTaskBeg, secTaskEnd;
   bool isCurrWeekDay,isInTime;
-  task _task;  
+  task _task=_getTask(iAddress);  
 
-  EEPROM.get(_startAddress + iAddress * sizeof(task),_task);
 
   {
     byte vH   = lowByte((_task.startCode & 32505856)  >> 20),
@@ -238,7 +244,7 @@ byte worker::shouldTaskWork2(byte iAddress,
      return lowByte(_task.startCode);
   };
 
-    return 0;
+  return 0;
 
 };
 
@@ -279,8 +285,8 @@ void worker::setTime(char* vCommand) {
    _mstr.substr(vTimeStr,10,2,vUnit);
    vSec = byte(atoi(vUnit));
 
-   #ifdef IS_DEBUG
-    Serial.print(F("Set Time:"));
+   #if IS_DEBUG>1
+    Serial.print(F("TME:"));
     Serial.print(vYear);
     Serial.print(F("-"));
     Serial.print(vMonth);
@@ -303,28 +309,59 @@ void worker::setDateTime(byte iYear,byte iMonth,byte iDay,byte iHour,byte iMinut
      _setDateTime(iYear,iMonth,iDay,iHour,iMinutes,iSec);
 };
 
-unsigned long worker::getSleepTime() {
-   byte vCurrDayOfWeek;
-   unsigned long vNextTime,
-                 vCurrTime = getSecMidnight(vCurrDayOfWeek);
+unsigned long worker::getSleepTime(byte iCurrDayOfWeek,unsigned long iCurrTime) {
 
-   vNextTime = _getMinTaskTime(vCurrDayOfWeek,vCurrTime);
+  unsigned long vNearestTime = NEAREST_TIME_BORDER; //Умполчательно присваиваем очень далекое время
+  byte weight=0;
 
-   if (vNextTime == NEAREST_TIME_BORDER) { return NEAREST_TIME_BORDER; };
+   for (byte vJ=32-iCurrDayOfWeek;vJ>24;vJ--) { //Смотрим все дни которые лежат правее текущей даты времени
+       byte vTestDayOfWeek = 32 - vJ;
+   
+       for (byte vI=0;vI<maxTaskCount;vI++) {
 
-  {
-     byte vNextDayOfWeek;
-     vNextDayOfWeek   = (byte) (vNextTime / NEAREST_TIME_MULT);
-     vNextTime = vNextTime - vNextDayOfWeek * NEAREST_TIME_MULT;
+                task vTask = _getTask(vI);      
+                unsigned long vStartTask = _getTaskStart(vTask);             
+                bool vIsWorkDay = bitRead(vTask.startCode,vJ);
 
-     if (vNextDayOfWeek < vCurrDayOfWeek || (vNextDayOfWeek==vCurrDayOfWeek && vCurrTime > vNextTime)) { vNextTime = 86400 - vCurrTime + (7 - vCurrDayOfWeek) * 86400 + (vNextDayOfWeek - 1) * 86400 + vNextTime;   };
+                if (!vIsWorkDay || (vTestDayOfWeek==iCurrDayOfWeek && vStartTask<iCurrTime) || vTask.duration==0) { //Если день не рабочий, или текущий левее настоящего времени
+                     vStartTask = NEAREST_TIME_BORDER;                   
+                } else {
+	             vStartTask = weight * NEAREST_TIME_MULT + vStartTask - iCurrTime; // Учитываем, что время нужно не от полуночи, а от текущего
+                };
+             vNearestTime=min(vNearestTime,vStartTask);
+       };
 
-     if (vNextDayOfWeek > vCurrDayOfWeek || (vNextDayOfWeek==vCurrDayOfWeek && vCurrTime < vNextTime)) { vNextTime = vNextTime + (vNextDayOfWeek - vCurrDayOfWeek) * 86400 - vCurrTime; };
+	weight++;
+   };
+
+   if (vNearestTime!=NEAREST_TIME_BORDER) {  // Если нашли ближайшее на этой неделе, то возвращаем его
+      return vNearestTime; 
+   };
 
 
-  };
 
-  return vNextTime;
+   for (byte vJ=31;vJ>24+iCurrDayOfWeek;vJ--) { //Смотрим все дни которые лежат левее текущей даты времени   
+       byte vTestDayOfWeek = 32 - vJ;
+
+       for (byte vI=0;vI<maxTaskCount;vI++) {
+            task vTask = _getTask(vI);      
+                unsigned long vStartTask = _getTaskStart(vTask);             
+                bool vIsWorkDay = bitRead(vTask.startCode,vJ);
+
+                if (!vIsWorkDay || (vTestDayOfWeek==iCurrDayOfWeek && vStartTask>iCurrTime) || vTask.duration==0) { //Если день не рабочий, или текущий правее настоящего времени
+                     vStartTask = NEAREST_TIME_BORDER;          
+                } else {
+	             vStartTask = weight * NEAREST_TIME_MULT + vStartTask - iCurrTime; // Учитываем, что время нужно не от полуночи, а от текущего
+                };
+             vNearestTime=min(vNearestTime,vStartTask);
+       };
+	weight++;
+   };
+
+  
+  return  vNearestTime; // Это время от полуночи, а нужно от текущего
+
+
 };
 
 unsigned long worker::_getTaskStart(task iTask) {
@@ -333,36 +370,10 @@ unsigned long worker::_getTaskStart(task iTask) {
   vH   = lowByte((iTask.startCode & 32505856)  >> 20);
   vM   = lowByte((iTask.startCode & 1032192)   >> 14);
   vS   = lowByte((iTask.startCode & 16128)     >> 8);
-
+  
   return   vH * 3600UL + vM * 60UL + (unsigned long)vS;
 };
 
-
-unsigned long worker::_getMinTaskTime(byte iCurrDayOfWeek,unsigned long iCurrTime) {
-   unsigned long vTimeRight = NEAREST_TIME_BORDER,
-                 vTimeLeft  = NEAREST_TIME_BORDER;
-   
-   for (byte vI=0;vI<maxTaskCount;vI++) {
-        task vTask = _getTask(vI);      
-            for (byte vJ=31;vJ>24;vJ--) {
-                
-                byte vIsWorkDay = bitRead(vTask.startCode,vJ);
-                unsigned long vStartTask = vIsWorkDay == 0 ? NEAREST_TIME_BORDER : (32-vJ) * NEAREST_TIME_MULT + _getTaskStart(vTask);
-
-                   {
-                      unsigned long vStartCurr = iCurrDayOfWeek * NEAREST_TIME_MULT + iCurrTime;
-                      if (vStartTask > vStartCurr && vStartTask<vTimeRight) {
-                         vTimeRight = vStartTask;
-                      };                       
-                      if (vStartTask<vTimeLeft) {
-                         vTimeLeft  = vStartTask;
-                      };
-                   };
-            };
-   };
-  
-  return  vTimeRight != NEAREST_TIME_BORDER ? vTimeRight : vTimeLeft;
-};
 
   long long worker::getTimestamp() {
        unsigned long vSecMidnight;
@@ -372,15 +383,17 @@ unsigned long worker::_getMinTaskTime(byte iCurrDayOfWeek,unsigned long iCurrTim
 
 long long worker::getTimestamp(unsigned long &oSecMidnight,byte &oDayOfWeek) {
   DS3231MDA Clock;
-    byte m=0,d,hh,mm,ss,y,vAttempt=0;
-  bool hasError;
+  byte m,d,hh,mm,ss,y,vAttempt=0;
+  bool vStatus;
+
 
    do {
-    Clock.getNow(y,m,d,hh,mm,ss);   
-     vAttempt++;
-   } while (vAttempt<3 && (hasError=m<=0 || m>12 || d<=0 || d>31));
-   
-   if (hasError) { oSecMidnight=0; oDayOfWeek=0; return 0; };
+    vStatus=Clock.getNow(y,m,d,hh,mm,ss);   
+    vAttempt++;
+   } while (!vStatus && vAttempt<3);
+
+
+   if (!vStatus) { oSecMidnight=0; oDayOfWeek=0; return 0; };
    
    oDayOfWeek = _DayOfWeek((int)y,m,d);
   /**************************************

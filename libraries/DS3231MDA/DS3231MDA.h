@@ -12,7 +12,7 @@ class DS3231MDA {
 		//Constructor
 		DS3231MDA();    
 		// the get*() functions retrieve current values of the registers.
-                void getNow(byte &y, byte &m, byte &d, byte &hh, byte &mm, byte &ss);
+                bool getNow(byte &y, byte &m, byte &d, byte &hh, byte &mm, byte &ss);
 		void setSecond(byte Second); 
 		void setMinute(byte Minute); 
 		void setHour(byte Hour); 
