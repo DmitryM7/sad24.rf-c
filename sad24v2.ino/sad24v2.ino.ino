@@ -333,7 +333,7 @@ void restartModem() {
     Конец методов работы с модемом
  *************************************************************************/
 bool canGoSleep() {
-  return mCanGoSleep && isDisabledLightRange() && isDisabledWaterRange();
+  return mCanGoSleep && isDisabledLightRange() && isDisabledWaterRange() && connectPeriod() >= 900;
 }
 
 byte goSleep(byte iMode, 
@@ -689,12 +689,17 @@ void Timer1_doJob(void) {
   };
 
 
-  if (_sensorInfo.t1 >= _offlineParams.tempUpLight2) {
+ /********************
+  * Отключаем исполнителя по границе в двух случаях: 
+  *  1. достигли граничной температуры, 
+  *  2. режим мониторинга температуры отключен
+  ********************/
+  if (_sensorInfo.t1 >= _offlineParams.tempUpLight2 || isDisabledLightRange()) {  
     _light.isEdge     = false;
   };
 
 
-  if (_sensorInfo.t2 >= _offlineParams.tempUpWater2) {
+  if (_sensorInfo.t2 >= _offlineParams.tempUpWater2 || isDisabledWaterRange()) { 
     _water.isEdge     = false;
   };
 
