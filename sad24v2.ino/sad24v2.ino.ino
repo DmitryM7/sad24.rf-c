@@ -695,12 +695,17 @@ void Timer1_doJob(void) {
   };
 
 
-  if (_sensorInfo.t1 >= _offlineParams.tempUpLight2 || isDisabledLightRange()) {
+ /********************
+  * Отключаем исполнителя по границе в двух случаях: 
+  *  1. достигли граничной температуры, 
+  *  2. режим мониторинга температуры отключен
+  ********************/
+  if (_sensorInfo.t1 >= _offlineParams.tempUpLight2 || isDisabledLightRange()) {  
     _light.isEdge     = false;
   };
 
 
-  if (_sensorInfo.t2 >= _offlineParams.tempUpWater2 || isDisabledWaterRange()) {
+  if (_sensorInfo.t2 >= _offlineParams.tempUpWater2 || isDisabledWaterRange()) { 
     _water.isEdge     = false;
   };
 
