@@ -333,7 +333,13 @@ void restartModem() {
     Конец методов работы с модемом
  *************************************************************************/
 bool canGoSleep() {
-  return mCanGoSleep && isDisabledLightRange() && isDisabledWaterRange();
+  /********************
+   * Уходим в сон, при следующих условиях:
+   *   1. Оба исполнителя (вода, свет) выключены;
+   *   2. Режим мониторинга окружающей температуры выключен
+   *   3. Время передачи информации не менее 15 минут.
+   */
+  return mCanGoSleep && isDisabledLightRange() && isDisabledWaterRange() && canGoSleep() >= 900; 
 }
 
 byte goSleep(byte iMode, 
@@ -689,12 +695,12 @@ void Timer1_doJob(void) {
   };
 
 
-  if (_sensorInfo.t1 >= _offlineParams.tempUpLight2) {
+  if (_sensorInfo.t1 >= _offlineParams.tempUpLight2 || isDisabledLightRange()) {
     _light.isEdge     = false;
   };
 
 
-  if (_sensorInfo.t2 >= _offlineParams.tempUpWater2) {
+  if (_sensorInfo.t2 >= _offlineParams.tempUpWater2 || isDisabledWaterRange()) {
     _water.isEdge     = false;
   };
 
