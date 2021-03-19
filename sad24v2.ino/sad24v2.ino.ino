@@ -745,7 +745,7 @@ void Timer1_doJob(void) {
 
   Serial.print(F(" TUW2:"));
   Serial.println(_offlineParams.tempUpWater2);
-  //Serial.flush();
+  Serial.flush();
 #endif
 
 
@@ -980,6 +980,10 @@ void loop()
 
 
   if (millis() - _sensorInfo.lastMeasure > __MEASURE_PERIOD__) {
+    #ifdef IS_DEBUG 
+      Serial.println(F("P1"));
+      Serial.flush();
+    #endif
     loadSensorInfo1();
     _sensorInfo.lastMeasure = millis();
 #ifdef IS_DEBUG
@@ -1002,7 +1006,7 @@ void loop()
    **************************************************************/
   if (mShouldReadSms) {
 
-    while (!wk()) {
+    while (!wk()) {      
       restartModem();
     };
 
@@ -1016,21 +1020,33 @@ void loop()
 
 
   if (vD >= connectPeriod()) {
-
+    #ifdef IS_DEBUG 
+      Serial.println(F("P2"));
+      Serial.flush();
+    #endif
     /*** Начало блока работы с модемом ***/
 
     if (isConnectInfoFull()) {
       bool isModemWork = wk();
 
+    
       if (!isModemWork) {
         restartModem();
         isModemWork = wk();
       };
 
-
+    #ifdef IS_DEBUG 
+      Serial.println(F("P3"));
+      Serial.flush();
+    #endif
       if (isModemWork) {
         byte vAttempt = 0;
         bool vStatus  = false;
+
+        #ifdef IS_DEBUG 
+          Serial.println(F("P4"));
+          Serial.flush();
+        #endif
 
         do {
           vStatus = updateRemoteParams();
