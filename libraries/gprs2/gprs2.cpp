@@ -493,7 +493,7 @@ bool gprs2::doInternet() {
 
        strcpy_P(_tmpStr,PSTR("+HTTPACTION")); 
 
-       _getAnswerWait(oRes,iResLength,_tmpStr,10000); //Он выдает ОК, потом может долго думать и выдать уже искомвый ответ
+       _getAnswerWait(oRes,iResLength,_tmpStr,30000); //Он выдает ОК, потом может долго думать и выдать уже искомвый ответ. Поставил 30 с как обычно в Инете
 
 
          strcpy_P(_tmpStr, PSTR("+HTTPACTION: 1,200"));     
