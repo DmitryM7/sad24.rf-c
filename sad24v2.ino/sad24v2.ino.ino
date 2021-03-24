@@ -100,9 +100,11 @@ void setConnectPeriod(int iSleepTime) {
  ***********************************************************/
 
 bool isConnectInfoFull() {
-  Connection _connection;
-  EEPROM.get(0, _connection);
-  return strlen(_connection.sitePoint) > 0 && strlen(_connection.apnPoint) > 0;
+  ApnCon _ApnCon;
+  SiteCon _siteCon;
+  EEPROM.get(0, _ApnCon);
+  EEPROM.get(eeprom_mSiteCon,_siteCon);
+  return strlen(_siteCon.sitePoint) > 0 && strlen(_ApnCon.apnPoint) > 0;
 }
 
 
@@ -154,11 +156,9 @@ void parseSmsParamCommand(char* iCommand) {
   char vTmpStr[5],
        vCmd[10];
   mstr _mstr;
-  Connection _connection;
 
   strcpy_P(vTmpStr, PSTR(":"));
-  _mstr.entry(1, iCommand, vTmpStr, 10, vCmd);
-  EEPROM.get(0, _connection);
+  _mstr.entry(1, iCommand, vTmpStr, 10, vCmd);  
 
   /**********************************
      Меняем учетные данные к apn
@@ -168,63 +168,69 @@ void parseSmsParamCommand(char* iCommand) {
 
   if (_mstr.isEqual(vCmd, vTmpStr)) {
 
+    ApnCon _ApnCon;
+
+    EEPROM.get(0, _ApnCon);
+
     strcpy_P(vTmpStr, PSTR(":"));
-    if (!_mstr.entry(2, iCommand, vTmpStr, 35, _connection.apnPoint)) {
+    if (!_mstr.entry(2, iCommand, vTmpStr, 35, _ApnCon.apnPoint)) {
       return;
     };
 
-    if (!_mstr.entry(3, iCommand, vTmpStr, 11, _connection.apnLogin)) {
+    if (!_mstr.entry(3, iCommand, vTmpStr, 11, _ApnCon.apnLogin)) {
       return;
     };
 
-    if (!_mstr.entry(4, iCommand, vTmpStr, 11, _connection.apnPass)) {
+    if (!_mstr.entry(4, iCommand, vTmpStr, 11, _ApnCon.apnPass)) {
       return;
     };
 
 #if IS_DEBUG>1
     Serial.print(F("A: "));
-    Serial.print(_connection.apnLogin);
+    Serial.print(_ApnCon.apnLogin);
     Serial.print(F(":"));
-    Serial.print(_connection.apnPass);
+    Serial.print(_ApnCon.apnPass);
     Serial.print(F("@"));
-    Serial.println(_connection.apnPoint);
+    Serial.println(_ApnCon.apnPoint);
     Serial.flush();
 #endif
 
     noInterrupts();
-    EEPROM.put(0, _connection);
+    EEPROM.put(0, _ApnCon);
     interrupts();
   };
 
   strcpy_P(vTmpStr, PSTR("SITE"));
   if (_mstr.isEqual(vCmd, vTmpStr)) {
+    SiteCon _siteCon;
+    EEPROM.get(eeprom_mSiteCon,_siteCon);
 
     strcpy_P(vTmpStr, PSTR(":"));
 
-    if (!_mstr.entry(2, iCommand, vTmpStr, 11, _connection.siteLogin)) {
+    if (!_mstr.entry(2, iCommand, vTmpStr, sizeof(_siteCon.siteLogin), _siteCon.siteLogin)) {
       return;
     };
 
-    if (!_mstr.entry(3, iCommand, vTmpStr, 20, _connection.sitePass)) {
+    if (!_mstr.entry(3, iCommand, vTmpStr, sizeof(_siteCon.sitePass), _siteCon.sitePass)) {
       return;
     };
 
-    if (!_mstr.entry(4, iCommand, vTmpStr, sizeof(_connection.sitePoint), _connection.sitePoint)) {
+    if (!_mstr.entry(4, iCommand, vTmpStr, sizeof(_siteCon.sitePoint), _siteCon.sitePoint)) {
       return;
     };
 
 #if IS_DEBUG>1
-    Serial.print(F("ST: "));
-    Serial.print(_connection.siteLogin);
+    Serial.print(F("S: "));
+    Serial.print(_siteCon.siteLogin);
     Serial.print(F(":"));
-    Serial.print(_connection.sitePass);
+    Serial.print(_siteCon.sitePass);
     Serial.print(F("@"));
-    Serial.println(_connection.sitePoint);
+    Serial.println(_siteCon.sitePoint);
     Serial.flush();
 #endif
 
     noInterrupts();
-    EEPROM.put(0, _connection);
+    EEPROM.put(eeprom_mSiteCon, _siteCon);
     interrupts();
 
   };
@@ -250,16 +256,8 @@ void readSms2() {
 
   sim900.setOnSms(onSms);
 
-#ifdef IS_DEBUG
-  Serial.println(F("*S*"));
-  Serial.flush();
-#endif
   delay(500); //Не знаю почему, но без этой конструкции freemem показывает, что сожрано на 200байт больше памяти.
   sim900.readSms();
-#ifdef IS_DEBUG
-  Serial.println(F("*ES*"));
-  Serial.flush();
-#endif
 }
 
 /**************************************************************
@@ -272,13 +270,7 @@ bool wk() {
   byte vAttempt = 0;
 
   gprs2 sim900(7, 8);
-
-  {
-    Connection _connection;
-    EEPROM.get(0, _connection);
-    sim900.setInternetSettings(_connection.apnPoint, _connection.apnLogin, _connection.apnPass);
-  };
-
+  
   sim900.wakeUp();
   delay(__WAIT_MODEM_TIME__);
 
@@ -288,17 +280,28 @@ bool wk() {
     vAttempt++;
   } while (!vStatus && vAttempt < 3);
 
-#if IS_DEBUG>1
-  if (!vStatus) {
-    char vError[20];
-    sim900.getLastError(vError);
-    Serial.print(F("WKE:"));
-    Serial.println(vError);
-    Serial.flush();
+  if (!vStatus) {    
+    return false;
   };
-#endif
 
-  return vStatus;
+  return true;
+
+}
+
+bool doInternet() {
+  gprs2 sim900(7, 8);
+ 
+  {
+    ApnCon _apnCon;
+    EEPROM.get(0, _apnCon);
+    sim900.setInternetSettings(_apnCon.apnPoint, _apnCon.apnLogin, _apnCon.apnPass);
+  };
+ 
+  if (!sim900.doInternet()) {
+      return false;
+  };
+
+  return true;
 
 }
 
@@ -339,7 +342,7 @@ bool canGoSleep() {
    *   2. Режим мониторинга окружающей температуры выключен
    *   3. Время передачи информации не менее 15 минут.
    */
-  return mCanGoSleep && isDisabledLightRange() && isDisabledWaterRange() && canGoSleep() >= 900; 
+  return mCanGoSleep && isDisabledLightRange() && isDisabledWaterRange() && connectPeriod() >= 900; 
 }
 
 byte goSleep(byte iMode, 
@@ -363,12 +366,12 @@ byte goSleep(byte iMode,
     vSleepTime   = _worker.getSleepTime(vDayOfWeek,vCurrTime);
 
 
-  #ifdef IS_DEBUG
+  #if IS_DEBUG>1
     Serial.print(F("M:"));
     Serial.print(vCurrTime);
-    Serial.print(F(" Stm="));
+    Serial.print(F(" S="));
     Serial.print(vSleepTime);
-    Serial.print(F(" Wup="));
+    Serial.print(F(" W="));
     Serial.print(vCurrTime+vSleepTime);
   #endif
     
@@ -377,8 +380,8 @@ byte goSleep(byte iMode,
   vNextModem   = (long)(iPrevTime + connectPeriod() - vTimeStamp);
 
   
-  #ifdef IS_DEBUG
-    Serial.print(F(" Ndm="));
+  #if IS_DEBUG>1
+    Serial.print(F(" N="));
     Serial.println(vNextModem);
   #endif
 
@@ -396,13 +399,13 @@ byte goSleep(byte iMode,
   /* Считаем кол-во циклов */
   vPeriodSleep = vCalcSleepTime / 8U;
   
-  #ifdef IS_DEBUG
-    Serial.print(F("Stm * "));
+  #if IS_DEBUG>1
+    Serial.print(F("S*"));
     Serial.print(iMode);
     Serial.print(F("%="));
     Serial.print(vCalcSleepTime);
-    Serial.print(F(" (s)"));
-    Serial.print(F(" P="));
+    Serial.print(F("(s)"));
+    Serial.print(F("P="));
     Serial.println(vPeriodSleep);
     Serial.flush();
   #endif
@@ -432,12 +435,13 @@ bool updateRemoteMeasure(sensorInfo si) {
 
   gprs2 sim900(7, 8);
 
-  {
-    Connection _connection;
-    EEPROM.get(0, _connection);
+  
+    {
+      SiteCon _siteCon;
+      EEPROM.get(eeprom_mSiteCon, _siteCon);
 
-    sprintf_P(vParams, PSTR("r=%s&s=%s&t1=%d&h1=%d&t2=%d&p1=%lu&w1=%lu&l1=%lu&d=%lu&ds=%d"), _connection.siteLogin,
-              _connection.sitePass,
+      sprintf_P(vParams, PSTR("r=%s&s=%s&t1=%d&h1=%d&t2=%d&p1=%lu&w1=%lu&l1=%lu&d=%lu&ds=%d"), _siteCon.siteLogin,
+              _siteCon.sitePass,
               si.t1,
               si.h1,
               si.t2,
@@ -448,13 +452,10 @@ bool updateRemoteMeasure(sensorInfo si) {
               si.distance
              );
 
-    sim900.setInternetSettings(_connection.apnPoint, _connection.apnLogin, _connection.apnPass);
-    strncpy(sitePoint, _connection.sitePoint, sizeof(sitePoint));
-  };
+       strncpy(sitePoint, _siteCon.sitePoint, sizeof(sitePoint));  
+    };
 
-
-  
-  vResult = sim900.postUrl(sitePoint, vParams, vRes, sizeof(vRes));
+    vResult = sim900.postUrl(sitePoint, vParams, vRes, sizeof(vRes));
 
 #ifdef IS_DEBUG
   Serial.print(F("MEAS "));
@@ -483,13 +484,13 @@ bool updateRemoteMeasure(sensorInfo si) {
 
 
   } else {
-#ifdef IS_DEBUG
-    char vError[20];
-    sim900.getLastError(vError);
-    Serial.print(F("ER: "));
-    Serial.println(vError);
-    Serial.flush();
-#endif
+      #ifdef IS_DEBUG
+        char vError[20];
+        sim900.getLastError(vError);
+        Serial.print(F("ER: "));
+        Serial.println(vError);
+        Serial.flush();
+     #endif
   };
   return vResult;
 }
@@ -585,31 +586,14 @@ bool updateRemoteParams() {
 
 
   gprs2 sim900(7, 8);
-
-  {
-    Connection _connection;
-
-    EEPROM.get(0, _connection);
-    sim900.setInternetSettings(_connection.apnPoint, _connection.apnLogin, _connection.apnPass);
-    strncpy(sitePoint, _connection.sitePoint, sizeof(sitePoint));
-
-    if (!sim900.doInternet()) {
-
-      #if IS_DEBUG>2
-        char vError[20];
-        sim900.getLastError(vError);
-        Serial.print(F("CI ER:"));
-        Serial.println(vError);
-        Serial.flush();
-      #endif
-      return false;
+    {
+      SiteCon _siteCon;  
+      EEPROM.get(eeprom_mSiteCon, _siteCon);
+      sprintf_P(vParams, PSTR("r=%s&s=%s&m=c&l=%u&a=%u"), _siteCon.siteLogin, _siteCon.sitePass, 0, 0);
+      strncpy(sitePoint, _siteCon.sitePoint, sizeof(sitePoint));  
     };
-
-    sprintf_P(vParams, PSTR("r=%s&s=%s&m=c&l=%u&a=%u"), _connection.siteLogin, _connection.sitePass, 0, 0);
-  };
-
-
-
+              
+   
 
   while (vShouldReconnect) {
     char vRes[250];
@@ -722,29 +706,8 @@ void Timer1_doJob(void) {
 
   Serial.print(F("Mem:"));
   Serial.print(freeMemory());
-  Serial.print(F("   "));  
+  Serial.println(F("   "));  
 
-  Serial.print(F("Mil:"));
-  Serial.print(millis());
-  Serial.print(F("   "));
-
-  Serial.print(F("T1:"));
-  Serial.print(_sensorInfo.t1);
-
-  Serial.print(F(" TUL1:"));
-  Serial.print(_offlineParams.tempUpLight1);
-
-  Serial.print(F(" TUL2:"));
-  Serial.print(_offlineParams.tempUpLight2);
-
-  Serial.print(F("   T2:"));
-  Serial.print(_sensorInfo.t2);
-
-  Serial.print(F(" TUW1:"));
-  Serial.print(_offlineParams.tempUpWater1);
-
-  Serial.print(F(" TUW2:"));
-  Serial.println(_offlineParams.tempUpWater2);
   Serial.flush();
 #endif
 
@@ -846,21 +809,32 @@ void pin_ISR () {
 
   digitalWrite(LED_BUILTIN, HIGH);
 
-  Connection _connection;
+{
+  ApnCon _apnCon;
+  EEPROM.get(0, _apnCon);
+  strcpy_P(_apnCon.apnPoint, PSTR("\0"));
+  noInterrupts();
+  EEPROM.put(0, _apnCon);
+  interrupts();
+}
 
-  EEPROM.get(0, _connection);
-
-  strcpy_P(_connection.sitePoint, PSTR("\0"));
-  strcpy_P(_connection.apnPoint, PSTR("\0"));
+{
+  SiteCon _siteCon;
+  EEPROM.get(eeprom_mSiteCon, _siteCon);
+  strcpy_P(_siteCon.sitePoint, PSTR("\0"));
+  noInterrupts();
+  EEPROM.put(eeprom_mSiteCon, _siteCon);
+  interrupts();
+}
+  
+  
 
 #ifdef IS_DEBUG
   Serial.println(F("S|^"));
 #endif
   mShouldReadSms = true;
 
-  noInterrupts();
-  EEPROM.put(0, _connection);
-  interrupts();
+  
 
 
 }
@@ -901,18 +875,22 @@ void setup() {
     EEPROM.put(eeprom_mGlobalsStart, _globals);
 
     {
-      Connection _connection;
-      EEPROM.get(0, _connection);
-      /*** SITE INIT ***/
-      strcpy_P(_connection.sitePoint, PSTR("\0"));
-      strcpy_P(_connection.siteLogin, PSTR("\0"));
-      strcpy_P(_connection.sitePass, PSTR("\0"));
-
+      ApnCon _apnCon;
+      EEPROM.get(0, _apnCon);      
       /*** APN INIT ***/
-      strcpy_P(_connection.apnPoint, PSTR("\0"));
-      strcpy_P(_connection.apnLogin, PSTR("\0"));
-      strcpy_P(_connection.apnPass, PSTR("\0"));
-      EEPROM.put(0, _connection);
+      strcpy_P(_apnCon.apnPoint, PSTR("\0"));
+      strcpy_P(_apnCon.apnLogin, PSTR("\0"));
+      strcpy_P(_apnCon.apnPass, PSTR("\0"));
+      EEPROM.put(0, _apnCon);
+    }
+    {
+      SiteCon _siteCon;
+      EEPROM.get(eeprom_mSiteCon, _siteCon);      
+      /*** SITE INIT ***/
+      strcpy_P(_siteCon.sitePoint, PSTR("\0"));
+      strcpy_P(_siteCon.siteLogin, PSTR("\0"));
+      strcpy_P(_siteCon.sitePass, PSTR("\0"));
+      EEPROM.put(eeprom_mSiteCon, _siteCon);
     };
 
 
@@ -980,12 +958,11 @@ void loop()
 
 
   if (millis() - _sensorInfo.lastMeasure > __MEASURE_PERIOD__) {
-    #ifdef IS_DEBUG 
-      Serial.println(F("P1"));
-      Serial.flush();
-    #endif
+    
     loadSensorInfo1();
     _sensorInfo.lastMeasure = millis();
+
+
 #ifdef IS_DEBUG
     Serial.print(F("T1:"));    Serial.print(_sensorInfo.t1);  Serial.print(F("  T2:")); Serial.print(_sensorInfo.t2);
     Serial.print(F("  H:"));   Serial.print(_sensorInfo.h1);  Serial.print(F("  P:"));  Serial.print(_sensorInfo.p1);
@@ -1020,33 +997,21 @@ void loop()
 
 
   if (vD >= connectPeriod()) {
-    #ifdef IS_DEBUG 
-      Serial.println(F("P2"));
-      Serial.flush();
-    #endif
     /*** Начало блока работы с модемом ***/
 
     if (isConnectInfoFull()) {
-      bool isModemWork = wk();
+      bool isModemWork = wk() && doInternet();
 
     
       if (!isModemWork) {
         restartModem();
-        isModemWork = wk();
+        isModemWork = wk() && doInternet();
       };
 
-    #ifdef IS_DEBUG 
-      Serial.println(F("P3"));
-      Serial.flush();
-    #endif
+      
       if (isModemWork) {
         byte vAttempt = 0;
         bool vStatus  = false;
-
-        #ifdef IS_DEBUG 
-          Serial.println(F("P4"));
-          Serial.flush();
-        #endif
 
         do {
           vStatus = updateRemoteParams();
@@ -1065,6 +1030,7 @@ void loop()
           } while (!vStatus && vAttempt < 3);
         };
 
+
       };
 
 
@@ -1079,9 +1045,9 @@ void loop()
        ****************************************************************/
 
 
-#ifdef IS_DEBUG
-      Serial.println(F("NO MDM"));
-#endif;
+      #ifdef IS_DEBUG
+        Serial.println(F("NMD"));
+      #endif;
 
       return;
     };
@@ -1090,14 +1056,12 @@ void loop()
     sl();  //После того как модем передал данные уводим его в сон. Если это делать в основном теле функции, то отправлять будем 1 раз в секунду
   };
 
-
-  if (!canGoSleep()) {
+   if (!canGoSleep()) {
     return;
   };
 
 
   Timer1.stop();
-
 {
   byte waitTime=0;
  do {

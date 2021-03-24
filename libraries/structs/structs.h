@@ -22,10 +22,13 @@
 
 #define __WAIT_MODEM_TIME__ 7000
 
-struct Connection { 
+struct ApnCon { 
   char apnPoint[35];
   char apnLogin[11];
   char apnPass[11];
+};
+
+struct SiteCon {
   char sitePoint[__SITE_POINT_SIZE__];
   char siteLogin[11];
   char sitePass[20];
@@ -53,7 +56,8 @@ struct sensorInfo {
              unsigned long lastMeasure=0;
 };
 
-#define eeprom_mGlobalsStart sizeof(Connection)
-#define eeprom_mOfflineParamsStart sizeof(Connection)+sizeof(Globals)
+#define eeprom_mSiteCon sizeof(ApnCon)
+#define eeprom_mGlobalsStart sizeof(ApnCon)+sizeof(SiteCon)
+#define eeprom_mOfflineParamsStart eeprom_mGlobalsStart+sizeof(Globals)
 #define eeprom_mWorkerStart eeprom_mOfflineParamsStart + sizeof(offlineParams)
 #endif

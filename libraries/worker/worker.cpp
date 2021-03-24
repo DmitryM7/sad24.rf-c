@@ -110,7 +110,7 @@ void worker::setTask2(unsigned int iAddress,char* iStr) {
 	EEPROM.put(vFactAddress,_task);
 	interrupts();
 
-	#ifdef IS_DEBUG
+	#if IS_DEBUG>1
          Serial.print(iAddress);
          Serial.print(F(" = "));
          Serial.print(_task.startCode);
