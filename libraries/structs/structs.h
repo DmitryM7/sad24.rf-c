@@ -51,7 +51,7 @@ struct sensorInfo {
              int t1=19900; 
              int h1; 
              int t2=1990; 
-             unsigned long p1;
+             long p1;
              int distance;
              unsigned long lastMeasure=0;
 };

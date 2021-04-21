@@ -104,11 +104,11 @@ void BMP085::getPressure(int32_t *_Pa){
   // Note that BMP085 abs accuracy from 700...1100hPa and 0..+65ºC is +-100Pa (typ.)
 }
 
-unsigned long BMP085::getPressure2(){   
+long BMP085::getPressure2(){   
   long TruePressure;
 
   calcTruePressure(&TruePressure); 
-  return (unsigned long) TruePressure / pow((1 - (float)_param_centimeters / 4433000), 5.255) + _Pa_Offset;
+  return TruePressure / pow((1 - (float)_param_centimeters / 4433000), 5.255) + _Pa_Offset;
 }
 
 

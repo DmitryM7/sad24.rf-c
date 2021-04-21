@@ -442,7 +442,7 @@ bool updateRemoteMeasure(sensorInfo si) {
       SiteCon _siteCon;
       EEPROM.get(eeprom_mSiteCon, _siteCon);
 
-      sprintf_P(vParams, PSTR("r=%s&s=%s&t1=%d&h1=%d&t2=%d&p1=%lu&w1=%lu&l1=%lu&d=%lu&ds=%d"), _siteCon.siteLogin,
+      sprintf_P(vParams, PSTR("r=%s&s=%s&t1=%d&h1=%d&t2=%d&p1=%ld&w1=%lu&l1=%lu&d=%lu&ds=%d"), _siteCon.siteLogin,
               _siteCon.sitePass,
               si.t1,
               si.h1,
