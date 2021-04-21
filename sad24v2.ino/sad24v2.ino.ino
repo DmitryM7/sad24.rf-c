@@ -111,6 +111,7 @@ bool isConnectInfoFull() {
 
 int getDistance() {
   int duration, cm;
+  float t;
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
   digitalWrite(TRIG_PIN, LOW);
@@ -119,7 +120,8 @@ int getDistance() {
   delayMicroseconds(55);
   digitalWrite(TRIG_PIN, LOW);
   duration = pulseIn(ECHO_PIN, HIGH);
-  cm       = round(duration / 58);
+  t       = duration / 58;
+  cm      = round(t);
   return cm;
 }
 

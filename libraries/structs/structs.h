@@ -59,5 +59,5 @@ struct sensorInfo {
 #define eeprom_mSiteCon sizeof(ApnCon)
 #define eeprom_mGlobalsStart sizeof(ApnCon)+sizeof(SiteCon)
 #define eeprom_mOfflineParamsStart eeprom_mGlobalsStart+sizeof(Globals)
-#define eeprom_mWorkerStart eeprom_mOfflineParamsStart + sizeof(offlineParams)
+ #define eeprom_mWorkerStart eeprom_mOfflineParamsStart + sizeof(offlineParams)
 #endif
