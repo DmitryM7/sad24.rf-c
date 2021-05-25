@@ -894,7 +894,6 @@ bool gprs2::wakeUp() {
 };
 
 void gprs2::sleep() {   
-
       pinMode(4,OUTPUT);
       digitalWrite(4,LOW);
       return false;

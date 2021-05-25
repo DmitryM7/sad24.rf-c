@@ -272,7 +272,7 @@ bool wk() {
   byte vAttempt = 0;
 
   gprs2 sim900(7, 8);
-  
+
   sim900.wakeUp();
   delay(__WAIT_MODEM_TIME__);
 
@@ -960,7 +960,7 @@ void loop()
 
 
   if (millis() - _sensorInfo.lastMeasure > __MEASURE_PERIOD__) {
-    
+
     loadSensorInfo1();
     _sensorInfo.lastMeasure = millis();
 
