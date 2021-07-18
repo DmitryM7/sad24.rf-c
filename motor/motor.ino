@@ -1,11 +1,29 @@
-#include "Adafruit_VL53L0X.h"
+#include <Adafruit_VL53L0X.h>
+#include <BMP085.h>
+#include <DHT.h>
+#include <structs.h>
 
-#define MV_TIME 30
+#define MV_MAX_STEP_COUNT 10
 #define MV_TIME_STEP 1100
-#define RLX_TIME 20
-#define STP_COUNT 1075 //Это кол-во циклов до полного открытия
+#define MIN_TEMP_C 20
+#define MAX_TEMP_C 28
 
-  Adafruit_VL53L0X lox = Adafruit_VL53L0X();
+Adafruit_VL53L0X lox = Adafruit_VL53L0X();
+
+
+
+sensorInfo _sensorInfo;
+int d;
+int prevT=MIN_TEMP_C * 100;
+int stepPerC=MIN_TEMP_C*100;
+float stepPerCd;
+
+
+
+void wakeUp() {
+   pinMode(4,OUTPUT);
+   digitalWrite(4,HIGH);
+}
 
 void setup() {
   // put your setup code here, to run once:
@@ -16,19 +34,23 @@ void setup() {
   digitalWrite(6,LOW);    
   pinMode(LED_BUILTIN,OUTPUT);
 
-
   Serial.begin(19200);
-
-  while (! Serial) {
-    delay(1);
-  }
 
   if (!lox.begin()) {
     Serial.println(F("Failed to boot VL53L0X"));
-    while(1);
   }
 
-    
+
+  wakeUp(); 
+
+  digitalWrite(LED_BUILTIN,HIGH);   
+  setZero();
+  digitalWrite(LED_BUILTIN,LOW); 
+
+  stepPerCd=(float)MV_MAX_STEP_COUNT / (100*(MAX_TEMP_C - MIN_TEMP_C));
+  Serial.print(F("Step per C = "));
+  Serial.println(stepPerCd);
+
 }
 
 void stopMove() {
@@ -36,15 +58,7 @@ void stopMove() {
   digitalWrite(6,LOW);       
 }
 
-void frwdStep() {     
-     for (unsigned int i=0;i<STP_COUNT;i++) {
-      digitalWrite(6,HIGH);      
-      digitalWrite(3,LOW);      
-      delay(MV_TIME);
-      stopMove();      
-      delay(RLX_TIME);      
-   };
-}
+
 
 void frwdStep2() {     
       digitalWrite(6,HIGH);      
@@ -53,15 +67,11 @@ void frwdStep2() {
       stopMove();      
 }
 
-void bcwdStep() {
-     for (unsigned int i=0;i<STP_COUNT;i++) {
+
+void bcwdStep2() {
       digitalWrite(6,LOW);      
       digitalWrite(3,HIGH);      
-      delay(MV_TIME);
-      stopMove();      
-      delay(RLX_TIME);
-   };
-  
+      delay(MV_TIME_STEP);   
 }
 
 int getDistance() {
@@ -79,49 +89,63 @@ void setZero() {
   stopMove();
 }
 
-void loop() {  
-    
-  digitalWrite(LED_BUILTIN,HIGH);   
-  setZero();
-  digitalWrite(LED_BUILTIN,LOW); 
-  Serial.print(F("Dist=")); Serial.println(getDistance()); Serial.flush();
-  delay(2000);
+void loadSensorInfo1() {
+  //Serial.println(F("Enter temp ..."));
+  //Serial.flush();
+//while (Serial.available()<=0) {  1; };
+
+//_sensorInfo.t1=Serial.parseInt() * 100;
 
 
-     
 
-   digitalWrite(LED_BUILTIN,HIGH);   
-   for (unsigned int i=0;i<10;i++) {
-    frwdStep2();
-    Serial.print(F("Dist=")); Serial.println(getDistance()); Serial.flush();
-    delay(2000);
-   }
-    
-   digitalWrite(LED_BUILTIN,LOW);     
-   
-    
+  {
+    BMP085   dps = BMP085();
+    dps.init(MODE_STANDARD, 17700, true);
+    _sensorInfo.t2 = dps.getTemperature2();
+    _sensorInfo.p1 = dps.getPressure2();
+  };
+
+
+  {
+    DHT dht(5, DHT22);
+    dht.begin();
+    _sensorInfo.t1 = dht.readTemperature2();
+    _sensorInfo.h1 = dht.readHumidity2();
+  };
+
+  Serial.println(_sensorInfo.t1);
+
+  _sensorInfo.distance = getDistance();
+
+
+  
+}
+
+void loop() {        
+  int currT;
+  loadSensorInfo1();
  
-   Serial.print(F("Dist=")); Serial.println(getDistance()); Serial.flush();
+  currT=min(max(_sensorInfo.t1,MIN_TEMP_C*100),MAX_TEMP_C*100);
+  d=currT-prevT;
 
-   delay(2000);
+  if (d>0) {
+    Serial.print(F("Move up = "));
+    Serial.println(d);
+    Serial.print(F("Step count"));
+    Serial.println(round(d * stepPerCd));
+    for (int i=0;i<round(d * stepPerCd);i++) {
+      frwdStep2();
+    }
+  } else if (d<0) {
+    Serial.print(F("Move down = "));
+    Serial.println(round(abs(d) * stepPerCd));
+    for (int i=0;i<round(abs(d) * stepPerCd);i++) {
+       bcwdStep2();
+    };
+  };
 
-   return;
+  prevT=currT;
+  
 
-
-   digitalWrite(LED_BUILTIN,HIGH);   
-     stopMove();
-   digitalWrite(LED_BUILTIN,LOW);    
-
-    delay(2000);
-
-   digitalWrite(LED_BUILTIN,HIGH);   
-    bcwdStep();
-   digitalWrite(LED_BUILTIN,LOW);     
-
-   digitalWrite(LED_BUILTIN,HIGH);   
-     stopMove();
-   digitalWrite(LED_BUILTIN,LOW);    
-
-    delay(10000);    
-      
+   delay(60000);
 }

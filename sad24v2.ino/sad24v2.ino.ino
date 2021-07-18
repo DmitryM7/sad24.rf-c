@@ -990,7 +990,9 @@ void loop()
     };
 
     while (!isConnectInfoFull()) {
+      Timer1.stop();
       readSms2();
+      Timer1.start();
     };
     digitalWrite(LED_BUILTIN, LOW);
     mShouldReadSms = false;
