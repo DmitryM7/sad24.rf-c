@@ -3,8 +3,8 @@
 /************************************
  * Задаем параметры подключения УЗД * 
  ************************************/
-#define ECHO_PIN 10
-#define TRIG_PIN 3
+#define ECHO_PIN A0
+#define TRIG_PIN 10
 #define __DISTANCE_COUNT__ 14 
 
 /************************************************************
@@ -60,5 +60,5 @@ struct sensorInfo {
 #define eeprom_mSiteCon sizeof(ApnCon)
 #define eeprom_mGlobalsStart sizeof(ApnCon)+sizeof(SiteCon)
 #define eeprom_mOfflineParamsStart eeprom_mGlobalsStart+sizeof(Globals)
- #define eeprom_mWorkerStart eeprom_mOfflineParamsStart + sizeof(offlineParams)
+#define eeprom_mWorkerStart eeprom_mOfflineParamsStart + sizeof(offlineParams)
 #endif

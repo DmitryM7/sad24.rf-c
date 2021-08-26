@@ -2,13 +2,9 @@
  * Приложение измеряет уровень воды                            *
  * и если он ниже заданного, то запрещает включение насоса.    *
  ***************************************************************/
-
- #include <worker.h>
-
-/** Задаем параметры подключения УЗД **/
-#define ECHO_PIN 10
-#define TRIG_PIN 3
-
+#include <structs.h> 
+#include <worker.h>
+                 
 /** Задаю пороговые значения в сантиметрах **/
 
 
@@ -42,6 +38,8 @@ void loop() {
    digitalWrite(LED_BUILTIN,HIGH);
   
    Serial.print(vCurrDistance); Serial.println(" cm");   
+   delay(3000);
+   return;
 
    if (vCurrDistance>150) {
       _worker.startWater();
