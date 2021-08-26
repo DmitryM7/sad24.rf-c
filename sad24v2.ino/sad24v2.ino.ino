@@ -108,9 +108,36 @@ bool isConnectInfoFull() {
 }
 
 
+unsigned int getMiddleDistance() {
+  unsigned int vMeasurement[ __DISTANCE_COUNT__],
+               vTemp;
+  
+  for (byte i=0; i< __DISTANCE_COUNT__;i++) {
+    vMeasurement[i]=getDistance(); 
+  };
 
+  //Теперь сортируем массив по возрастанию. По идее массив должен быть почти упорядоченным, поэтому использую алгоритм вставками
+
+  for (byte i=2;i<=__DISTANCE_COUNT__;i++) {
+    vTemp=vMeasurement[i];
+    byte j=i;
+    while (j>1 and vMeasurement[j-1] > vTemp) {
+      vMeasurement[j]=vMeasurement[j-1];
+      j=j-1;
+    };
+    vMeasurement[j]=vTemp;    
+  };
+
+  //Теперь отбрасываем "выскакивающие" значения и находим среднее
+  for (byte i=2; i< __DISTANCE_COUNT__-2;i++) {
+    vTemp+=vMeasurement[i];
+  };
+
+  return round(vTemp / (__DISTANCE_COUNT__-4));
+  
+}
 int getDistance() {
-  int duration, cm;
+  unsigned int duration, cm;
   float t;
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
@@ -126,7 +153,7 @@ int getDistance() {
 }
 
 void loadSensorInfo1() {
-
+  
   {
     BMP085   dps = BMP085();
     dps.init(MODE_STANDARD, 17700, true);
@@ -142,7 +169,8 @@ void loadSensorInfo1() {
     _sensorInfo.h1 = dht.readHumidity2();
   };
 
-  _sensorInfo.distance = getDistance();
+  
+  _sensorInfo.distance = getMiddleDistance();  
 }
 
 
@@ -961,7 +989,9 @@ void loop()
 
   if (millis() - _sensorInfo.lastMeasure > __MEASURE_PERIOD__) {
 
+    Timer1.stop(); //Отключаем таймер, так как в функции loadSensorInfo1 есть критичный участок кода
     loadSensorInfo1();
+    Timer1.start(); 
     _sensorInfo.lastMeasure = millis();
 
 
