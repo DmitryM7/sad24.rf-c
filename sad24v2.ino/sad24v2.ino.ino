@@ -108,26 +108,28 @@ bool isConnectInfoFull() {
 }
 
 
-unsigned int getMiddleDistance() {
-  unsigned int vMeasurement[ __DISTANCE_COUNT__],
-               vTemp;
+int getMiddleDistance() {
+   int vMeasurement[ __DISTANCE_COUNT__],
+       vTemp=0;
   
   for (byte i=0; i< __DISTANCE_COUNT__;i++) {
     vMeasurement[i]=getDistance(); 
-  };
-
+    delay(10); //Делаем задержку иначе датчик показывает не верные данные
+  };  
   //Теперь сортируем массив по возрастанию. По идее массив должен быть почти упорядоченным, поэтому использую алгоритм вставками
 
-  for (byte i=2;i<=__DISTANCE_COUNT__;i++) {
+  for (byte i=1;i<__DISTANCE_COUNT__;i++) {
     vTemp=vMeasurement[i];
     byte j=i;
-    while (j>1 and vMeasurement[j-1] > vTemp) {
+    while (j>0 and vMeasurement[j-1] > vTemp) {
       vMeasurement[j]=vMeasurement[j-1];
       j=j-1;
     };
     vMeasurement[j]=vTemp;    
   };
 
+
+  vTemp=0;
   //Теперь отбрасываем "выскакивающие" значения и находим среднее
   for (byte i=2; i< __DISTANCE_COUNT__-2;i++) {
     vTemp+=vMeasurement[i];
@@ -137,8 +139,7 @@ unsigned int getMiddleDistance() {
   
 }
 int getDistance() {
-  unsigned int duration, cm;
-  float t;
+  unsigned int duration, cm;  
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
   digitalWrite(TRIG_PIN, LOW);
@@ -147,8 +148,7 @@ int getDistance() {
   delayMicroseconds(55);
   digitalWrite(TRIG_PIN, LOW);
   duration = pulseIn(ECHO_PIN, HIGH);
-  t       = duration / 58;
-  cm      = round(t);
+  cm      = round(duration / 58);
   return cm;
 }
 
