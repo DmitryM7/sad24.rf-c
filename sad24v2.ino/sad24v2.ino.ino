@@ -9,7 +9,6 @@
 #include <mstr.h>
 #include <worker.h>
 #include <debug.h>
-
 #include <structs.h>
 
 sensorInfo _sensorInfo;
@@ -33,7 +32,7 @@ workerInfo _light;
  **********************************************************/
 
 
-void setOfflineLight(int iLight, int iWater) {
+void setOffline(byte iDirection,int iLight, int iWater) {
   offlineParams _offlineParams;
 
 
@@ -42,36 +41,29 @@ void setOfflineLight(int iLight, int iWater) {
   };
 
   EEPROM.get(eeprom_mOfflineParamsStart, _offlineParams);
-  _offlineParams.tempUpLight1 = iLight * 100;
-  _offlineParams.tempUpLight2 = iWater * 100;
+  
+  switch (iDirection) {
+    case __LIGHT__:    
+      _offlineParams.tempUpLight1 = iLight * 100;
+      _offlineParams.tempUpLight2 = iWater * 100;  
+    break;
+    case __WATER__:    
+      _offlineParams.tempUpWater1 = iLight * 10;
+      _offlineParams.tempUpWater2 = iWater * 10;
+    break;
+  }
+  
 
   noInterrupts();
   EEPROM.put(eeprom_mOfflineParamsStart, _offlineParams);
   interrupts();
 }
 
-void setOfflineWater(int iLight, int iWater) {
-  offlineParams _offlineParams;
-
-
-  if (abs(iLight) > 199 || abs(iWater) > 199) {
-    return;
-  };
-
-  EEPROM.get(eeprom_mOfflineParamsStart, _offlineParams);
-  _offlineParams.tempUpWater1 = iLight * 10;
-  _offlineParams.tempUpWater2 = iWater * 10;
-
-  noInterrupts();
-  EEPROM.put(eeprom_mOfflineParamsStart, _offlineParams);
-  interrupts();
-}
 
 
 unsigned long connectPeriod() {
   Globals _globals;
   EEPROM.get(eeprom_mGlobalsStart, _globals);
-
   return _globals.connectPeriod * 60UL;
 }
 
@@ -355,10 +347,6 @@ bool isDisabledWaterRange() {
 }
 void restartModem() {
   gprs2 sim900(7, 8);
-#if IS_DEBUG>1
-  Serial.println(F("*R*"));
-  Serial.flush();
-#endif
   sim900.hardRestart();
   delay(__WAIT_MODEM_TIME__);
 };
@@ -488,7 +476,7 @@ bool updateRemoteMeasure(sensorInfo si) {
     vResult = sim900.postUrl(sitePoint, vParams, vRes, sizeof(vRes));
 
 #ifdef IS_DEBUG
-  Serial.print(F("MEAS "));
+  Serial.print(F("M"));
 #endif
 
   if (vResult) {
@@ -498,9 +486,8 @@ bool updateRemoteMeasure(sensorInfo si) {
      **************************************************************************/
 
 #ifdef IS_DEBUG
-    Serial.print(F(": "));
+    Serial.print(F(":"));
     Serial.println(vRes);
-    Serial.flush();
 #endif
 
 
@@ -517,9 +504,8 @@ bool updateRemoteMeasure(sensorInfo si) {
       #ifdef IS_DEBUG
         char vError[20];
         sim900.getLastError(vError);
-        Serial.print(F("ER: "));
-        Serial.println(vError);
-        Serial.flush();
+        Serial.print(F("E:"));
+        Serial.println(vError);     
      #endif
   };
   return vResult;
@@ -559,7 +545,7 @@ bool beforeTaskUpdate(char* iStr) {
       Serial.println(vParam2);
       Serial.flush();
 #endif
-      setOfflineLight(atoi(vParam1), atoi(vParam2));
+      setOffline(__LIGHT__,atoi(vParam1), atoi(vParam2));
       return false;
     };
   };
@@ -573,7 +559,7 @@ bool beforeTaskUpdate(char* iStr) {
       Serial.println(vParam2);
       Serial.flush();
 #endif
-      setOfflineWater(atoi(vParam1), atoi(vParam2));
+      setOffline(__WATER__,atoi(vParam1), atoi(vParam2));
       return false;
     };
   };
@@ -635,13 +621,11 @@ bool updateRemoteParams() {
     if (vResult) {
       Serial.print(F(" : "));
       Serial.println(vRes);
-      Serial.flush();
     } else {
       char vError[20];
       sim900.getLastError(vError);
-      Serial.print(F(" ER :"));
+      Serial.print(F("E:"));
       Serial.println(vError);
-      Serial.flush();
     };
 #endif
 
@@ -748,7 +732,7 @@ void Timer1_doJob(void) {
 
   if (!_light.isSchedule && !_light.isEdge && _light.isWork) {
 
-#ifdef IS_DEBUG
+#ifdef IS_DEBUG>3
     Serial.print(F("EL:"));
     Serial.println(vSecMidnight);
 #endif
@@ -758,7 +742,7 @@ void Timer1_doJob(void) {
 
   if (!_water.isSchedule && !_water.isEdge && _water.isWork) {
 
-#ifdef IS_DEBUG
+#ifdef IS_DEBUG>3
     Serial.print(F("EW:"));
     Serial.println(vSecMidnight);
 #endif
@@ -772,7 +756,7 @@ void Timer1_doJob(void) {
    ************************************************************************/
 
   if ((_water.isSchedule || _water.isEdge) && !_water.isWork) {
-#ifdef IS_DEBUG
+#ifdef IS_DEBUG>3
     Serial.print(F("SW:"));
     Serial.println(vSecMidnight);
 #endif
@@ -782,7 +766,7 @@ void Timer1_doJob(void) {
   };
 
   if ((_light.isSchedule || _light.isEdge) && !_light.isWork) {
-#ifdef IS_DEBUG
+#ifdef IS_DEBUG>3
     Serial.print(F("SL:"));
     Serial.println(vSecMidnight);
 #endif
@@ -839,23 +823,9 @@ void pin_ISR () {
 
   digitalWrite(LED_BUILTIN, HIGH);
 
-{
-  ApnCon _apnCon;
-  EEPROM.get(0, _apnCon);
-  strcpy_P(_apnCon.apnPoint, PSTR("\0"));
-  noInterrupts();
-  EEPROM.put(0, _apnCon);
-  interrupts();
-}
+clearApn();
 
-{
-  SiteCon _siteCon;
-  EEPROM.get(eeprom_mSiteCon, _siteCon);
-  strcpy_P(_siteCon.sitePoint, PSTR("\0"));
-  noInterrupts();
-  EEPROM.put(eeprom_mSiteCon, _siteCon);
-  interrupts();
-}
+clearSite();
   
   
 
@@ -863,10 +833,26 @@ void pin_ISR () {
   Serial.println(F("S|^"));
 #endif
   mShouldReadSms = true;
+}
 
-  
+void clearApn() {
+      ApnCon _apnCon;
+      EEPROM.get(0, _apnCon);      
+      /*** APN INIT ***/
+      strcpy_P(_apnCon.apnPoint, PSTR("\0"));
+      strcpy_P(_apnCon.apnLogin, PSTR("\0"));
+      strcpy_P(_apnCon.apnPass, PSTR("\0"));
+      EEPROM.put(0, _apnCon);
+}
 
-
+void clearSite() {
+      SiteCon _siteCon;
+      EEPROM.get(eeprom_mSiteCon, _siteCon);      
+      /*** SITE INIT ***/
+      strcpy_P(_siteCon.sitePoint, PSTR("\0"));
+      strcpy_P(_siteCon.siteLogin, PSTR("\0"));
+      strcpy_P(_siteCon.sitePass, PSTR("\0"));
+      EEPROM.put(eeprom_mSiteCon, _siteCon);
 }
 
 void setup() {
@@ -890,12 +876,6 @@ void setup() {
 
 
   if (strcmp_P(_globals.version, PSTR("INI")) != 0) {
-    // if (true) {
-
-    for (int vI = 0 ; vI < EEPROM.length() ; vI++) {
-      EEPROM.write(vI, 0);
-    };
-
 
     //Признак того, что инициализация выполнена
     strcpy_P(_globals.version, PSTR("INI"));
@@ -904,31 +884,15 @@ void setup() {
     _globals.connectPeriod = 15;
     EEPROM.put(eeprom_mGlobalsStart, _globals);
 
-    {
-      ApnCon _apnCon;
-      EEPROM.get(0, _apnCon);      
-      /*** APN INIT ***/
-      strcpy_P(_apnCon.apnPoint, PSTR("\0"));
-      strcpy_P(_apnCon.apnLogin, PSTR("\0"));
-      strcpy_P(_apnCon.apnPass, PSTR("\0"));
-      EEPROM.put(0, _apnCon);
-    }
-    {
-      SiteCon _siteCon;
-      EEPROM.get(eeprom_mSiteCon, _siteCon);      
-      /*** SITE INIT ***/
-      strcpy_P(_siteCon.sitePoint, PSTR("\0"));
-      strcpy_P(_siteCon.siteLogin, PSTR("\0"));
-      strcpy_P(_siteCon.sitePass, PSTR("\0"));
-      EEPROM.put(eeprom_mSiteCon, _siteCon);
-    };
+    clearApn();
+    clearSite();
 
 
     _worker.setDateTime(16, 9, 13, 18, 45, 0);
 
     //Устанавливаем умолчательные значения для автономного режима
-    setOfflineLight(-199, 199);
-    setOfflineWater(-199, 199);
+    setOffline(__WATER__,-199, 199);
+    setOffline(__LIGHT__,-199, 199);
 
 
   };
@@ -962,30 +926,40 @@ void setup() {
 }
 
 void waitAndBlink() {
+  unsigned int vDuration=500 * (!isConnectInfoFull() ? 1 : 4);
   digitalWrite(LED_BUILTIN, HIGH);
-  delay(500);
+  delay(vDuration);
 
   if (!mShouldReadSms) { //Прерывание по кнопке может сработать прям перед этим метстом, в этом случае нам не нужно выключать индикатор
     digitalWrite(LED_BUILTIN, LOW);
   };
 
-  if (!isConnectInfoFull()) {
-    delay(500);
-  } else {
-    delay(5000);
-  };
+ delay(vDuration);
 
 }
 
+void fillConnectInfo() {
+    while (!isConnectInfoFull()) {
+      /*************
+       * Нет данных для подключения к сайту
+       *************/           
+           while (!wk()) {      
+            restartModem();
+           };
+
+           Timer1.stop();
+            readSms2();
+           Timer1.start();           
+     };       
+}
 
 void loop()
 {
-
   unsigned int vDistance;
-  waitAndBlink(); // Мигаем диодом, что живы
+
+  waitAndBlink(); // Мигаем диодом, что живы  
 
   long vD = (long)(mCurrTime - vPrevTime2); // mCurrTime берем из прерывания по будильнику
-
 
   if (millis() - _sensorInfo.lastMeasure > __MEASURE_PERIOD__) {
 
@@ -993,47 +967,26 @@ void loop()
     loadSensorInfo1();
     Timer1.start(); 
     _sensorInfo.lastMeasure = millis();
-
-
-#ifdef IS_DEBUG
-    Serial.print(F("T1:"));    Serial.print(_sensorInfo.t1);  Serial.print(F("  T2:")); Serial.print(_sensorInfo.t2);
-    Serial.print(F("  H:"));   Serial.print(_sensorInfo.h1);  Serial.print(F("  P:"));  Serial.print(_sensorInfo.p1);
-    Serial.print(F("  DIS:")); Serial.print(_sensorInfo.distance);
-    Serial.print(F("  W&L:")); Serial.print(_water.duration); Serial.print(F("&"));
-    Serial.println(_light.duration);
-    Serial.flush();
-#endif
-
   };
 
-
-  /***************************************************************
-     Была нажата кнопка считывания СМС сообщения, считываем
-     до тех пор пока не будут заполнены ключевые параметры.
-     Если модем не готов, то будем его перезагружать его до тех
-     пор пока он не станет готовым.
-   **************************************************************/
-  if (mShouldReadSms) {
-
-    while (!wk()) {      
-      restartModem();
-    };
-
-    while (!isConnectInfoFull()) {
-      Timer1.stop();
-      readSms2();
-      Timer1.start();
-    };
-    digitalWrite(LED_BUILTIN, LOW);
-    mShouldReadSms = false;
+  if (!isConnectInfoFull()) {
+     if (mShouldReadSms) {
+           /***************************************************************
+            Была нажата кнопка считывания СМС сообщения, считываем
+            до тех пор пока не будут заполнены ключевые параметры.
+            Если модем не готов, то будем его перезагружать его до тех
+            пор пока он не станет готовым.
+           **************************************************************/       
+        fillConnectInfo();
+        digitalWrite(LED_BUILTIN, LOW);
+        mShouldReadSms = false;
+     };
+     return; 
   };
-
-
 
   if (vD >= connectPeriod()) {
     /*** Начало блока работы с модемом ***/
 
-    if (isConnectInfoFull()) {
       bool isModemWork = wk() && doInternet();
 
     
@@ -1070,21 +1023,7 @@ void loop()
 
       vPrevTime2 = mCurrTime;
 
-      /*** Конец блока работы с модемом ***/
-    } else {
-
-      /****************************************************************
-         Если учетные данные пустые и не нажата кнопка приема СМС,
-         то начинаем все сначала.
-       ****************************************************************/
-
-
-      #ifdef IS_DEBUG
-        Serial.println(F("NMD"));
-      #endif;
-
-      return;
-    };
+      /*** Конец блока работы с модемом ***/    
 
 
      if (connectPeriod() >= 900) {

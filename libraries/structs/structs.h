@@ -3,7 +3,7 @@
 /************************************
  * Задаем параметры подключения УЗД * 
  *************************************/
-#define ECHO_PIN 3
+#define ECHO_PIN 6
 #define TRIG_PIN 10
 #define __DISTANCE_COUNT__ 14 
 
@@ -37,7 +37,7 @@ struct SiteCon {
 
 struct Globals {
   char version[3];
-  int  sleepTime;
+  int  sleepTime;                                        
   int  connectPeriod;
 };
 
@@ -56,6 +56,10 @@ struct sensorInfo {
              int distance;
              unsigned long lastMeasure=0;
 };
+#define __WATER_LIGHT__ 0
+#define __WATER__ 1
+#define __LIGHT__ 2
+
 
 #define eeprom_mSiteCon sizeof(ApnCon)
 #define eeprom_mGlobalsStart sizeof(ApnCon)+sizeof(SiteCon)
