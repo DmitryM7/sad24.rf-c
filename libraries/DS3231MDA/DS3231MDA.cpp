@@ -57,18 +57,8 @@ long DS3231MDA::time2long(uint16_t days, uint8_t h, uint8_t m, uint8_t s) {
 
 bool DS3231MDA::getNow(byte &y, byte &m, byte &d, byte &hh, byte &mm, byte &ss) {
   volatile unsigned long vAttempt=0;
-  unsigned long _maxcycles = microsecondsToClockCycles(65000);  // Пауза приблизительно в 65 мс   
   bool hasError=false;
   
- /****************************************************
-  * Делаем паузу приблизительно в 65 мс. Сделать     *
-  * это с помощью delay не можем, так как фун-ция    *
-  * будет использоваться в прерывании.               *
-  ****************************************************/
-  while (vAttempt<_maxcycles) {
-    vAttempt++;
-  };
-
 
   Wire.beginTransmission(CLOCK_ADDRESS);
   Wire.write(0);	         // This is the first register address (Seconds)  			// We'll read from here on for 7 bytes: secs reg, minutes reg, hours, days, months and years.

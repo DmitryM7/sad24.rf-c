@@ -393,6 +393,7 @@ long long worker::getTimestamp(unsigned long &oSecMidnight,byte &oDayOfWeek) {
    } while (!vStatus && vAttempt<3);
 
 
+
    if (!vStatus) { oSecMidnight=0; oDayOfWeek=0; return 0; };
    
    oDayOfWeek = _DayOfWeek((int)y,m,d);

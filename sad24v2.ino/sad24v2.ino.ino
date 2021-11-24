@@ -156,9 +156,19 @@ void loadSensorInfo1() {
 
   {
     DHT dht(5, DHT22);
+    unsigned long vCurrTime = millis();
     dht.begin();
-    _sensorInfo.t1 = dht.readTemperature2();
-    _sensorInfo.h1 = dht.readHumidity2();
+
+     /***********************************************************
+      *    Датчик влажности тугой. Он может с первого           *
+      *    раза данные не считать. Поэтому пытаемся             *
+      *    его считать столько раз, сколько успеем за 5 секунд. *
+      ***********************************************************/
+    do {
+      _sensorInfo.t1 = dht.readTemperature2();
+      _sensorInfo.h1 = dht.readHumidity2();        
+    } while (_sensorInfo.t1==0 && _sensorInfo.h1==0 && millis() - vCurrTime < 3000);
+    
   };
 
   
@@ -384,7 +394,7 @@ byte goSleep(byte iMode,
     vSleepTime   = _worker.getSleepTime(vDayOfWeek,vCurrTime);
 
 
-  #if IS_DEBUG>1
+  #if IS_DEBUG>0
     Serial.print(F("M:"));
     Serial.print(vCurrTime);
     Serial.print(F(" S="));
@@ -398,7 +408,7 @@ byte goSleep(byte iMode,
   vNextModem   = (long)(iPrevTime + connectPeriod() - vTimeStamp);
 
   
-  #if IS_DEBUG>1
+  #if IS_DEBUG>0
     Serial.print(F(" N="));
     Serial.println(vNextModem);
   #endif
@@ -417,7 +427,7 @@ byte goSleep(byte iMode,
   /* Считаем кол-во циклов */
   vPeriodSleep = vCalcSleepTime / 8U;
   
-  #if IS_DEBUG>1
+  #if IS_DEBUG>0
     Serial.print(F("S*"));
     Serial.print(iMode);
     Serial.print(F("%="));
@@ -647,7 +657,7 @@ void Timer1_doJob(void) {
   wdt_reset();
 #endif
 
-
+  
   worker _worker(eeprom_mWorkerStart);
   offlineParams _offlineParams;
   unsigned long vSecMidnight = 0;
@@ -766,6 +776,7 @@ void Timer1_doJob(void) {
   };
 
   if ((_light.isSchedule || _light.isEdge) && !_light.isWork) {
+
 #ifdef IS_DEBUG>3
     Serial.print(F("SL:"));
     Serial.println(vSecMidnight);
@@ -812,6 +823,7 @@ void Timer1_doJob(void) {
 
 
   mCanGoSleep = !(_light.isWork || _water.isWork);
+  
 }
 
 void pin_ISR () {
@@ -822,16 +834,14 @@ void pin_ISR () {
    **********************************************/
 
   digitalWrite(LED_BUILTIN, HIGH);
-
-clearApn();
-
-clearSite();
   
-  
+  clearApn();
 
-#ifdef IS_DEBUG
-  Serial.println(F("S|^"));
-#endif
+  clearSite();  
+
+  #ifdef IS_DEBUG
+    Serial.println(F("S|^"));
+  #endif
   mShouldReadSms = true;
 }
 
@@ -857,9 +867,11 @@ void clearSite() {
 
 void setup() {
 
-#ifdef IS_DEBUG
-  Serial.begin(19200);
-#endif
+  Wire.begin(); // ВАЖНО!!! ЭТА КОМАНДА ДОЛЖНА БЫТЬ ДО ПЕРВОЙ РАБОТЫ С ЧАСАМИ
+
+  #ifdef IS_DEBUG
+    Serial.begin(19200);
+  #endif
 
 
   Globals _globals;
@@ -887,7 +899,6 @@ void setup() {
     clearApn();
     clearSite();
 
-
     _worker.setDateTime(16, 9, 13, 18, 45, 0);
 
     //Устанавливаем умолчательные значения для автономного режима
@@ -896,47 +907,35 @@ void setup() {
 
 
   };
+  
 
-  /*********************************
-      Инициализруем переменную. Если этого не сделать,
-      то возможно переполнение при первом старке.
-      Дополнительно экономим
-      память по глобальной переменной отображающей факт первого запуска.
-  */
+  /**************************************************************************
+   *   Инициализруем переменную. Если этого не сделать,                     *
+   *   то возможно переполнение при первом старке.                          *
+   *   Дополнительно экономим                                               *
+   *   память по глобальной переменной отображающей факт первого запуска.   *
+   **************************************************************************/
   {
     worker _worker(eeprom_mWorkerStart);
     vPrevTime2 = _worker.getTimestamp() - connectPeriod();
   };
-
-  Wire.begin();
+  
 
   loadSensorInfo1();
 
-  Timer1.initialize(3000000);
+  Timer1.initialize(7000000);
   Timer1.attachInterrupt(Timer1_doJob);
   Timer1.start();
 
 
-#ifdef WDT_ENABLE
-  wdt_enable (WDTO_8S);
-#endif
+  #ifdef WDT_ENABLE
+    wdt_enable (WDTO_8S);
+  #endif
 
   attachInterrupt(0, pin_ISR, FALLING);
 
 }
 
-void waitAndBlink() {
-  unsigned int vDuration=500 * (!isConnectInfoFull() ? 1 : 4);
-  digitalWrite(LED_BUILTIN, HIGH);
-  delay(vDuration);
-
-  if (!mShouldReadSms) { //Прерывание по кнопке может сработать прям перед этим метстом, в этом случае нам не нужно выключать индикатор
-    digitalWrite(LED_BUILTIN, LOW);
-  };
-
- delay(vDuration);
-
-}
 
 void fillConnectInfo() {
     while (!isConnectInfoFull()) {
@@ -957,7 +956,7 @@ void loop()
 {
   unsigned int vDistance;
 
-  waitAndBlink(); // Мигаем диодом, что живы  
+  
 
   long vD = (long)(mCurrTime - vPrevTime2); // mCurrTime берем из прерывания по будильнику
 
@@ -970,17 +969,25 @@ void loop()
   };
 
   if (!isConnectInfoFull()) {
+    
      if (mShouldReadSms) {
            /***************************************************************
             Была нажата кнопка считывания СМС сообщения, считываем
             до тех пор пока не будут заполнены ключевые параметры.
             Если модем не готов, то будем его перезагружать его до тех
             пор пока он не станет готовым.
-           **************************************************************/       
+           **************************************************************/               
         fillConnectInfo();
         digitalWrite(LED_BUILTIN, LOW);
         mShouldReadSms = false;
      };
+
+     digitalWrite(LED_BUILTIN, HIGH);
+     delay(100);
+     if (!mShouldReadSms) {
+      digitalWrite(LED_BUILTIN, LOW);     
+     };
+     delay(100);
      return; 
   };
 

@@ -184,32 +184,6 @@ void BMP085::calcTruePressure(long *_TruePressure) {
   *_TruePressure = p + ((x1 + x2 + 3791) >> 4);
 }
 
-void BMP085::dumpCalData() {
-  Serial.println("---cal data start---");
-  Serial.print("ac1:");
-  Serial.println(ac1,DEC);
-  Serial.print("ac2:");
-  Serial.println(ac2,DEC);
-  Serial.print("ac3:");
-  Serial.println(ac3,DEC);
-  Serial.print("ac4:");
-  Serial.println(ac4,DEC);
-  Serial.print("ac5:");
-  Serial.println(ac5,DEC);
-  Serial.print("ac6:");
-  Serial.println(ac6,DEC); 
-  Serial.print("b1:");
-  Serial.println(b1,DEC);
-  Serial.print("b2:");
-  Serial.println(b2,DEC); 
-  Serial.print("mb:");
-  Serial.println(mb,DEC);
-  Serial.print("mc:");
-  Serial.println(mc,DEC);
-  Serial.print("md:");
-  Serial.println(md,DEC);
-  Serial.println("---cal data end---");
-}
 
 //PRIVATE methods
 
