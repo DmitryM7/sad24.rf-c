@@ -413,8 +413,12 @@ byte goSleep(byte iMode,
     Serial.println(vNextModem);
   #endif
 
-  /* Если по каким-то причинам было пропущено несколько подключений, то принудительно подключаемся */
-  vNextModem    = max(0, vNextModem);
+  /***********************************************************************
+   * Если по каким-то причинам было пропущено несколько подключений,     *
+   * то принудительно подключаемся через 5 сек.                          *
+   * ВНИМАНИЕ! 0 ставить нельзя, так как будет зависание.                *
+   ***********************************************************************/
+  vNextModem    = max(5, vNextModem);
 
   vSleepTime    = min(vNextModem, vSleepTime);
 
@@ -960,6 +964,11 @@ void loop()
 
   long vD = (long)(mCurrTime - vPrevTime2); // mCurrTime берем из прерывания по будильнику
 
+  #ifdef IS_DEBUG
+    Serial.print(F("vD="));
+    Serial.println(vD);
+  #endif
+
   if (millis() - _sensorInfo.lastMeasure > __MEASURE_PERIOD__) {
 
     Timer1.stop(); //Отключаем таймер, так как в функции loadSensorInfo1 есть критичный участок кода
@@ -1049,9 +1058,9 @@ void loop()
  do {
     waitTime=goSleep(50, vPrevTime2);
  } while (waitTime==0);
- 
     Timer1.start();
     delay(waitTime * 1000 + 2000);
+ 
 }   
 
 }

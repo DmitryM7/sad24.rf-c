@@ -18,7 +18,7 @@ int getMiddleDistance() {
   
   for (byte i=0; i< __DISTANCE_COUNT__;i++) {
     vMeasurement[i]=getDistance(); 
-    delay(10); //Делаем задержку иначе датчик показывает не верные данные
+    delay(100); //Делаем задержку иначе датчик показывает не верные данные
   };  
   //Теперь сортируем массив по возрастанию. По идее массив должен быть почти упорядоченным, поэтому использую алгоритм вставками
 
@@ -39,6 +39,12 @@ int getMiddleDistance() {
     vTemp+=vMeasurement[i];
   };
 
+  for (byte i=0; i< __DISTANCE_COUNT__;i++) {
+    Serial.print(vMeasurement[i]);
+    Serial.print(F(","));
+  };
+    Serial.println();
+
   return round(vTemp / (__DISTANCE_COUNT__-4));
   
 }
@@ -49,7 +55,7 @@ int getDistance() {
   digitalWrite(TRIG_PIN, LOW);
   delayMicroseconds(2);
   digitalWrite(TRIG_PIN, HIGH);
-  delayMicroseconds(55);
+  delayMicroseconds(10);
   digitalWrite(TRIG_PIN, LOW);
   duration = pulseIn(ECHO_PIN, HIGH);
   cm      = round(duration / 58);
@@ -70,7 +76,7 @@ void loop() {
    digitalWrite(LED_BUILTIN,HIGH);
   
    Serial.print(vCurrDistance); Serial.println(" cm");   
-   delay(10000);
+   delay(3000);
    return;
    
 }
