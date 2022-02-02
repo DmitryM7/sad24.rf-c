@@ -394,7 +394,7 @@ byte goSleep(byte iMode,
     vSleepTime   = _worker.getSleepTime(vDayOfWeek,vCurrTime);
 
 
-  #if IS_DEBUG>0
+  #ifdef IS_DEBUG
     Serial.print(F("M:"));
     Serial.print(vCurrTime);
     Serial.print(F(" S="));
@@ -408,7 +408,7 @@ byte goSleep(byte iMode,
   vNextModem   = (long)(iPrevTime + connectPeriod() - vTimeStamp);
 
   
-  #if IS_DEBUG>0
+  #ifdef IS_DEBUG
     Serial.print(F(" N="));
     Serial.println(vNextModem);
   #endif
@@ -431,7 +431,7 @@ byte goSleep(byte iMode,
   /* Считаем кол-во циклов */
   vPeriodSleep = vCalcSleepTime / 8U;
   
-  #if IS_DEBUG>0
+  #ifdef IS_DEBUG
     Serial.print(F("S*"));
     Serial.print(iMode);
     Serial.print(F("%="));
@@ -736,7 +736,14 @@ void Timer1_doJob(void) {
   Serial.print(freeMemory());
   Serial.println(F("   "));  
 
+  Serial.print(F("ct=")); Serial.print((long)mCurrTime); Serial.print(F("; pt2=")); Serial.println((long)vPrevTime2);
+
   Serial.flush();
+
+  
+  
+  
+  
 #endif
 
 
@@ -964,17 +971,18 @@ void loop()
 
   long vD = (long)(mCurrTime - vPrevTime2); // mCurrTime берем из прерывания по будильнику
 
-  #ifdef IS_DEBUG
-    Serial.print(F("vD="));
-    Serial.println(vD);
-  #endif
+  
 
-  if (millis() - _sensorInfo.lastMeasure > __MEASURE_PERIOD__) {
+
+  if (mCurrTime - _sensorInfo.lastMeasure > __MEASURE_PERIOD__) {
 
     Timer1.stop(); //Отключаем таймер, так как в функции loadSensorInfo1 есть критичный участок кода
+    #ifdef IS_DEBUG
+      Serial.println(F("M"));
+    #endif
     loadSensorInfo1();
     Timer1.start(); 
-    _sensorInfo.lastMeasure = millis();
+    _sensorInfo.lastMeasure = mCurrTime;
   };
 
   if (!isConnectInfoFull()) {
@@ -1002,6 +1010,10 @@ void loop()
 
   if (vD >= connectPeriod()) {
     /*** Начало блока работы с модемом ***/
+
+    #ifdef IS_DEBUG
+       Serial.print(F("ct=")); Serial.print((long)mCurrTime); Serial.print(F("; pt2=")); Serial.print((long)vPrevTime2); Serial.print(F(";d=")); Serial.print(vD); Serial.print(F("|")); Serial.println(connectPeriod());
+    #endif
 
       bool isModemWork = wk() && doInternet();
 
@@ -1047,7 +1059,7 @@ void loop()
      };
   };
 
-   if (!canGoSleep()) {
+ if (!canGoSleep()) {
     return;
   };
 
@@ -1058,8 +1070,9 @@ void loop()
  do {
     waitTime=goSleep(50, vPrevTime2);
  } while (waitTime==0);
-    Timer1.start();
-    delay(waitTime * 1000 + 2000);
+ 
+ Timer1.start();
+ delay(waitTime * 1000 + 2000);
  
 }   
 
