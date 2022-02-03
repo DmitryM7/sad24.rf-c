@@ -83,6 +83,7 @@ bool DS3231MDA::getNow(byte &y, byte &m, byte &d, byte &hh, byte &mm, byte &ss) 
   m = bcd2bin(Wire.read());
   y = bcd2bin(Wire.read());
 
+
   return true;
 }
 

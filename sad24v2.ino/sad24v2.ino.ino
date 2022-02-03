@@ -19,7 +19,8 @@ long long mCurrTime, vPrevTime2;
 volatile bool mCanGoSleep   = true,
               mShouldReadSms = false;
 
-unsigned long mCurrP;
+unsigned long mCurrP, 
+              connectPeriod;
 
 
 
@@ -61,7 +62,7 @@ void setOffline(byte iDirection,int iLight, int iWater) {
 
 
 
-unsigned long connectPeriod() {
+unsigned long getConnectPeriod() {
   Globals _globals;
   EEPROM.get(eeprom_mGlobalsStart, _globals);
   return _globals.connectPeriod * 60UL;
@@ -370,7 +371,7 @@ bool canGoSleep() {
    *   2. Режим мониторинга окружающей температуры выключен
    *   3. Время передачи информации не менее 15 минут.
    */
-  return mCanGoSleep && isDisabledLightRange() && isDisabledWaterRange() && connectPeriod() >= 900; 
+  return mCanGoSleep && isDisabledLightRange() && isDisabledWaterRange() && connectPeriod >= 900; 
 }
 
 byte goSleep(byte iMode, 
@@ -394,7 +395,7 @@ byte goSleep(byte iMode,
     vSleepTime   = _worker.getSleepTime(vDayOfWeek,vCurrTime);
 
 
-  #ifdef IS_DEBUG
+  #ifdef IS_DEBUG_SLEEP
     Serial.print(F("M:"));
     Serial.print(vCurrTime);
     Serial.print(F(" S="));
@@ -405,10 +406,10 @@ byte goSleep(byte iMode,
     
   };
 
-  vNextModem   = (long)(iPrevTime + connectPeriod() - vTimeStamp);
+  vNextModem   = (long)(iPrevTime + connectPeriod - vTimeStamp);
 
   
-  #ifdef IS_DEBUG
+  #ifdef IS_DEBUG_SLEEP
     Serial.print(F(" N="));
     Serial.println(vNextModem);
   #endif
@@ -431,7 +432,7 @@ byte goSleep(byte iMode,
   /* Считаем кол-во циклов */
   vPeriodSleep = vCalcSleepTime / 8U;
   
-  #ifdef IS_DEBUG
+  #ifdef IS_DEBUG_SLEEP
     Serial.print(F("S*"));
     Serial.print(iMode);
     Serial.print(F("%="));
@@ -546,6 +547,7 @@ bool beforeTaskUpdate(char* iStr) {
   if (strcmp_P(vCommand, PSTR("C")) == 0) {
     if (_mstr.entry(2, iStr, vDelimiter, 4, vParam1)) {
       setConnectPeriod(atoi(vParam1));
+      connectPeriod=getConnectPeriod();
       return false;
     };
   };
@@ -633,7 +635,7 @@ bool updateRemoteParams() {
 #ifdef IS_DEBUG
     Serial.print(F("P"));
     if (vResult) {
-      Serial.print(F(" : "));
+      Serial.print(F(":"));
       Serial.println(vRes);
     } else {
       char vError[20];
@@ -721,7 +723,7 @@ void Timer1_doJob(void) {
     _water.isEdge     = false;
   };
 
-#ifdef IS_DEBUG
+ #ifdef IS_DEBUG
 
   Serial.print(F("VSM:"));
   Serial.print(vSecMidnight);
@@ -735,16 +737,9 @@ void Timer1_doJob(void) {
   Serial.print(F("Mem:"));
   Serial.print(freeMemory());
   Serial.println(F("   "));  
-
-  Serial.print(F("ct=")); Serial.print((long)mCurrTime); Serial.print(F("; pt2=")); Serial.println((long)vPrevTime2);
-
+  Serial.print(F("c=")); Serial.print((long)mCurrTime); Serial.print(F(";p=")); Serial.print((long)vPrevTime2); Serial.println();
   Serial.flush();
-
-  
-  
-  
-  
-#endif
+ #endif
 
 
   /************************************************************************
@@ -851,7 +846,7 @@ void pin_ISR () {
   clearSite();  
 
   #ifdef IS_DEBUG
-    Serial.println(F("S|^"));
+    Serial.println(F("^"));
   #endif
   mShouldReadSms = true;
 }
@@ -875,6 +870,8 @@ void clearSite() {
       strcpy_P(_siteCon.sitePass, PSTR("\0"));
       EEPROM.put(eeprom_mSiteCon, _siteCon);
 }
+
+
 
 void setup() {
 
@@ -908,7 +905,7 @@ void setup() {
     EEPROM.put(eeprom_mGlobalsStart, _globals);
 
     clearApn();
-    clearSite();
+    clearSite();    
 
     _worker.setDateTime(16, 9, 13, 18, 45, 0);
 
@@ -919,7 +916,7 @@ void setup() {
 
   };
   
-
+   connectPeriod=getConnectPeriod();
   /**************************************************************************
    *   Инициализруем переменную. Если этого не сделать,                     *
    *   то возможно переполнение при первом старке.                          *
@@ -928,7 +925,7 @@ void setup() {
    **************************************************************************/
   {
     worker _worker(eeprom_mWorkerStart);
-    vPrevTime2 = _worker.getTimestamp() - connectPeriod();
+    vPrevTime2 = _worker.getTimestamp() - connectPeriod;
   };
   
 
@@ -1008,12 +1005,8 @@ void loop()
      return; 
   };
 
-  if (vD >= connectPeriod()) {
+  if (vD >= connectPeriod) {
     /*** Начало блока работы с модемом ***/
-
-    #ifdef IS_DEBUG
-       Serial.print(F("ct=")); Serial.print((long)mCurrTime); Serial.print(F("; pt2=")); Serial.print((long)vPrevTime2); Serial.print(F(";d=")); Serial.print(vD); Serial.print(F("|")); Serial.println(connectPeriod());
-    #endif
 
       bool isModemWork = wk() && doInternet();
 
@@ -1054,7 +1047,7 @@ void loop()
       /*** Конец блока работы с модемом ***/    
 
 
-     if (connectPeriod() >= 900) {
+     if (connectPeriod >= 900) {
          sl();  //После того как модем передал данные уводим его в сон. Если это делать в основном теле функции, то отправлять будем 1 раз в секунду
      };
   };

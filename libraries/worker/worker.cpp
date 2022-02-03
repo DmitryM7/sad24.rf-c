@@ -381,6 +381,11 @@ unsigned long worker::_getTaskStart(task iTask) {
        return getTimestamp(vSecMidnight,vDayOfWeek); 
    };
 
+
+/*****************************************************************
+ *  Внимание!!! Это UnixStamp - это Даша-Time, то                *
+ * есть упрощенное кол-во секунд с даты Рождения Даши.           *
+ *****************************************************************/
 long long worker::getTimestamp(unsigned long &oSecMidnight,byte &oDayOfWeek) {
   DS3231MDA Clock;
   byte m,d,hh,mm,ss,y,vAttempt=0;

@@ -724,7 +724,7 @@ bool gprs2::setAfterPostParams(bool (*ifunction)()) {
 
          getSmsText(vI,vRes,sizeof(vRes));
 
-         #ifdef IS_DEBUG>1
+         #if IS_DEBUG>1
            Serial.print(vI);
            Serial.print(F(":"));
            Serial.println(vRes);
@@ -774,7 +774,7 @@ void gprs2::_doCmd(char* iStr) {
 
 
 void gprs2::_doCmd(const __FlashStringHelper *iStr) {
-  #ifdef IS_DEBUG>1
+  #if IS_DEBUG>1
    Serial.println(iStr);
   #endif
   _modem.println(iStr);
@@ -783,7 +783,7 @@ void gprs2::_doCmd(const __FlashStringHelper *iStr) {
 
 void gprs2::_doCmd3(const __FlashStringHelper *iStr1,char* iStr2,const __FlashStringHelper *iStr3) {
 
-  #ifdef IS_DEBUG>1
+  #if IS_DEBUG>1
     Serial.print(iStr1);
     Serial.flush();
     Serial.print(iStr2);
@@ -802,7 +802,7 @@ void gprs2::_doCmd3(const __FlashStringHelper *iStr1,char* iStr2,const __FlashSt
 
 void gprs2::_doCmd3(const __FlashStringHelper *iStr1,String iStr2,const __FlashStringHelper *iStr3) {
 
-  #ifdef IS_DEBUG>1
+  #if IS_DEBUG>1
     Serial.print(iStr1);
     Serial.flush();
     Serial.print(iStr2);
