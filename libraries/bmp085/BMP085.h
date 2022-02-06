@@ -110,7 +110,7 @@ public:
   void zeroCal(int32_t _Pa, int32_t _centimeters);// zero Calibrate output to a specific Pa/altitude 
   // BMP Sensors
   void getPressure(int32_t *_Pa);                // pressure in Pa + offset  
-  unsigned long BMP085::getPressure2();
+  long BMP085::getPressure2();
   void getAltitude(int32_t *_centimeters);       // altitude in centimeters + offset  
   void getTemperature(int32_t *_Temperature);    // temperature in Cº   
   int  getTemperature2();                 // Maslov D.A. add

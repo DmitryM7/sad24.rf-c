@@ -110,7 +110,7 @@ void worker::setTask2(unsigned int iAddress,char* iStr) {
 	EEPROM.put(vFactAddress,_task);
 	interrupts();
 
-	#ifdef IS_DEBUG
+	#if IS_DEBUG>1
          Serial.print(iAddress);
          Serial.print(F(" = "));
          Serial.print(_task.startCode);
@@ -381,6 +381,11 @@ unsigned long worker::_getTaskStart(task iTask) {
        return getTimestamp(vSecMidnight,vDayOfWeek); 
    };
 
+
+/*****************************************************************
+ *  Внимание!!! Это UnixStamp - это Даша-Time, то                *
+ * есть упрощенное кол-во секунд с даты Рождения Даши.           *
+ *****************************************************************/
 long long worker::getTimestamp(unsigned long &oSecMidnight,byte &oDayOfWeek) {
   DS3231MDA Clock;
   byte m,d,hh,mm,ss,y,vAttempt=0;
@@ -391,6 +396,7 @@ long long worker::getTimestamp(unsigned long &oSecMidnight,byte &oDayOfWeek) {
     vStatus=Clock.getNow(y,m,d,hh,mm,ss);   
     vAttempt++;
    } while (!vStatus && vAttempt<3);
+
 
 
    if (!vStatus) { oSecMidnight=0; oDayOfWeek=0; return 0; };

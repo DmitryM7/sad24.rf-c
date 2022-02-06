@@ -2,19 +2,20 @@
 #define structs_h
 /************************************
  * Задаем параметры подключения УЗД * 
- ************************************/
-#define ECHO_PIN 10
-#define TRIG_PIN 3
+ *************************************/
+#define ECHO_PIN 6
+#define TRIG_PIN 10
+#define __DISTANCE_COUNT__ 14 
 
 /************************************************************
  * Максимальное кол-во символов в адресе управляющего сайта *
  ************************************************************/
 #define __SITE_POINT_SIZE__ 40
 
-/************************************************************
- * Интервал между запросами информации с датчиков.          *
- ************************************************************/
-#define __MEASURE_PERIOD__ 180000
+/*******************************************************************
+ * Интервал между запросами информации с датчиков. В секундах.     *
+ *******************************************************************/
+#define __MEASURE_PERIOD__ 180
 
 /************************************************************
  * Кол-во милисекунд которые ждем после включения модема    *
@@ -22,10 +23,13 @@
 
 #define __WAIT_MODEM_TIME__ 7000
 
-struct Connection { 
+struct ApnCon { 
   char apnPoint[35];
   char apnLogin[11];
   char apnPass[11];
+};
+
+struct SiteCon {
   char sitePoint[__SITE_POINT_SIZE__];
   char siteLogin[11];
   char sitePass[20];
@@ -33,7 +37,7 @@ struct Connection {
 
 struct Globals {
   char version[3];
-  int  sleepTime;
+  int  sleepTime;                                        
   int  connectPeriod;
 };
 
@@ -48,12 +52,17 @@ struct sensorInfo {
              int t1=19900; 
              int h1; 
              int t2=1990; 
-             unsigned long p1;
+             long p1;
              int distance;
-             unsigned long lastMeasure=0;
+             long long lastMeasure=0;
 };
+#define __WATER_LIGHT__ 0
+#define __WATER__ 1
+#define __LIGHT__ 2
 
-#define eeprom_mGlobalsStart sizeof(Connection)
-#define eeprom_mOfflineParamsStart sizeof(Connection)+sizeof(Globals)
+
+#define eeprom_mSiteCon sizeof(ApnCon)
+#define eeprom_mGlobalsStart sizeof(ApnCon)+sizeof(SiteCon)
+#define eeprom_mOfflineParamsStart eeprom_mGlobalsStart+sizeof(Globals)
 #define eeprom_mWorkerStart eeprom_mOfflineParamsStart + sizeof(offlineParams)
 #endif

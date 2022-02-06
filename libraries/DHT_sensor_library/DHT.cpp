@@ -83,7 +83,7 @@ int DHT::readTemperature2() {
       break;
     }
   }
-  return f;
+  return (int)f;
 }
 
 
@@ -130,7 +130,7 @@ int DHT::readHumidity2() {
       break;
     }
   }
-  return f;
+  return (int)f;
 }
 
 

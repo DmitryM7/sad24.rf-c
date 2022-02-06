@@ -44,10 +44,10 @@ workerInfo _light;
 #define WORD_LENGTH 30
 
 #if WIRE_SERVER>0
-  #define CRITICAL_PREASURE 2.9        // Критическое давление при котором устройсво отключится без учета  потока.
-  #define MAX_PREASURE 2.15          // Давление при котором устройство отключится если нет потока
-  #define MIN_PREASURE 2.10          // В случае если давление в системе упадет меньше указанного, то устройство вклчючит насос
-  #define FLOW_DIFF 40              // Время в течение которого устройство опеделяет отсутствие потока.
+  #define CRITICAL_PREASURE 2.7        // Критическое давление при котором устройсво отключится без учета  потока.
+  #define MAX_PREASURE 2.6          // Давление при котором устройство отключится если нет потока
+  #define MIN_PREASURE 2.6           // В случае если давление в системе упадет меньше указанного, то устройство вклчючит насос
+  #define FLOW_DIFF 15            // Время в течение которого устройство опеделяет отсутствие потока.
 #else
   #define CRITICAL_PREASURE 3.5        // Критическое давление при котором устройсво отключится без учета  потока.
   #define MAX_PREASURE 2.2          // Давление при котором устройство отключится если нет потока
@@ -289,7 +289,7 @@ void receiveEvent(int howMany) {
  byte vCount=0;
  mstr _mstr;
 
- _mstr.emptyBuffer(vAnswer,sizeof(vAnswer));
+ _mstr._emptyBuffer(vAnswer,sizeof(vAnswer));
 
  
  while (Wire.available()) {
