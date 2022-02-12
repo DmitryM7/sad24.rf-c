@@ -35,7 +35,7 @@ bool gprs2::_getAnswer3(
                         char* oRes,
                         size_t iSize,
                         bool saveCRLF,
-                        unsigned long iTimeOut=1000
+                        unsigned long iTimeOut
                        ) {
   unsigned long vCurrTime = millis(), 
                 vLastReadTime=0;
@@ -108,8 +108,8 @@ bool gprs2::_getAnswer3(
 bool gprs2::_getAnswerWait(char* oRes,
                            size_t iSize,
                            char* iNeedStr,
-                           bool iSaveCRLF=false,
-                           unsigned long iTimeOut=1000) {
+                           bool iSaveCRLF,
+                           unsigned long iTimeOut) {
      byte vAttempt = 0;
      bool vStatus;
 
@@ -127,7 +127,7 @@ bool gprs2::_getAnswerWait(char* oRes,
 bool gprs2::_getAnswerWaitLong(char* oRes,
 	                       size_t iSize,
 	                       char* iNeedStr,
-                               unsigned long iTimeOut=1000) {
+                               unsigned long iTimeOut) {
      mstr _mstr;
     _getAnswer3(oRes,iSize,false,iTimeOut);  
      return _mstr.indexOf(oRes,iNeedStr)==-1;
@@ -173,7 +173,7 @@ bool gprs2::hasGprsNetwork() {
       return true;
  }
 
-bool gprs2::gprsNetworkUp(bool iForce=false) {
+bool gprs2::gprsNetworkUp(bool iForce) {
   char vRes[10],
        vTmpStr[3];
   bool hasNetwork=hasGprsNetwork();
@@ -235,7 +235,7 @@ bool gprs2::hasGprs() {
     return true;   
  }
 
-bool gprs2::gprsUp(bool iForce=false) {
+bool gprs2::gprsUp(bool iForce) {
 
      char vRes[10],vTmpStr[3];
      mstr _mstr;
@@ -303,7 +303,7 @@ bool gprs2::gprsDown() {
 
 
 
-void gprs2::_sendTermCommand(bool iWaitOK=true) {
+void gprs2::_sendTermCommand(bool iWaitOK) {
      char vRes[10],
           vTmpStr[6];
      bool vStatus;
@@ -716,7 +716,7 @@ bool gprs2::setAfterPostParams(bool (*ifunction)()) {
 
 
 
- bool gprs2::readSms(bool deleteAfterRead=true) {
+ bool gprs2::readSms(bool deleteAfterRead) {
  char vRes[200];
 
     for (unsigned int vI=1; vI<6; vI++) {
@@ -820,7 +820,7 @@ void gprs2::_doCmd3(const __FlashStringHelper *iStr1,String iStr2,const __FlashS
 }
 
 
-void gprs2::softRestart() {
+bool gprs2::softRestart() {
     char vRes[20],vTmpStr[5];
     mstr _mstr;
 
@@ -896,7 +896,6 @@ bool gprs2::wakeUp() {
 void gprs2::sleep() {   
       pinMode(4,OUTPUT);
       digitalWrite(4,LOW);
-      return false;
 };
 
 bool gprs2::_clearSmsBody(char* iRes,unsigned int iSize) {
