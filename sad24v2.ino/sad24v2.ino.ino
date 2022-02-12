@@ -748,7 +748,7 @@ void Timer1_doJob(void) {
 
   if (!_light.isSchedule && !_light.isEdge && _light.isWork) {
 
-#ifdef IS_DEBUG>3
+#if IS_DEBUG>3
     Serial.print(F("EL:"));
     Serial.println(vSecMidnight);
 #endif
@@ -758,7 +758,7 @@ void Timer1_doJob(void) {
 
   if (!_water.isSchedule && !_water.isEdge && _water.isWork) {
 
-#ifdef IS_DEBUG>3
+#if IS_DEBUG>3
     Serial.print(F("EW:"));
     Serial.println(vSecMidnight);
 #endif
@@ -772,7 +772,7 @@ void Timer1_doJob(void) {
    ************************************************************************/
 
   if ((_water.isSchedule || _water.isEdge) && !_water.isWork) {
-#ifdef IS_DEBUG>3
+#if IS_DEBUG>3
     Serial.print(F("SW:"));
     Serial.println(vSecMidnight);
 #endif
@@ -783,7 +783,7 @@ void Timer1_doJob(void) {
 
   if ((_light.isSchedule || _light.isEdge) && !_light.isWork) {
 
-#ifdef IS_DEBUG>3
+#if IS_DEBUG>3
     Serial.print(F("SL:"));
     Serial.println(vSecMidnight);
 #endif
