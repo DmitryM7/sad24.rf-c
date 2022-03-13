@@ -1,4 +1,4 @@
-#include <avr/wdt.h>
+ #include <avr/wdt.h>
 #include <BMP085.h>
 #include <DHT.h>
 #include <EEPROM.h>
@@ -520,7 +520,8 @@ bool updateRemoteMeasure(sensorInfo si) {
         char vError[20];
         sim900.getLastError(vError);
         Serial.print(F("E:"));
-        Serial.println(vError);     
+        Serial.println(vError);
+        Serial.flush();     
      #endif
   };
   return vResult;
@@ -641,8 +642,9 @@ bool updateRemoteParams() {
       char vError[20];
       sim900.getLastError(vError);
       Serial.print(F("E:"));
-      Serial.println(vError);
+      Serial.println(vError);      
     };
+    Serial.flush();
 #endif
 
     if (!vResult) {
@@ -735,10 +737,8 @@ void Timer1_doJob(void) {
   Serial.print(F("   "));
 
   Serial.print(F("Mem:"));
-  Serial.print(freeMemory());
-  Serial.println(F("   "));  
-  Serial.print(F("c=")); Serial.print((long)mCurrTime); Serial.print(F(";p=")); Serial.print((long)vPrevTime2); Serial.println();
-  Serial.flush();
+  Serial.println(freeMemory());
+
  #endif
 
 
@@ -879,8 +879,8 @@ void setup() {
 
   #ifdef IS_DEBUG
     Serial.begin(19200);
-  #endif
-
+  #endif  
+  
 
   Globals _globals;
   worker _worker(eeprom_mWorkerStart);
@@ -907,12 +907,11 @@ void setup() {
     clearApn();
     clearSite();    
 
-    _worker.setDateTime(16, 9, 13, 18, 45, 0);
-
     //Устанавливаем умолчательные значения для автономного режима
     setOffline(__WATER__,-199, 199);
     setOffline(__LIGHT__,-199, 199);
-
+    
+    _worker.setDateTime(16, 9, 13, 18, 45, 0);
 
   };
   
@@ -935,12 +934,11 @@ void setup() {
   Timer1.attachInterrupt(Timer1_doJob);
   Timer1.start();
 
-
   #ifdef WDT_ENABLE
     wdt_enable (WDTO_8S);
   #endif
 
-  attachInterrupt(0, pin_ISR, FALLING);
+  attachInterrupt(0, pin_ISR, FALLING);  
 
 }
 
@@ -966,20 +964,19 @@ void loop()
 
   
 
-  long vD = (long)(mCurrTime - vPrevTime2); // mCurrTime берем из прерывания по будильнику
+  long vD = (long)(mCurrTime - vPrevTime2),
+       vTimeAfterLastMeasure = (long) (mCurrTime - _sensorInfo.lastMeasure); // mCurrTime берем из прерывания по будильнику
+  
 
   
 
-
-  if (mCurrTime - _sensorInfo.lastMeasure > __MEASURE_PERIOD__) {
+  
+  if (vTimeAfterLastMeasure > __MEASURE_PERIOD__) {
 
     Timer1.stop(); //Отключаем таймер, так как в функции loadSensorInfo1 есть критичный участок кода
-    #ifdef IS_DEBUG
-      Serial.println(F("M"));
-    #endif
     loadSensorInfo1();
-    Timer1.start(); 
     _sensorInfo.lastMeasure = mCurrTime;
+    Timer1.start();     
   };
 
   if (!isConnectInfoFull()) {
