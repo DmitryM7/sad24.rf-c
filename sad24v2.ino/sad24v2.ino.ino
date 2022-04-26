@@ -1,4 +1,4 @@
- #include <avr/wdt.h>
+#include <avr/wdt.h>
 #include <BMP085.h>
 #include <DHT.h>
 #include <EEPROM.h>
@@ -16,8 +16,7 @@ sensorInfo _sensorInfo;
 
 long long mCurrTime, vPrevTime2;
 
-volatile bool mCanGoSleep   = true,
-              mShouldReadSms = false;
+volatile bool mCanGoSleep   = true;              
 
 unsigned long mCurrP, 
               connectPeriod;
@@ -27,6 +26,8 @@ unsigned long mCurrP,
 workerInfo _water;
 workerInfo _light;
 
+
+void(* resetFunc) (void) = 0;
 
 /**********************************************************
    Геттеры и сеттеры.
@@ -460,7 +461,7 @@ byte goSleep(byte iMode,
 
 bool updateRemoteMeasure(sensorInfo si) {
   char vParams[200],
-       vRes[40],
+       vRes[100],
        sitePoint[__SITE_POINT_SIZE__];
   bool vResult;
 
@@ -503,6 +504,7 @@ bool updateRemoteMeasure(sensorInfo si) {
 #ifdef IS_DEBUG
     Serial.print(F(":"));
     Serial.println(vRes);
+    Serial.flush(); 
 #endif
 
 
@@ -837,9 +839,7 @@ void pin_ISR () {
      Пришло прерывание по нажатию на кнопку.
      Обнуляем переменные соединения, выставляем
      флаг считывания СМС сообщений.
-   **********************************************/
-
-  digitalWrite(LED_BUILTIN, HIGH);
+   **********************************************/  
   
   clearApn();
 
@@ -847,8 +847,9 @@ void pin_ISR () {
 
   #ifdef IS_DEBUG
     Serial.println(F("^"));
-  #endif
-  mShouldReadSms = true;
+    Serial.flush();
+  #endif  
+  resetFunc();
 }
 
 void clearApn() {
@@ -961,46 +962,40 @@ void fillConnectInfo() {
 void loop()
 {
   unsigned int vDistance;
-
+  long     int vD = (long)(mCurrTime - vPrevTime2),
   
+      vTimeAfterLastMeasure = (long) (mCurrTime - _sensorInfo.lastMeasure); // mCurrTime берем из прерывания по будильнику
 
-  long vD = (long)(mCurrTime - vPrevTime2),
-       vTimeAfterLastMeasure = (long) (mCurrTime - _sensorInfo.lastMeasure); // mCurrTime берем из прерывания по будильнику
-  
-
-  
-
-  
-  if (vTimeAfterLastMeasure > __MEASURE_PERIOD__) {
-
-    Timer1.stop(); //Отключаем таймер, так как в функции loadSensorInfo1 есть критичный участок кода
-    loadSensorInfo1();
-    _sensorInfo.lastMeasure = mCurrTime;
-    Timer1.start();     
-  };
-
-  if (!isConnectInfoFull()) {
-    
-     if (mShouldReadSms) {
+   /**************************************************
+    * Этот блок должен быть выше остальных.          *
+    * При нажатии на кнопку сброса пар-в индикация   *
+    * должна сразу отображать этот режим.            *
+    **************************************************/
+   if (!isConnectInfoFull()) { 
+         
            /***************************************************************
-            Была нажата кнопка считывания СМС сообщения, считываем
-            до тех пор пока не будут заполнены ключевые параметры.
-            Если модем не готов, то будем его перезагружать его до тех
-            пор пока он не станет готовым.
-           **************************************************************/               
-        fillConnectInfo();
-        digitalWrite(LED_BUILTIN, LOW);
-        mShouldReadSms = false;
-     };
-
+            * Реквизиты доступа пустые. Переходим в режим ожидания СМС    *
+            * с пар-ми доступ.                                            *
+            * Если модем не готов, то будем его перезагружать его до тех  *
+            * пор пока он не станет готовым.                              *
+           ****************************************************************/               
      digitalWrite(LED_BUILTIN, HIGH);
-     delay(100);
-     if (!mShouldReadSms) {
-      digitalWrite(LED_BUILTIN, LOW);     
-     };
-     delay(100);
+     fillConnectInfo();          
+     digitalWrite(LED_BUILTIN, LOW);               
      return; 
   };
+  
+
+      if (vTimeAfterLastMeasure > __MEASURE_PERIOD__) {
+
+       Timer1.stop(); //Отключаем таймер, так как в функции loadSensorInfo1 есть критичный участок кода
+       loadSensorInfo1();
+       _sensorInfo.lastMeasure = mCurrTime;
+       Timer1.start();     
+            
+     };
+
+
 
   if (vD >= connectPeriod) {
     /*** Начало блока работы с модемом ***/
@@ -1044,7 +1039,7 @@ void loop()
       /*** Конец блока работы с модемом ***/    
 
 
-     if (connectPeriod >= 900) {
+     if (connectPeriod >= __MODEM_SLEEP_PERIOD__) {  // При этом модем уводим спать только в том случае если интервал соединения больше определенного времени
          sl();  //После того как модем передал данные уводим его в сон. Если это делать в основном теле функции, то отправлять будем 1 раз в секунду
      };
   };
@@ -1057,12 +1052,13 @@ void loop()
   Timer1.stop();
 {
   byte waitTime=0;
- do {
-    waitTime=goSleep(50, vPrevTime2);
- } while (waitTime==0);
  
- Timer1.start();
- delay(waitTime * 1000 + 2000);
+     do {
+        waitTime=goSleep(50, vPrevTime2);
+     } while (waitTime==0);
+ 
+     Timer1.start();
+     delay(waitTime * 1000 + 2000);
  
 }   
 
