@@ -85,6 +85,7 @@ void setConnectPeriod(int iSleepTime) {
 
 }
 
+
 /***********************************************************
    Конец геттеров и сеттеров
  ***********************************************************/
@@ -132,6 +133,7 @@ int getMiddleDistance() {
   return round(vTemp / (__DISTANCE_COUNT__-4));
   
 }
+
 int getDistance() {
   unsigned int duration, cm;  
   pinMode(TRIG_PIN, OUTPUT);
@@ -146,13 +148,13 @@ int getDistance() {
   return cm;
 }
 
-void loadSensorInfo1() {
+void loadSensorInfo1(sensorInfo *si) {
   
   {
     BMP085   dps = BMP085();
     dps.init(MODE_STANDARD, 17700, true);
-    _sensorInfo.t2 = dps.getTemperature2();
-    _sensorInfo.p1 = dps.getPressure2();
+    si->t2 = dps.getTemperature2();
+    si->p1 = dps.getPressure2();
   };
 
 
@@ -167,17 +169,26 @@ void loadSensorInfo1() {
       *    его считать столько раз, сколько успеем за 5 секунд. *
       ***********************************************************/
     do {
-      _sensorInfo.t1 = dht.readTemperature2();
-      _sensorInfo.h1 = dht.readHumidity2();        
-    } while (_sensorInfo.t1==0 && _sensorInfo.h1==0 && millis() - vCurrTime < 3000);
+      si->t1 = dht.readTemperature2();
+      si->h1 = dht.readHumidity2();        
+    } while (si->t1==0 && si->h1==0 && millis() - vCurrTime < 3000);
     
   };
 
   
-  _sensorInfo.distance = getMiddleDistance();  
+  si->distance = getMiddleDistance();  
 }
 
-
+bool isDisabledLightRange() {
+  offlineParams _offlineParams;
+  EEPROM.get(eeprom_mOfflineParamsStart, _offlineParams);
+  return abs(_offlineParams.tempUpLight1) == 19900 && abs(_offlineParams.tempUpLight2) == 19900;
+}
+bool isDisabledWaterRange() {
+  offlineParams _offlineParams;
+  EEPROM.get(eeprom_mOfflineParamsStart, _offlineParams);
+  return abs(_offlineParams.tempUpWater1) == 1990 && abs(_offlineParams.tempUpWater2) == 1990;
+}
 
 /**************************************************************
     Конец доп.методов
@@ -347,21 +358,80 @@ void sl() {
   gprs2 sim900(7, 8);
   sim900.sleep();
 }
-bool isDisabledLightRange() {
-  offlineParams _offlineParams;
-  EEPROM.get(eeprom_mOfflineParamsStart, _offlineParams);
-  return abs(_offlineParams.tempUpLight1) == 19900 && abs(_offlineParams.tempUpLight2) == 19900;
-}
-bool isDisabledWaterRange() {
-  offlineParams _offlineParams;
-  EEPROM.get(eeprom_mOfflineParamsStart, _offlineParams);
-  return abs(_offlineParams.tempUpWater1) == 1990 && abs(_offlineParams.tempUpWater2) == 1990;
-}
 void restartModem() {
   gprs2 sim900(7, 8);
   sim900.hardRestart();
   delay(__WAIT_MODEM_TIME__);
 };
+
+void fillConnectInfo() {
+    while (!isConnectInfoFull()) {
+      /*************
+       * Нет данных для подключения к сайту
+       *************/           
+           while (!wk()) {      
+            restartModem();
+           };
+
+           Timer1.stop();
+            readSms2();
+           Timer1.start();           
+     };       
+}
+
+void makeCommunicationSession(sensorInfo *si) {
+
+  long     int vD = (long)(mCurrTime - vPrevTime2);
+  
+  if (vD >= connectPeriod) {
+
+     /*** Начало блока работы с модемом ***/
+
+      bool isModemWork = wk() && doInternet();
+
+    
+      if (!isModemWork) {
+        restartModem();
+        isModemWork = wk() && doInternet();
+      };
+
+      
+      if (isModemWork) {
+        byte vAttempt = 0;
+        bool vStatus  = false;
+
+        do {
+          vStatus = updateRemoteParams();
+          vAttempt++;
+        } while (!vStatus && vAttempt < 3);
+
+
+        if (vStatus) {
+          //Если предыдущее подключение завершилось успешно, то пробуем передать другие данные.
+          //Если же на предыдущем шаге не получилось, то идем спать.
+          vStatus  = false;
+          vAttempt = 0;
+          do {
+            vStatus = updateRemoteMeasure(si);
+            vAttempt++;
+          } while (!vStatus && vAttempt < 3);
+        };
+
+
+      };
+
+
+      vPrevTime2 = mCurrTime;
+
+      /*** Конец блока работы с модемом ***/    
+
+
+     if (connectPeriod >= __MODEM_SLEEP_PERIOD__) {  // При этом модем уводим спать только в том случае если интервал соединения больше определенного времени
+         sl();  
+     };
+  };
+
+}
 /**************************************************************************
     Конец методов работы с модемом
  *************************************************************************/
@@ -459,7 +529,7 @@ byte goSleep(byte iMode,
    Метод отправляет информацию об измерения с датчиков.
  *********************************************************/
 
-bool updateRemoteMeasure(sensorInfo si) {
+bool updateRemoteMeasure(sensorInfo *si) {
   char vParams[200],
        vRes[100],
        sitePoint[__SITE_POINT_SIZE__];
@@ -476,14 +546,14 @@ bool updateRemoteMeasure(sensorInfo si) {
 
       sprintf_P(vParams, PSTR("r=%s&s=%s&t1=%d&h1=%d&t2=%d&p1=%ld&w1=%lu&l1=%lu&d=%lu&ds=%d"), _siteCon.siteLogin,
               _siteCon.sitePass,
-              si.t1,
-              si.h1,
-              si.t2,
-              si.p1,
+              si->t1,
+              si->h1,
+              si->t2,
+              si->p1,
               _water.duration,
               _light.duration,
               millis(),
-              si.distance
+              si->distance
              );
 
        strncpy(sitePoint, _siteCon.sitePoint, sizeof(sitePoint));  
@@ -661,6 +731,21 @@ bool updateRemoteParams() {
 
 }
 
+void onBeforeLoop() {
+    
+   if (!isConnectInfoFull()) { 
+         
+     /***************************************************************
+      * Реквизиты доступа пустые. Переходим в режим ожидания СМС    *
+      * с пар-ми доступ.                                            *
+      * Если модем не готов, то будем его перезагружать его до тех  *
+      * пор пока он не станет готовым.                              *
+      ****************************************************************/               
+     digitalWrite(LED_BUILTIN, HIGH);
+     fillConnectInfo();          
+     digitalWrite(LED_BUILTIN, LOW);               
+  };
+}
 void Timer1_doJob(void) {
 
 #ifdef WDT_ENABLE
@@ -872,8 +957,6 @@ void clearSite() {
       EEPROM.put(eeprom_mSiteCon, _siteCon);
 }
 
-
-
 void setup() {
 
   Wire.begin(); // ВАЖНО!!! ЭТА КОМАНДА ДОЛЖНА БЫТЬ ДО ПЕРВОЙ РАБОТЫ С ЧАСАМИ
@@ -929,7 +1012,7 @@ void setup() {
   };
   
 
-  loadSensorInfo1();
+  loadSensorInfo1(&_sensorInfo);
 
   Timer1.initialize(7000000);
   Timer1.attachInterrupt(Timer1_doJob);
@@ -944,122 +1027,42 @@ void setup() {
 }
 
 
-void fillConnectInfo() {
-    while (!isConnectInfoFull()) {
-      /*************
-       * Нет данных для подключения к сайту
-       *************/           
-           while (!wk()) {      
-            restartModem();
-           };
-
-           Timer1.stop();
-            readSms2();
-           Timer1.start();           
-     };       
-}
-
 void loop()
 {
-  unsigned int vDistance;
-  long     int vD = (long)(mCurrTime - vPrevTime2),
-  
-      vTimeAfterLastMeasure = (long) (mCurrTime - _sensorInfo.lastMeasure); // mCurrTime берем из прерывания по будильнику
+  long     int vTimeAfterLastMeasure = (long) (mCurrTime - _sensorInfo.lastMeasure); // mCurrTime берем из прерывания по будильнику
 
-   /**************************************************
-    * Этот блок должен быть выше остальных.          *
-    * При нажатии на кнопку сброса пар-в индикация   *
-    * должна сразу отображать этот режим.            *
-    **************************************************/
-   if (!isConnectInfoFull()) { 
-         
-           /***************************************************************
-            * Реквизиты доступа пустые. Переходим в режим ожидания СМС    *
-            * с пар-ми доступ.                                            *
-            * Если модем не готов, то будем его перезагружать его до тех  *
-            * пор пока он не станет готовым.                              *
-           ****************************************************************/               
-     digitalWrite(LED_BUILTIN, HIGH);
-     fillConnectInfo();          
-     digitalWrite(LED_BUILTIN, LOW);               
-     return; 
-  };
+
+   onBeforeLoop();
   
 
-      if (vTimeAfterLastMeasure > __MEASURE_PERIOD__) {
+   if (vTimeAfterLastMeasure > __MEASURE_PERIOD__) {
 
        Timer1.stop(); //Отключаем таймер, так как в функции loadSensorInfo1 есть критичный участок кода
-       loadSensorInfo1();
+       loadSensorInfo1(&_sensorInfo);
        _sensorInfo.lastMeasure = mCurrTime;
        Timer1.start();     
             
-     };
+   };
 
 
-
-  if (vD >= connectPeriod) {
-    /*** Начало блока работы с модемом ***/
-
-      bool isModemWork = wk() && doInternet();
-
-    
-      if (!isModemWork) {
-        restartModem();
-        isModemWork = wk() && doInternet();
-      };
-
-      
-      if (isModemWork) {
-        byte vAttempt = 0;
-        bool vStatus  = false;
-
-        do {
-          vStatus = updateRemoteParams();
-          vAttempt++;
-        } while (!vStatus && vAttempt < 3);
-
-
-        if (vStatus) {
-          //Если предыдущее подключение завершилось успешно, то пробуем передать другие данные.
-          //Если же на предыдущем шаге не получилось, то идем спать.
-          vStatus  = false;
-          vAttempt = 0;
-          do {
-            vStatus = updateRemoteMeasure(_sensorInfo);
-            vAttempt++;
-          } while (!vStatus && vAttempt < 3);
-        };
-
-
-      };
-
-
-      vPrevTime2 = mCurrTime;
-
-      /*** Конец блока работы с модемом ***/    
-
-
-     if (connectPeriod >= __MODEM_SLEEP_PERIOD__) {  // При этом модем уводим спать только в том случае если интервал соединения больше определенного времени
-         sl();  //После того как модем передал данные уводим его в сон. Если это делать в основном теле функции, то отправлять будем 1 раз в секунду
-     };
-  };
-
- if (!canGoSleep()) {
+   makeCommunicationSession(&_sensorInfo);
+ 
+   if (!canGoSleep()) {
     return;
-  };
+   };
 
 
   Timer1.stop();
-{
-  byte waitTime=0;
- 
-     do {
-        waitTime=goSleep(50, vPrevTime2);
-     } while (waitTime==0);
- 
-     Timer1.start();
-     delay(waitTime * 1000 + 2000);
- 
-}   
 
+   {
+      byte waitTime=0;
+ 
+       do {
+          waitTime=goSleep(50, vPrevTime2);
+       } while (waitTime==0);
+ 
+       Timer1.start();
+       delay(waitTime * 1000 + 2000);
+ 
+   };
 }
