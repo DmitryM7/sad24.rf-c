@@ -39,7 +39,6 @@ class gprs2
     bool postUrl(char* iUrl, char* iPar, char* oRes,unsigned int iResLength);
 
 
-    bool saveOnSms();
     void getSmsText(unsigned int iNum,char* oRes,unsigned int iSmsSize);
     bool sendSms(char* iPhone,char* iText);
     bool readSms(bool deleteAfterRead=true);
@@ -71,6 +70,7 @@ class gprs2
     void _emptyBuffer(char* oBuff,size_t iSize);
     void _sendTermCommand(bool iWaitOK=true);
     bool _setSmsTextMode();
+    bool _setOnSmsMode();
 
     bool (*_onSmsRead)(byte iSms,char* oStr);
     bool (*_onBeforePostParams)(char* iStr);

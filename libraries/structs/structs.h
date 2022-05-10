@@ -1,11 +1,5 @@
 #ifndef structs_h
 #define structs_h
-/************************************
- * Задаем параметры подключения УЗД * 
- *************************************/
-#define ECHO_PIN 6
-#define TRIG_PIN 10
-#define __DISTANCE_COUNT__ 14 
 
 /************************************************************
  * Максимальное кол-во символов в адресе управляющего сайта *
@@ -54,14 +48,7 @@ struct offlineParams {
   int  tempUpWater2;
 };
 
-struct sensorInfo {
-             int t1=19900; 
-             int h1; 
-             int t2=1990; 
-             long p1;
-             int distance;
-             long long lastMeasure=0;
-};
+
 #define __WATER_LIGHT__ 0
 #define __WATER__ 1
 #define __LIGHT__ 2

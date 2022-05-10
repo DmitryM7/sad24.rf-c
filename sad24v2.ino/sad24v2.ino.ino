@@ -1,6 +1,5 @@
 #include <avr/wdt.h>
-#include <BMP085.h>
-#include <DHT.h>
+#include <stdSensorInfoLoader.h>
 #include <EEPROM.h>
 #include <TimerOne.h>
 #include <LowPower.h>
@@ -11,7 +10,7 @@
 #include <debug.h>
 #include <structs.h>
 
-sensorInfo _sensorInfo;
+stdSensorInfoLoader _sensorInfo;
 
 
 long long mCurrTime, vPrevTime2;
@@ -32,7 +31,6 @@ void(* resetFunc) (void) = 0;
 /**********************************************************
    Геттеры и сеттеры.
  **********************************************************/
-
 
 void setOffline(byte iDirection,int iLight, int iWater) {
   offlineParams _offlineParams;
@@ -60,8 +58,6 @@ void setOffline(byte iDirection,int iLight, int iWater) {
   EEPROM.put(eeprom_mOfflineParamsStart, _offlineParams);
   interrupts();
 }
-
-
 
 unsigned long getConnectPeriod() {
   Globals _globals;
@@ -103,81 +99,6 @@ bool isConnectInfoFull() {
 }
 
 
-int getMiddleDistance() {
-   int vMeasurement[ __DISTANCE_COUNT__],
-       vTemp=0;
-  
-  for (byte i=0; i< __DISTANCE_COUNT__;i++) {
-    vMeasurement[i]=getDistance(); 
-    delay(10); //Делаем задержку иначе датчик показывает не верные данные
-  };  
-  //Теперь сортируем массив по возрастанию. По идее массив должен быть почти упорядоченным, поэтому использую алгоритм вставками
-
-  for (byte i=1;i<__DISTANCE_COUNT__;i++) {
-    vTemp=vMeasurement[i];
-    byte j=i;
-    while (j>0 and vMeasurement[j-1] > vTemp) {
-      vMeasurement[j]=vMeasurement[j-1];
-      j=j-1;
-    };
-    vMeasurement[j]=vTemp;    
-  };
-
-
-  vTemp=0;
-  //Теперь отбрасываем "выскакивающие" значения и находим среднее
-  for (byte i=2; i< __DISTANCE_COUNT__-2;i++) {
-    vTemp+=vMeasurement[i];
-  };
-
-  return round(vTemp / (__DISTANCE_COUNT__-4));
-  
-}
-
-int getDistance() {
-  unsigned int duration, cm;  
-  pinMode(TRIG_PIN, OUTPUT);
-  pinMode(ECHO_PIN, INPUT);
-  digitalWrite(TRIG_PIN, LOW);
-  delayMicroseconds(2);
-  digitalWrite(TRIG_PIN, HIGH);
-  delayMicroseconds(55);
-  digitalWrite(TRIG_PIN, LOW);
-  duration = pulseIn(ECHO_PIN, HIGH);
-  cm      = round(duration / 58);
-  return cm;
-}
-
-void loadSensorInfo1(sensorInfo *si) {
-  
-  {
-    BMP085   dps = BMP085();
-    dps.init(MODE_STANDARD, 17700, true);
-    si->t2 = dps.getTemperature2();
-    si->p1 = dps.getPressure2();
-  };
-
-
-  {
-    DHT dht(5, DHT22);
-    unsigned long vCurrTime = millis();
-    dht.begin();
-
-     /***********************************************************
-      *    Датчик влажности тугой. Он может с первого           *
-      *    раза данные не считать. Поэтому пытаемся             *
-      *    его считать столько раз, сколько успеем за 5 секунд. *
-      ***********************************************************/
-    do {
-      si->t1 = dht.readTemperature2();
-      si->h1 = dht.readHumidity2();        
-    } while (si->t1==0 && si->h1==0 && millis() - vCurrTime < 3000);
-    
-  };
-
-  
-  si->distance = getMiddleDistance();  
-}
 
 bool isDisabledLightRange() {
   offlineParams _offlineParams;
@@ -379,7 +300,7 @@ void fillConnectInfo() {
      };       
 }
 
-void makeCommunicationSession(sensorInfo *si) {
+void makeCommunicationSession(stdSensorInfoLoader& si) {
 
   long     int vD = (long)(mCurrTime - vPrevTime2);
   
@@ -529,7 +450,7 @@ byte goSleep(byte iMode,
    Метод отправляет информацию об измерения с датчиков.
  *********************************************************/
 
-bool updateRemoteMeasure(sensorInfo *si) {
+bool updateRemoteMeasure(stdSensorInfoLoader& si) {
   char vParams[200],
        vRes[100],
        sitePoint[__SITE_POINT_SIZE__];
@@ -544,17 +465,19 @@ bool updateRemoteMeasure(sensorInfo *si) {
       SiteCon _siteCon;
       EEPROM.get(eeprom_mSiteCon, _siteCon);
 
-      sprintf_P(vParams, PSTR("r=%s&s=%s&t1=%d&h1=%d&t2=%d&p1=%ld&w1=%lu&l1=%lu&d=%lu&ds=%d"), _siteCon.siteLogin,
-              _siteCon.sitePass,
-              si->t1,
-              si->h1,
-              si->t2,
-              si->p1,
-              _water.duration,
-              _light.duration,
-              millis(),
-              si->distance
-             );
+      sprintf_P(vParams, 
+                PSTR("r=%s&s=%s&t1=%d&h1=%d&t2=%d&p1=%ld&w1=%lu&l1=%lu&d=%lu&ds=%d"), 
+                _siteCon.siteLogin,
+                _siteCon.sitePass,
+                si.getT1(),
+                si.getH1(),
+                si.getT2(),
+                si.getP1(),
+                _water.duration,
+                _light.duration,
+                millis(),
+                si.getDistance()
+               );
 
        strncpy(sitePoint, _siteCon.sitePoint, sizeof(sitePoint));  
     };
@@ -731,7 +654,7 @@ bool updateRemoteParams() {
 
 }
 
-void onBeforeLoop() {
+void checkCommunicationSession() {
     
    if (!isConnectInfoFull()) { 
          
@@ -746,6 +669,7 @@ void onBeforeLoop() {
      digitalWrite(LED_BUILTIN, LOW);               
   };
 }
+
 void Timer1_doJob(void) {
 
 #ifdef WDT_ENABLE
@@ -769,7 +693,7 @@ void Timer1_doJob(void) {
      произошло по границе.
    *******************************************************************/
 
-  if (!isDisabledLightRange() && (_sensorInfo.t1 < _offlineParams.tempUpLight1 || _light.isEdge)) {
+  if (!isDisabledLightRange() && (_sensorInfo.getT1() < _offlineParams.tempUpLight1 || _light.isEdge)) {
     _light.isEdge     = true;
   };
 
@@ -780,7 +704,7 @@ void Timer1_doJob(void) {
      то включаем устройство "Вода". При этом отмечаем включение
      по температуре. Делаю эту тему по заказу Юрца Маленького.
    ******************************************************************/
-  if (!isDisabledWaterRange() && (_sensorInfo.t2 < _offlineParams.tempUpWater1 || _water.isEdge)) {
+  if (!isDisabledWaterRange() && (_sensorInfo.getT2() < _offlineParams.tempUpWater1 || _water.isEdge)) {
     _water.isEdge     = true;
   };
 
@@ -803,12 +727,12 @@ void Timer1_doJob(void) {
   *  1. достигли граничной температуры, 
   *  2. режим мониторинга температуры отключен
   ********************/
-  if (_sensorInfo.t1 >= _offlineParams.tempUpLight2 || isDisabledLightRange()) {  
+  if (_sensorInfo.getT1() >= _offlineParams.tempUpLight2 || isDisabledLightRange()) {  
     _light.isEdge     = false;
   };
 
 
-  if (_sensorInfo.t2 >= _offlineParams.tempUpWater2 || isDisabledWaterRange()) { 
+  if (_sensorInfo.getT2() >= _offlineParams.tempUpWater2 || isDisabledWaterRange()) { 
     _water.isEdge     = false;
   };
 
@@ -995,7 +919,7 @@ void setup() {
     setOffline(__WATER__,-199, 199);
     setOffline(__LIGHT__,-199, 199);
     
-    _worker.setDateTime(16, 9, 13, 18, 45, 0);
+    _worker.setDateTime(16, 9, 13, 18, 45, 0); //Устанавливаем часы в эпоху Дарьи
 
   };
   
@@ -1012,7 +936,7 @@ void setup() {
   };
   
 
-  loadSensorInfo1(&_sensorInfo);
+  _sensorInfo.loadSensorInfo();
 
   Timer1.initialize(7000000);
   Timer1.attachInterrupt(Timer1_doJob);
@@ -1029,23 +953,23 @@ void setup() {
 
 void loop()
 {
-  long     int vTimeAfterLastMeasure = (long) (mCurrTime - _sensorInfo.lastMeasure); // mCurrTime берем из прерывания по будильнику
-
-
-   onBeforeLoop();
   
+   long int vTimeAfterLastMeasure = (long) (mCurrTime - _sensorInfo.getLastMeasure()); // mCurrTime берем из прерывания по будильнику
+
+     
 
    if (vTimeAfterLastMeasure > __MEASURE_PERIOD__) {
 
-       Timer1.stop(); //Отключаем таймер, так как в функции loadSensorInfo1 есть критичный участок кода
-       loadSensorInfo1(&_sensorInfo);
-       _sensorInfo.lastMeasure = mCurrTime;
+       Timer1.stop(); //Отключаем таймер, так как в функции loadSensorInfo есть критичный участок кода
+       _sensorInfo.loadSensorInfo();
+       _sensorInfo.setLastMeasure(mCurrTime);
        Timer1.start();     
             
    };
 
 
-   makeCommunicationSession(&_sensorInfo);
+   checkCommunicationSession();
+   makeCommunicationSession(_sensorInfo);
  
    if (!canGoSleep()) {
     return;

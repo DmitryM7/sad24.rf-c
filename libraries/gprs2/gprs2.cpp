@@ -422,6 +422,8 @@ bool gprs2::doInternet() {
       char _tmpStr[20];
       mstr _mstr;
 
+      Serial.println(iPar);
+
 
        if (strlen(iUrl)<2) {
            strcpy_P(oRes,PSTR("NURL"));
@@ -557,7 +559,7 @@ bool gprs2::doInternet() {
   }
 
 
-bool gprs2::saveOnSms() {
+bool gprs2::_setOnSmsMode() {
    char vRes[10],
         vTmpStr[3];
    mstr _mstr;
@@ -717,7 +719,10 @@ bool gprs2::setAfterPostParams(bool (*ifunction)()) {
 
 
  bool gprs2::readSms(bool deleteAfterRead) {
- char vRes[200];
+    char vRes[200];
+
+   _setOnSmsMode();
+   _setSmsTextMode();
 
     for (unsigned int vI=1; vI<6; vI++) {
          _emptyBuffer(vRes,sizeof(vRes));
