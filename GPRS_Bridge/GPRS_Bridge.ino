@@ -62,6 +62,8 @@ void setup()
   GPRS.begin(19200);               // the GPRS baud rate   
   
   Serial.println(F("GO"));
+  pinMode(LED_BUILTIN,OUTPUT);
+  digitalWrite(LED_BUILTIN,HIGH);
   delay(1000);      
 }
  
