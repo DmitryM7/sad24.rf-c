@@ -6,14 +6,16 @@
 #include <worker.h>
                  
 /** Задаю пороговые значения в сантиметрах **/
-
+#define __DISTANCE_COUNT__ 10
+#define TRIG_PIN 10
+#define ECHO_PIN 6
 
 workerInfo _water;
 workerInfo _light;
 
 
 int getMiddleDistance() {
-   int vMeasurement[ __DISTANCE_COUNT__],
+   int vMeasurement[__DISTANCE_COUNT__],
        vTemp=0;
   
   for (byte i=0; i< __DISTANCE_COUNT__;i++) {
