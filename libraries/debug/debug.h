@@ -1,1 +1,1 @@
-#define IS_DEBUG 2
+#define IS_DEBUG_1
