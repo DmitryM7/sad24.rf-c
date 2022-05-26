@@ -53,9 +53,7 @@ void checkCommunicationSession() {
 }
 void makeCommunicationSession(long long mCurrTime,long long vPrevTime2,stdSensorInfoLoader& si,workerInfo& _water,workerInfo& _light) {
   stdTransport _stdTransport;
-
-  _stdTransport.makeCommunicationSession(mCurrTime,vPrevTime2,si,_water,_light);
-  
+ _stdTransport.makeCommunicationSession(mCurrTime,vPrevTime2,si,_water,_light); 
 }
 /**************************************************************************
     Конец методов работы с модемом

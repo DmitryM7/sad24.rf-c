@@ -13,12 +13,9 @@
 /********************************************
  * Адреса расположения управляющих структур *
  ********************************************/
-
-#define eeprom_mGlobalsStart 0
-#define eeprom_mApnStart sizeof(Globals)
+#define eeprom_mApnStart eeprom_mOfflineParamsStart+sizeof(offlineParams)
 #define eeprom_mSiteStart eeprom_mApnStart+sizeof(ApnCon)
-#define eeprom_mOfflineParamsStart eeprom_mSiteStart+sizeof(SiteCon)
-#define eeprom_mWorkerStart eeprom_mOfflineParamsStart + sizeof(offlineParams)
+#define eeprom_mWorkerStart eeprom_mSiteStart+sizeof(offlineParams)
 
 struct ApnCon {
   char apnPoint[35];
@@ -34,12 +31,6 @@ struct SiteCon {
 };
 
 
-struct offlineParams {
-  int  tempUpLight1;
-  int  tempUpLight2;
-  int  tempUpWater1;
-  int  tempUpWater2;
-};
 
 
 class stdTransport
@@ -47,28 +38,25 @@ class stdTransport
 
   public:
 
-    unsigned long getConnectPeriod();
     void makeCommunicationSession(long long mCurrTime,long long vPrevTime2,stdSensorInfoLoader& si,workerInfo& _water,workerInfo& _light);
     void checkCommunicationSession();
     bool wk();
     void sl();
     void restartModem();
-    void setOffline(byte iDirection,int iLight, int iWater); //todo Нужно переделать
     bool onSms(byte iSms, char* iCommand);
-    void parseSmsParamCommand(char* iCommand);
+    unsigned long getConnectPeriod();
+    void setOffline(byte iDirection,int iLight, int iWater);
 
 
   private:
      unsigned long connectPeriod;
      void readSms2();
-     void setConnectPeriod(int iSleepTime);
      bool isConnectInfoFull();
      void fillConnectInfo();
      bool updateRemoteMeasure(stdSensorInfoLoader& si,workerInfo& _water,workerInfo& _light);
      bool workWithRes(char* iRes);
      bool updateRemoteParams();
      bool doInternet();
-     bool beforeTaskUpdate(char* iStr);
 };
 
 #endif

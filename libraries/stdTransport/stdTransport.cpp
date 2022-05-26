@@ -6,6 +6,197 @@
 #include <EEPROM.h>
 #include <mstr.h>
 
+
+/******************************************
+ *        PRIVATE FUNCTION                *
+ * Функции нужны чтобы не морочиться      *
+ * с созданием делегатов, которых сделать *
+ * на этом языке весьма не тривиально     *
+ ******************************************/
+
+unsigned long _getConnectPeriod() {
+  SiteCon _siteCon;
+  EEPROM.get(eeprom_mSiteStart, _siteCon);
+  return _siteCon.connectPeriod * 60UL;
+}
+
+void _setConnectPeriod(int iSleepTime) {
+
+  if (iSleepTime < 5 || iSleepTime > 600) {
+    return;
+  };
+
+  SiteCon _siteCon;
+  EEPROM.get(eeprom_mSiteStart, _siteCon);
+  _siteCon.connectPeriod = iSleepTime;
+
+  noInterrupts();
+  EEPROM.put(eeprom_mSiteStart, _siteCon);
+  interrupts();
+
+};
+
+bool _beforeTaskUpdate(char* iStr) {
+  char vDelimiter[2],
+       vCommand[2],
+       vParam1[20],
+       vParam2[20];
+
+  mstr _mstr;
+
+  strcpy_P(vDelimiter, PSTR(";"));
+
+  if (_mstr.numEntries(iStr, vDelimiter) < 2) {
+    return false;
+  };
+
+  if (!_mstr.entry(1, iStr, vDelimiter, vCommand)) {
+    return false;
+  };
+
+  if (strcmp_P(vCommand, PSTR("C")) == 0) {
+    if (_mstr.entry(2, iStr, vDelimiter, 4, vParam1)) {
+      _setConnectPeriod(atoi(vParam1));
+      return false;
+    };
+  };
+
+  if (strcmp_P(vCommand, PSTR("G")) == 0) {
+    if (_mstr.entry(2, iStr, vDelimiter, 4, vParam1) && _mstr.entry(3, iStr, vDelimiter, 4, vParam2)) {
+#if IS_DEBUG>2
+      Serial.print(F("L off:"));
+      Serial.print(vParam1);
+      Serial.print(F("&"));
+      Serial.println(vParam2);
+      Serial.flush();
+#endif
+      _setOffline(__LIGHT__,atoi(vParam1), atoi(vParam2));
+      return false;
+    };
+  };
+
+  if (strcmp_P(vCommand, PSTR("J")) == 0) {
+    if (_mstr.entry(2, iStr, vDelimiter, 4, vParam1) && _mstr.entry(3, iStr, vDelimiter, 4, vParam2)) {
+
+       #if IS_DEBUG>2
+                 Serial.print(F("W off:"));
+                 Serial.print(vParam1);
+                 Serial.print(F("&"));
+                 Serial.println(vParam2);
+                 Serial.flush();
+       #endif
+
+      _setOffline(__WATER__,atoi(vParam1), atoi(vParam2));
+      return false;
+    };
+  };
+
+  return true;
+};
+
+void _parseSmsParamCommand(char* iCommand) {
+  char vTmpStr[5],
+       vCmd[10];
+  mstr _mstr;
+
+  strcpy_P(vTmpStr, PSTR(":"));
+  _mstr.entry(1, iCommand, vTmpStr, 10, vCmd);
+
+  /**********************************
+     Меняем учетные данные к apn
+   **********************************/
+
+  strcpy_P(vTmpStr, PSTR("APN7"));
+
+  if (_mstr.isEqual(vCmd, vTmpStr)) {
+
+    ApnCon _ApnCon;
+
+    EEPROM.get(eeprom_mApnStart, _ApnCon);
+
+    strcpy_P(vTmpStr, PSTR(":"));
+    if (!_mstr.entry(2, iCommand, vTmpStr, 35, _ApnCon.apnPoint)) {
+      return;
+    };
+
+    if (!_mstr.entry(3, iCommand, vTmpStr, 11, _ApnCon.apnLogin)) {
+      return;
+    };
+
+    if (!_mstr.entry(4, iCommand, vTmpStr, 11, _ApnCon.apnPass)) {
+      return;
+    };
+
+    #if IS_DEBUG>1
+        Serial.print(F("A: "));
+        Serial.print(_ApnCon.apnLogin);
+        Serial.print(F(":"));
+        Serial.print(_ApnCon.apnPass);
+        Serial.print(F("@"));
+        Serial.println(_ApnCon.apnPoint);
+        Serial.flush();
+    #endif
+
+    noInterrupts();
+    EEPROM.put(eeprom_mApnStart, _ApnCon);
+    interrupts();
+  };
+
+  strcpy_P(vTmpStr, PSTR("SITE"));
+  if (_mstr.isEqual(vCmd, vTmpStr)) {
+    SiteCon _siteCon;
+    EEPROM.get(eeprom_mSiteStart,_siteCon);
+
+    strcpy_P(vTmpStr, PSTR(":"));
+
+    if (!_mstr.entry(2, iCommand, vTmpStr, sizeof(_siteCon.siteLogin), _siteCon.siteLogin)) {
+      return;
+    };
+
+    if (!_mstr.entry(3, iCommand, vTmpStr, sizeof(_siteCon.sitePass), _siteCon.sitePass)) {
+      return;
+    };
+
+    if (!_mstr.entry(4, iCommand, vTmpStr, sizeof(_siteCon.sitePoint), _siteCon.sitePoint)) {
+      return;
+    };
+
+    #if IS_DEBUG>1
+      Serial.print(F("S: "));
+      Serial.print(_siteCon.siteLogin);
+      Serial.print(F(":"));
+      Serial.print(_siteCon.sitePass);
+      Serial.print(F("@"));
+      Serial.println(_siteCon.sitePoint);
+      Serial.flush();
+    #endif
+
+    noInterrupts();
+    EEPROM.put(eeprom_mSiteStart, _siteCon);
+    interrupts();
+
+    };
+  };
+
+
+
+bool _onSms(byte iSms, char* iCommand) {
+  mstr _mstr;
+  char vTmpStr[2];
+
+  strcpy_P(vTmpStr, PSTR(":"));
+
+  if (_mstr.numEntries(iCommand, vTmpStr) > 3) {
+    _parseSmsParamCommand(iCommand);
+  };
+
+  return true;
+};
+
+/********************************************
+ *           END PRIVATE FUNCTION           *
+ ********************************************/
+
 bool stdTransport::wk() {
 
   bool vStatus = false;
@@ -71,90 +262,6 @@ bool stdTransport::doInternet() {
 };
 
 
-void stdTransport::parseSmsParamCommand(char* iCommand) {
-  char vTmpStr[5],
-       vCmd[10];
-  mstr _mstr;
-
-  strcpy_P(vTmpStr, PSTR(":"));
-  _mstr.entry(1, iCommand, vTmpStr, 10, vCmd);
-
-  /**********************************
-     Меняем учетные данные к apn
-   **********************************/
-
-  strcpy_P(vTmpStr, PSTR("APN7"));
-
-  if (_mstr.isEqual(vCmd, vTmpStr)) {
-
-    ApnCon _ApnCon;
-
-    EEPROM.get(eeprom_mApnStart, _ApnCon);
-
-    strcpy_P(vTmpStr, PSTR(":"));
-    if (!_mstr.entry(2, iCommand, vTmpStr, 35, _ApnCon.apnPoint)) {
-      return;
-    };
-
-    if (!_mstr.entry(3, iCommand, vTmpStr, 11, _ApnCon.apnLogin)) {
-      return;
-    };
-
-    if (!_mstr.entry(4, iCommand, vTmpStr, 11, _ApnCon.apnPass)) {
-      return;
-    };
-
-#if IS_DEBUG>1
-    Serial.print(F("A: "));
-    Serial.print(_ApnCon.apnLogin);
-    Serial.print(F(":"));
-    Serial.print(_ApnCon.apnPass);
-    Serial.print(F("@"));
-    Serial.println(_ApnCon.apnPoint);
-    Serial.flush();
-#endif
-
-    noInterrupts();
-    EEPROM.put(eeprom_mApnStart, _ApnCon);
-    interrupts();
-  };
-
-  strcpy_P(vTmpStr, PSTR("SITE"));
-  if (_mstr.isEqual(vCmd, vTmpStr)) {
-    SiteCon _siteCon;
-    EEPROM.get(eeprom_mSiteStart,_siteCon);
-
-    strcpy_P(vTmpStr, PSTR(":"));
-
-    if (!_mstr.entry(2, iCommand, vTmpStr, sizeof(_siteCon.siteLogin), _siteCon.siteLogin)) {
-      return;
-    };
-
-    if (!_mstr.entry(3, iCommand, vTmpStr, sizeof(_siteCon.sitePass), _siteCon.sitePass)) {
-      return;
-    };
-
-    if (!_mstr.entry(4, iCommand, vTmpStr, sizeof(_siteCon.sitePoint), _siteCon.sitePoint)) {
-      return;
-    };
-
-#if IS_DEBUG>1
-    Serial.print(F("S: "));
-    Serial.print(_siteCon.siteLogin);
-    Serial.print(F(":"));
-    Serial.print(_siteCon.sitePass);
-    Serial.print(F("@"));
-    Serial.println(_siteCon.sitePoint);
-    Serial.flush();
-#endif
-
-    noInterrupts();
-    EEPROM.put(eeprom_mSiteStart, _siteCon);
-    interrupts();
-
-  };
-  };
-
 
 bool stdTransport::isConnectInfoFull() {
   ApnCon _ApnCon;
@@ -162,118 +269,6 @@ bool stdTransport::isConnectInfoFull() {
   EEPROM.get(eeprom_mApnStart, _ApnCon);
   EEPROM.get(eeprom_mSiteStart,_siteCon);
   return strlen(_siteCon.sitePoint) > 0 && strlen(_ApnCon.apnPoint) > 0;
-};
-
-unsigned long stdTransport::getConnectPeriod() {
-  SiteCon _siteCon;
-  EEPROM.get(eeprom_mSiteStart, _siteCon);
-  return _siteCon.connectPeriod * 60UL;
-}
-
-void stdTransport::setConnectPeriod(int iSleepTime) {
-
-  if (iSleepTime < 5 || iSleepTime > 600) {
-    return;
-  };
-
-  SiteCon _siteCon;
-  EEPROM.get(eeprom_mSiteStart, _siteCon);
-  _siteCon.connectPeriod = iSleepTime;
-
-  noInterrupts();
-  EEPROM.put(eeprom_mSiteStart, _siteCon);
-  interrupts();
-
-};
-
-/********** Это нужно убрать отсюда ************/
-
-void stdTransport::setOffline(byte iDirection,int iLight, int iWater) {
-  offlineParams _offlineParams;
-
-
-  if (abs(iLight) > 199 || abs(iWater) > 199) {
-    return;
-  };
-
-  EEPROM.get(eeprom_mOfflineParamsStart, _offlineParams);
-
-  switch (iDirection) {
-    case __LIGHT__:
-      _offlineParams.tempUpLight1 = iLight * 100;
-      _offlineParams.tempUpLight2 = iWater * 100;
-    break;
-    case __WATER__:
-      _offlineParams.tempUpWater1 = iLight * 10;
-      _offlineParams.tempUpWater2 = iWater * 10;
-    break;
-  };
-
-
-  noInterrupts();
-  EEPROM.put(eeprom_mOfflineParamsStart, _offlineParams);
-  interrupts();
-
- };
-
-/******** Конец, что нужно удалять ****/
-
-bool stdTransport::beforeTaskUpdate(char* iStr) {
-  char vDelimiter[2],
-       vCommand[2],
-       vParam1[20],
-       vParam2[20];
-
-  mstr _mstr;
-
-  strcpy_P(vDelimiter, PSTR(";"));
-
-  if (_mstr.numEntries(iStr, vDelimiter) < 2) {
-    return false;
-  };
-
-  if (!_mstr.entry(1, iStr, vDelimiter, vCommand)) {
-    return false;
-  };
-
-  if (strcmp_P(vCommand, PSTR("C")) == 0) {
-    if (_mstr.entry(2, iStr, vDelimiter, 4, vParam1)) {
-      setConnectPeriod(atoi(vParam1));
-      connectPeriod=getConnectPeriod();
-
-      return false;
-    };
-  };
-
-  if (strcmp_P(vCommand, PSTR("G")) == 0) {
-    if (_mstr.entry(2, iStr, vDelimiter, 4, vParam1) && _mstr.entry(3, iStr, vDelimiter, 4, vParam2)) {
-#if IS_DEBUG>2
-      Serial.print(F("L off:"));
-      Serial.print(vParam1);
-      Serial.print(F("&"));
-      Serial.println(vParam2);
-      Serial.flush();
-#endif
-      setOffline(__LIGHT__,atoi(vParam1), atoi(vParam2));
-      return false;
-    };
-  };
-
-  if (strcmp_P(vCommand, PSTR("J")) == 0) {
-    if (_mstr.entry(2, iStr, vDelimiter, 4, vParam1) && _mstr.entry(3, iStr, vDelimiter, 4, vParam2)) {
-#if IS_DEBUG>2
-      Serial.print(F("W off:"));
-      Serial.print(vParam1);
-      Serial.print(F("&"));
-      Serial.println(vParam2);
-      Serial.flush();
-#endif
-      setOffline(__WATER__,atoi(vParam1), atoi(vParam2));
-      return false;
-    };
-  };
-
-  return true;
 };
 
 
@@ -289,7 +284,7 @@ bool stdTransport::workWithRes(char* iRes) {
   mstr _mstr;
 
   worker _worker(eeprom_mWorkerStart);
-  _worker.setBeforeTaskUpdate(beforeTaskUpdate);
+  _worker.setBeforeTaskUpdate(_beforeTaskUpdate);
 
 
 
@@ -505,21 +500,18 @@ void stdTransport::readSms2() {
 
   gprs2 sim900(7, 8);
 
-  sim900.setOnSms(onSms);
+  sim900.setOnSms(_onSms);
 
   delay(500); //Не знаю почему, но без этой конструкции freemem показывает, что сожрано на 200байт больше памяти.
   sim900.readSms();
 }
 
-bool stdTransport::onSms(byte iSms, char* iCommand) {
-  mstr _mstr;
-  char vTmpStr[2];
 
-  strcpy_P(vTmpStr, PSTR(":"));
+unsigned long stdTransport::getConnectPeriod() {
+  return _getConnectPeriod();
+}
 
-  if (_mstr.numEntries(iCommand, vTmpStr) > 3) {
-    parseSmsParamCommand(iCommand);
-  };
+void stdTransport::setOffline(byte iDirection,int iLight, int iWater) {
+  _setOffline(iDirection,iLight,iWater);
+}
 
-  return true;
-};
