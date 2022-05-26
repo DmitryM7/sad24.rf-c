@@ -4,10 +4,12 @@
 #include <TimerOne.h>
 #include <LowPower.h>
 #include <MemoryFree.h>
-#include <stdTransport.h>
+#include <gsmTransport.h>
 #include <worker.h>
 #include <debug.h>
 #include <structs.h>
+
+#define __DEF_TRANSPORT__ gsmTransport _stdTransport;
 
 stdSensorInfoLoader _sensorInfo;
 
@@ -48,11 +50,11 @@ bool isDisabledWaterRange() {
  **************************************************************/
 
 void checkCommunicationSession() {
-  stdTransport _stdTransport;
+  __DEF_TRANSPORT__
   _stdTransport.checkCommunicationSession();
 }
 void makeCommunicationSession(long long mCurrTime,long long vPrevTime2,stdSensorInfoLoader& si,workerInfo& _water,workerInfo& _light) {
-  stdTransport _stdTransport;
+  __DEF_TRANSPORT__
  _stdTransport.makeCommunicationSession(mCurrTime,vPrevTime2,si,_water,_light); 
 }
 /**************************************************************************
@@ -328,10 +330,9 @@ void pin_ISR () {
      Обнуляем переменные соединения, выставляем
      флаг считывания СМС сообщений.
    **********************************************/  
-  
-  clearApn();
 
-  clearSite();  
+  __DEF_TRANSPORT__
+  _stdTransport.clearConfig();
 
   #ifdef IS_DEBUG
     Serial.println(F("^"));
@@ -340,26 +341,6 @@ void pin_ISR () {
   resetFunc();
 }
 
-void clearApn() {
-      ApnCon _apnCon;
-      EEPROM.get(eeprom_mApnStart, _apnCon);      
-      /*** APN INIT ***/
-      strcpy_P(_apnCon.apnPoint, PSTR("\0"));
-      strcpy_P(_apnCon.apnLogin, PSTR("\0"));
-      strcpy_P(_apnCon.apnPass, PSTR("\0"));
-      EEPROM.put(eeprom_mApnStart, _apnCon);
-}
-
-void clearSite() {
-      SiteCon _siteCon;
-      EEPROM.get(eeprom_mSiteStart, _siteCon);      
-      /*** SITE INIT ***/
-      strcpy_P(_siteCon.sitePoint, PSTR("\0"));
-      strcpy_P(_siteCon.siteLogin, PSTR("\0"));
-      strcpy_P(_siteCon.sitePass, PSTR("\0"));
-      _siteCon.connectPeriod=15;
-      EEPROM.put(eeprom_mSiteStart, _siteCon);
-}
 
 void setup() {
 
@@ -390,23 +371,21 @@ void setup() {
     // Задержка соединения по-умолчанию 15 минут
     EEPROM.put(eeprom_mGlobalsStart, _globals);
 
-    clearApn();
-    clearSite();    
+    ;    
 
-    //Устанавливаем умолчательные значения для автономного режима
-    {
-      stdTransport _stdTransport;
-       _stdTransport.setOffline(__WATER__,-199, 199);
-       _stdTransport.setOffline(__LIGHT__,-199, 199);
-    };
+    //Устанавливаем умолчательные значения для автономного режима     
+    _setOffline(__WATER__,-199, 199);
+    _setOffline(__LIGHT__,-199, 199);
+    
     
     _worker.setDateTime(16, 9, 13, 18, 45, 0); //Устанавливаем часы в эпоху Дарьи
 
   };
 
        {
-         stdTransport _stdTransport;
+         __DEF_TRANSPORT__
          connectPeriod = _stdTransport.getConnectPeriod();
+         _stdTransport.clearConfig();
        };
   /**************************************************************************
    *   Инициализруем переменную. Если этого не сделать,                     *
@@ -453,6 +432,7 @@ void loop()
 
 
    checkCommunicationSession();
+   
    makeCommunicationSession(mCurrTime,vPrevTime2,_sensorInfo,_water,_light);
  
    if (!canGoSleep()) {

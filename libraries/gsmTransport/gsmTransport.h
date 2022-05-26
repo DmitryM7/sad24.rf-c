@@ -1,5 +1,5 @@
-#ifndef stdTransport_h
-#define stdTransport_h
+#ifndef btTransport_h
+#define btTransport_h
 
 #include <worker.h>
 
@@ -33,19 +33,15 @@ struct SiteCon {
 
 
 
-class stdTransport
+class gsmTransport
 {
 
   public:
 
     void makeCommunicationSession(long long mCurrTime,long long vPrevTime2,stdSensorInfoLoader& si,workerInfo& _water,workerInfo& _light);
     void checkCommunicationSession();
-    bool wk();
-    void sl();
-    void restartModem();
-    bool onSms(byte iSms, char* iCommand);
+    void clearConfig();
     unsigned long getConnectPeriod();
-    void setOffline(byte iDirection,int iLight, int iWater);
 
 
   private:
@@ -57,6 +53,13 @@ class stdTransport
      bool workWithRes(char* iRes);
      bool updateRemoteParams();
      bool doInternet();
+     bool wk();
+     void sl();
+     void restartModem();
+     bool onSms(byte iSms, char* iCommand);
+     void setOffline(byte iDirection,int iLight, int iWater);
+     void clearSite();
+     void clearApn();
 };
 
 #endif

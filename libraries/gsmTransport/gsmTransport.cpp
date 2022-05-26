@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <stdSensorInfoLoader.h>
-#include <stdTransport.h>
+#include <gsmTransport.h>
 #include <gprs2.h>
 #include <structs.h>
 #include <EEPROM.h>
@@ -197,7 +197,7 @@ bool _onSms(byte iSms, char* iCommand) {
  *           END PRIVATE FUNCTION           *
  ********************************************/
 
-bool stdTransport::wk() {
+bool gsmTransport::wk() {
 
   bool vStatus = false;
   byte vAttempt = 0;
@@ -221,18 +221,18 @@ bool stdTransport::wk() {
 
 };
 
-void stdTransport::sl() {
+void gsmTransport::sl() {
   gprs2 sim900(7, 8);
   sim900.sleep();
 };
 
-void stdTransport::restartModem() {
+void gsmTransport::restartModem() {
      gprs2 sim900(7, 8);
      sim900.hardRestart();
      delay(__WAIT_MODEM_TIME__);
 };
 
-void stdTransport::fillConnectInfo() {
+void gsmTransport::fillConnectInfo() {
     while (!isConnectInfoFull()) {
       /*************
        * Нет данных для подключения к сайту
@@ -244,7 +244,7 @@ void stdTransport::fillConnectInfo() {
      };
 };
 
-bool stdTransport::doInternet() {
+bool gsmTransport::doInternet() {
   gprs2 sim900(7, 8);
 
   {
@@ -263,7 +263,7 @@ bool stdTransport::doInternet() {
 
 
 
-bool stdTransport::isConnectInfoFull() {
+bool gsmTransport::isConnectInfoFull() {
   ApnCon _ApnCon;
   SiteCon _siteCon;
   EEPROM.get(eeprom_mApnStart, _ApnCon);
@@ -279,7 +279,7 @@ bool stdTransport::isConnectInfoFull() {
    функция возвращает True. Если подсоединения не
    требуется, то возвращается False.
  **********************************************************/
-bool stdTransport::workWithRes(char* iRes) {
+bool gsmTransport::workWithRes(char* iRes) {
   char vTmpStr[2];
   mstr _mstr;
 
@@ -302,7 +302,7 @@ bool stdTransport::workWithRes(char* iRes) {
    Метод отправляет информацию о текущих координатах и
    загружает новые параметры устройства.
  **********************************************************/
-bool stdTransport::updateRemoteParams() {
+bool gsmTransport::updateRemoteParams() {
   char vParams[70],
        sitePoint[__SITE_POINT_SIZE__];
   bool vShouldReconnect = true;
@@ -349,7 +349,7 @@ bool stdTransport::updateRemoteParams() {
 
 }
 
-void stdTransport::makeCommunicationSession(long long mCurrTime,long long vPrevTime2,stdSensorInfoLoader& si,workerInfo &_water,workerInfo &_light) {
+void gsmTransport::makeCommunicationSession(long long mCurrTime,long long vPrevTime2,stdSensorInfoLoader& si,workerInfo &_water,workerInfo &_light) {
 
   long     int vD = (long)(mCurrTime - vPrevTime2);
 
@@ -403,7 +403,7 @@ void stdTransport::makeCommunicationSession(long long mCurrTime,long long vPrevT
 
 };
 
-bool stdTransport::updateRemoteMeasure(stdSensorInfoLoader& si,workerInfo &_water,workerInfo &_light) {
+bool gsmTransport::updateRemoteMeasure(stdSensorInfoLoader& si,workerInfo &_water,workerInfo &_light) {
   char vParams[200],
        vRes[100],
        sitePoint[__SITE_POINT_SIZE__];
@@ -479,7 +479,7 @@ bool stdTransport::updateRemoteMeasure(stdSensorInfoLoader& si,workerInfo &_wate
    Метод отправляет информацию об измерения с датчиков.
  *********************************************************/
 
-void stdTransport::checkCommunicationSession() {
+void gsmTransport::checkCommunicationSession() {
 
    if (!isConnectInfoFull()) {
 
@@ -496,7 +496,7 @@ void stdTransport::checkCommunicationSession() {
 };
 
 
-void stdTransport::readSms2() {
+void gsmTransport::readSms2() {
 
   gprs2 sim900(7, 8);
 
@@ -507,11 +507,37 @@ void stdTransport::readSms2() {
 }
 
 
-unsigned long stdTransport::getConnectPeriod() {
+unsigned long gsmTransport::getConnectPeriod() {
   return _getConnectPeriod();
 }
 
-void stdTransport::setOffline(byte iDirection,int iLight, int iWater) {
+void gsmTransport::setOffline(byte iDirection,int iLight, int iWater) {
   _setOffline(iDirection,iLight,iWater);
+}
+
+void gsmTransport::clearApn() {
+      ApnCon _apnCon;
+      EEPROM.get(eeprom_mApnStart, _apnCon);
+      /*** APN INIT ***/
+      strcpy_P(_apnCon.apnPoint, PSTR("\0"));
+      strcpy_P(_apnCon.apnLogin, PSTR("\0"));
+      strcpy_P(_apnCon.apnPass, PSTR("\0"));
+      EEPROM.put(eeprom_mApnStart, _apnCon);
+}
+
+void gsmTransport::clearSite() {
+      SiteCon _siteCon;
+      EEPROM.get(eeprom_mSiteStart, _siteCon);
+      /*** SITE INIT ***/
+      strcpy_P(_siteCon.sitePoint, PSTR("\0"));
+      strcpy_P(_siteCon.siteLogin, PSTR("\0"));
+      strcpy_P(_siteCon.sitePass, PSTR("\0"));
+      _siteCon.connectPeriod=15;
+      EEPROM.put(eeprom_mSiteStart, _siteCon);
+}
+
+void gsmTransport::clearConfig() {
+   clearApn();
+   clearSite();
 }
 
