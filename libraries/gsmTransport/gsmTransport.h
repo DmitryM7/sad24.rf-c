@@ -15,7 +15,7 @@
  ********************************************/
 #define eeprom_mApnStart eeprom_mOfflineParamsStart+sizeof(offlineParams)
 #define eeprom_mSiteStart eeprom_mApnStart+sizeof(ApnCon)
-#define eeprom_mWorkerStart eeprom_mSiteStart+sizeof(offlineParams)
+#define eeprom_mWorkerStart eeprom_mSiteStart+sizeof(SiteCon)
 
 struct ApnCon {
   char apnPoint[35];
@@ -38,14 +38,15 @@ class gsmTransport
 
   public:
 
-    void makeCommunicationSession(long long mCurrTime,long long vPrevTime2,stdSensorInfoLoader& si,workerInfo& _water,workerInfo& _light);
-    void checkCommunicationSession();
-    void clearConfig();
+    long long makeCommunicationSession(long long mCurrTime,long long vPrevTime2,stdSensorInfoLoader& si,workerInfo& _water,workerInfo& _light);
+    void          checkCommunicationSession();
+    void          clearConfig();
+    void          externalKeyPress(long long vCurrTime);
     unsigned long getConnectPeriod();
+    long long     calcFirstConnectPeriod(long long vCurrTime);
 
 
   private:
-     unsigned long connectPeriod;
      void readSms2();
      bool isConnectInfoFull();
      void fillConnectInfo();
@@ -60,6 +61,7 @@ class gsmTransport
      void setOffline(byte iDirection,int iLight, int iWater);
      void clearSite();
      void clearApn();
+     void setConnectPeriod(int iConnectPeriod);
 };
 
 #endif

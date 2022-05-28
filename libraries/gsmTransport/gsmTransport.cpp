@@ -27,7 +27,9 @@ void _setConnectPeriod(int iSleepTime) {
   };
 
   SiteCon _siteCon;
+
   EEPROM.get(eeprom_mSiteStart, _siteCon);
+
   _siteCon.connectPeriod = iSleepTime;
 
   noInterrupts();
@@ -312,7 +314,11 @@ bool gsmTransport::updateRemoteParams() {
     {
       SiteCon _siteCon;
       EEPROM.get(eeprom_mSiteStart, _siteCon);
-      sprintf_P(vParams, PSTR("r=%s&s=%s&m=c&l=%u&a=%u"), _siteCon.siteLogin, _siteCon.sitePass, 0, 0);
+      sprintf_P(vParams, PSTR("r=%s&s=%s&m=c&l=%u&a=%u"),
+                               _siteCon.siteLogin,
+                               _siteCon.sitePass,
+                               0,
+                               0);
       strncpy(sitePoint, _siteCon.sitePoint, sizeof(sitePoint));
     };
 
@@ -349,11 +355,16 @@ bool gsmTransport::updateRemoteParams() {
 
 }
 
-void gsmTransport::makeCommunicationSession(long long mCurrTime,long long vPrevTime2,stdSensorInfoLoader& si,workerInfo &_water,workerInfo &_light) {
+long long gsmTransport::makeCommunicationSession(long long mCurrTime,
+                                            long long vPrevTime2,
+                                            stdSensorInfoLoader& si,
+                                            workerInfo &_water,
+                                            workerInfo &_light) {
 
-  long     int vD = (long)(mCurrTime - vPrevTime2);
+  long int vD = (long)(mCurrTime - vPrevTime2);
 
-  if (vD >= connectPeriod) {
+
+  if (vD >= getConnectPeriod()) {
 
      /*** Начало блока работы с модемом ***/
 
@@ -391,15 +402,17 @@ void gsmTransport::makeCommunicationSession(long long mCurrTime,long long vPrevT
       };
 
 
-      vPrevTime2 = mCurrTime;
-
       /*** Конец блока работы с модемом ***/
 
 
-     if (connectPeriod >= __MODEM_SLEEP_PERIOD__) {  // При этом модем уводим спать только в том случае если интервал соединения больше определенного времени
+     if (getConnectPeriod() >= __MODEM_SLEEP_PERIOD__) {  // При этом модем уводим спать только в том случае если интервал соединения больше определенного времени
          sl();
      };
+
+     return mCurrTime;
   };
+
+  return vPrevTime2;
 
 };
 
@@ -517,7 +530,6 @@ void gsmTransport::setOffline(byte iDirection,int iLight, int iWater) {
 
 void gsmTransport::clearApn() {
       ApnCon _apnCon;
-      EEPROM.get(eeprom_mApnStart, _apnCon);
       /*** APN INIT ***/
       strcpy_P(_apnCon.apnPoint, PSTR("\0"));
       strcpy_P(_apnCon.apnLogin, PSTR("\0"));
@@ -527,12 +539,13 @@ void gsmTransport::clearApn() {
 
 void gsmTransport::clearSite() {
       SiteCon _siteCon;
-      EEPROM.get(eeprom_mSiteStart, _siteCon);
-      /*** SITE INIT ***/
+      // Очищаем инфо о подключении
       strcpy_P(_siteCon.sitePoint, PSTR("\0"));
       strcpy_P(_siteCon.siteLogin, PSTR("\0"));
       strcpy_P(_siteCon.sitePass, PSTR("\0"));
-      _siteCon.connectPeriod=15;
+      // Устанавливаем интервал подключения
+     _siteCon.connectPeriod=15;
+
       EEPROM.put(eeprom_mSiteStart, _siteCon);
 }
 
@@ -541,3 +554,14 @@ void gsmTransport::clearConfig() {
    clearSite();
 }
 
+long long gsmTransport::calcFirstConnectPeriod(long long vCurrTime) {
+  return vCurrTime - getConnectPeriod();
+}
+
+void gsmTransport::setConnectPeriod(int iSleepTime) {
+  _setConnectPeriod(iSleepTime);
+};
+
+void gsmTransport::externalKeyPress(long long vCurrTime) {
+   clearConfig();
+}

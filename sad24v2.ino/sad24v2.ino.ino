@@ -14,12 +14,11 @@
 stdSensorInfoLoader _sensorInfo;
 
 
-long long mCurrTime, vPrevTime2;
+long long mCurrTime, mPrevTime2;
 
 volatile bool mCanGoSleep   = true;              
 
-unsigned long mCurrP, 
-              connectPeriod;
+unsigned long mCurrP;
 
 
 
@@ -53,9 +52,16 @@ void checkCommunicationSession() {
   __DEF_TRANSPORT__
   _stdTransport.checkCommunicationSession();
 }
-void makeCommunicationSession(long long mCurrTime,long long vPrevTime2,stdSensorInfoLoader& si,workerInfo& _water,workerInfo& _light) {
+void makeCommunicationSession(long long mCurrTime,long long vPrevTime,stdSensorInfoLoader& si,workerInfo& _water,workerInfo& _light) {
   __DEF_TRANSPORT__
- _stdTransport.makeCommunicationSession(mCurrTime,vPrevTime2,si,_water,_light); 
+  mPrevTime2 = _stdTransport.makeCommunicationSession(mCurrTime,
+                                                     vPrevTime,
+                                                     si,
+                                                     _water,
+                                                     _light
+                                                    ); 
+                                                    
+  
 }
 /**************************************************************************
     Конец методов работы с модемом
@@ -67,7 +73,12 @@ bool canGoSleep() {
    *   2. Режим мониторинга окружающей температуры выключен
    *   3. Время передачи информации не менее 15 минут.
    */
-  return mCanGoSleep && isDisabledLightRange() && isDisabledWaterRange() && connectPeriod >= 900; 
+  bool vRes;
+
+  __DEF_TRANSPORT__
+  vRes=mCanGoSleep && isDisabledLightRange() && isDisabledWaterRange() && _stdTransport.getConnectPeriod() >= 900;
+  
+  return vRes; 
 }
 
 byte goSleep(byte iMode, 
@@ -102,7 +113,11 @@ byte goSleep(byte iMode,
     
   };
 
-  vNextModem   = (long)(iPrevTime + connectPeriod - vTimeStamp);
+  
+  {
+    __DEF_TRANSPORT__
+     vNextModem   = (long)(iPrevTime + _stdTransport.getConnectPeriod() - vTimeStamp);
+  }
 
   
   #ifdef IS_DEBUG_SLEEP
@@ -332,12 +347,8 @@ void pin_ISR () {
    **********************************************/  
 
   __DEF_TRANSPORT__
-  _stdTransport.clearConfig();
+  _stdTransport.externalKeyPress(mCurrTime);
 
-  #ifdef IS_DEBUG
-    Serial.println(F("^"));
-    Serial.flush();
-  #endif  
   resetFunc();
 }
 
@@ -365,10 +376,10 @@ void setup() {
 
 
   if (_globals.version!=21) {
-
+  
+    
     //Признак того, что инициализация выполнена
     _globals.version = 21;
-    // Задержка соединения по-умолчанию 15 минут
     EEPROM.put(eeprom_mGlobalsStart, _globals);
 
     ;    
@@ -376,27 +387,33 @@ void setup() {
     //Устанавливаем умолчательные значения для автономного режима     
     _setOffline(__WATER__,-199, 199);
     _setOffline(__LIGHT__,-199, 199);
+
+
+    {
+         __DEF_TRANSPORT__         
+         _stdTransport.clearConfig();
+         /**************************************************************************
+          *   Инициализруем переменную. Если этого не сделать,                     *
+          *   то возможно переполнение при первом старке.                          *
+          *   Дополнительно экономим                                               *
+          *   память по глобальной переменной отображающей факт первого запуска.   *
+          **************************************************************************/       
+     };
     
     
     _worker.setDateTime(16, 9, 13, 18, 45, 0); //Устанавливаем часы в эпоху Дарьи
 
   };
 
-       {
-         __DEF_TRANSPORT__
-         connectPeriod = _stdTransport.getConnectPeriod();
-         _stdTransport.clearConfig();
-       };
-  /**************************************************************************
-   *   Инициализруем переменную. Если этого не сделать,                     *
-   *   то возможно переполнение при первом старке.                          *
-   *   Дополнительно экономим                                               *
-   *   память по глобальной переменной отображающей факт первого запуска.   *
-   **************************************************************************/
   {
-    worker _worker(eeprom_mWorkerStart);
-    vPrevTime2 = _worker.getTimestamp() - connectPeriod;
+        __DEF_TRANSPORT__         
+        worker _worker(eeprom_mWorkerStart);
+        mPrevTime2 = _stdTransport.calcFirstConnectPeriod(_worker.getTimestamp());
+   
   };
+
+       
+  
   
 
   _sensorInfo.loadSensorInfo();
@@ -433,7 +450,7 @@ void loop()
 
    checkCommunicationSession();
    
-   makeCommunicationSession(mCurrTime,vPrevTime2,_sensorInfo,_water,_light);
+   makeCommunicationSession(mCurrTime,mPrevTime2,_sensorInfo,_water,_light);
  
    if (!canGoSleep()) {
     return;
@@ -446,7 +463,7 @@ void loop()
       byte waitTime=0;
  
        do {
-          waitTime=goSleep(50, vPrevTime2);
+          waitTime=goSleep(50, mPrevTime2);
        } while (waitTime==0);
  
        Timer1.start();
