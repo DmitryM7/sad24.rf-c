@@ -38,7 +38,7 @@ class gsmTransport
 
   public:
 
-    long long makeCommunicationSession(long long mCurrTime,long long vPrevTime2,stdSensorInfoLoader& si,workerInfo& _water,workerInfo& _light);
+    long long     makeCommunicationSession(long long mCurrTime,long long vPrevTime2,stdSensorInfoLoader& si,workerInfo& _water,workerInfo& _light);
     void          checkCommunicationSession();
     void          clearConfig();
     void          externalKeyPress(long long vCurrTime);
@@ -47,6 +47,7 @@ class gsmTransport
 
 
   private:
+
      void readSms2();
      bool isConnectInfoFull();
      void fillConnectInfo();

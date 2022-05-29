@@ -7,15 +7,28 @@
 #include <mstr.h>
 
 
-void btTransport::makeCommunicationSession(long long mCurrTime,long long vPrevTime2,stdSensorInfoLoader& si,workerInfo &_water,workerInfo &_light) {
+long long btTransport::makeCommunicationSession(long long mCurrTime,
+                                           long long vPrevTime2,
+                                           stdSensorInfoLoader& si,
+                                           workerInfo &_water,
+                                           workerInfo &_light) {
 }
 
 void btTransport::checkCommunicationSession() {
 
 }
 
-unsigned long btTransport::getConnectPeriod() {
+void btTransport::clearConfig() {
+
 }
 
-void btTransport::clearConfig() {
+void btTransport::externalKeyPress(long long vCurrTime) {
+  _wasExternalKeyPress = true;
+}
+
+unsigned long btTransport::getConnectPeriod() {
+
+}
+
+long long  btTransport::calcFirstConnectPeriod(long long vCurrTime) {
 }

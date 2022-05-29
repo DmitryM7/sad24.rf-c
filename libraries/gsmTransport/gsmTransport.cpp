@@ -355,11 +355,7 @@ bool gsmTransport::updateRemoteParams() {
 
 }
 
-long long gsmTransport::makeCommunicationSession(long long mCurrTime,
-                                            long long vPrevTime2,
-                                            stdSensorInfoLoader& si,
-                                            workerInfo &_water,
-                                            workerInfo &_light) {
+long long gsmTransport::makeCommunicationSession(long long mCurrTime,long long vPrevTime2,stdSensorInfoLoader& si,workerInfo &_water,workerInfo &_light) {
 
   long int vD = (long)(mCurrTime - vPrevTime2);
 

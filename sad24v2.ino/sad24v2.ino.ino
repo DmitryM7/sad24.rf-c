@@ -9,14 +9,15 @@
 #include <debug.h>
 #include <structs.h>
 
-#define __DEF_TRANSPORT__ gsmTransport _stdTransport;
 
 stdSensorInfoLoader _sensorInfo;
+gsmTransport _stdTransport;
 
 
 long long mCurrTime, mPrevTime2;
 
-volatile bool mCanGoSleep   = true;              
+volatile bool mCanGoSleep   = true, wasExternalKeyPress = false;              
+
 
 unsigned long mCurrP;
 
@@ -49,17 +50,16 @@ bool isDisabledWaterRange() {
  **************************************************************/
 
 void checkCommunicationSession() {
-  __DEF_TRANSPORT__
   _stdTransport.checkCommunicationSession();
 }
 void makeCommunicationSession(long long mCurrTime,long long vPrevTime,stdSensorInfoLoader& si,workerInfo& _water,workerInfo& _light) {
-  __DEF_TRANSPORT__
-  mPrevTime2 = _stdTransport.makeCommunicationSession(mCurrTime,
-                                                     vPrevTime,
-                                                     si,
-                                                     _water,
-                                                     _light
-                                                    ); 
+      
+    mPrevTime2 = _stdTransport.makeCommunicationSession(mCurrTime,
+                                                        vPrevTime,
+                                                        si,
+                                                        _water,
+                                                        _light); 
+     
                                                     
   
 }
@@ -75,7 +75,6 @@ bool canGoSleep() {
    */
   bool vRes;
 
-  __DEF_TRANSPORT__
   vRes=mCanGoSleep && isDisabledLightRange() && isDisabledWaterRange() && _stdTransport.getConnectPeriod() >= 900;
   
   return vRes; 
@@ -115,7 +114,6 @@ byte goSleep(byte iMode,
 
   
   {
-    __DEF_TRANSPORT__
      vNextModem   = (long)(iPrevTime + _stdTransport.getConnectPeriod() - vTimeStamp);
   }
 
@@ -346,9 +344,7 @@ void pin_ISR () {
      флаг считывания СМС сообщений.
    **********************************************/  
 
-  __DEF_TRANSPORT__
   _stdTransport.externalKeyPress(mCurrTime);
-
   resetFunc();
 }
 
@@ -388,33 +384,22 @@ void setup() {
     _setOffline(__WATER__,-199, 199);
     _setOffline(__LIGHT__,-199, 199);
 
-
-    {
-         __DEF_TRANSPORT__         
-         _stdTransport.clearConfig();
+   _stdTransport.clearConfig();
          /**************************************************************************
           *   Инициализруем переменную. Если этого не сделать,                     *
           *   то возможно переполнение при первом старке.                          *
           *   Дополнительно экономим                                               *
           *   память по глобальной переменной отображающей факт первого запуска.   *
           **************************************************************************/       
-     };
     
     
     _worker.setDateTime(16, 9, 13, 18, 45, 0); //Устанавливаем часы в эпоху Дарьи
 
   };
-
-  {
-        __DEF_TRANSPORT__         
-        worker _worker(eeprom_mWorkerStart);
-        mPrevTime2 = _stdTransport.calcFirstConnectPeriod(_worker.getTimestamp());
-   
-  };
-
-       
   
-  
+  mPrevTime2 = _stdTransport.calcFirstConnectPeriod(_worker.getTimestamp());
+         
+    
 
   _sensorInfo.loadSensorInfo();
 
@@ -451,6 +436,7 @@ void loop()
    checkCommunicationSession();
    
    makeCommunicationSession(mCurrTime,mPrevTime2,_sensorInfo,_water,_light);
+   
  
    if (!canGoSleep()) {
     return;

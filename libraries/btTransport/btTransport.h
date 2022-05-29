@@ -16,12 +16,18 @@ class btTransport
 
   public:
 
-    void makeCommunicationSession(long long mCurrTime,long long vPrevTime2,stdSensorInfoLoader& si,workerInfo& _water,workerInfo& _light);
-    void checkCommunicationSession();
+    long long     makeCommunicationSession(long long mCurrTime,long long vPrevTime2,stdSensorInfoLoader& si,workerInfo& _water,workerInfo& _light);
+    void          checkCommunicationSession();
+    void          clearConfig();
+    void          externalKeyPress(long long vCurrTime);
     unsigned long getConnectPeriod();
-    void clearConfig();
+    long long     calcFirstConnectPeriod(long long vCurrTime);
 
+  private:
 
+    bool _wasExternalKeyPress = false;
+
+   //----------------------
 };
 
 #endif
