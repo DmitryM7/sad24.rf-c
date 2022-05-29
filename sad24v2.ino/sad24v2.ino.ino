@@ -16,7 +16,7 @@ gsmTransport _stdTransport;
 
 long long mCurrTime, mPrevTime2;
 
-volatile bool mCanGoSleep   = true, wasExternalKeyPress = false;              
+volatile bool mCanGoSleep   = true;              
 
 
 unsigned long mCurrP;
