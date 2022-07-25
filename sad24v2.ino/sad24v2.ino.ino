@@ -363,11 +363,9 @@ void setup() {
 
   };
   
-  mPrevTime2 = _stdTransport.calcFirstConnectPeriod(_worker.getTimestamp());
-         
-    
-
-  _sensorInfo.loadSensorInfo();
+  mPrevTime2 = _stdTransport.calcFirstConnectPeriod(_worker.getTimestamp());             
+  
+  _sensorInfo.loadSensorInfo(_worker.getTimestamp()); 
 
   Timer1.initialize(7000000);
   Timer1.attachInterrupt(Timer1_doJob);
@@ -395,8 +393,7 @@ void loop()
    if (vTimeAfterLastMeasure > __MEASURE_PERIOD__) {
 
        Timer1.stop(); //Отключаем таймер, так как в функции loadSensorInfo есть критичный участок кода
-       _sensorInfo.loadSensorInfo();
-       _sensorInfo.setLastMeasure(mCurrTime);
+       _sensorInfo.loadSensorInfo(mCurrTime);
        Timer1.start();     
             
    };

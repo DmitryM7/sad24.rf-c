@@ -383,7 +383,7 @@ unsigned long worker::_getTaskStart(task iTask) {
 
 
 /*****************************************************************
- *  Внимание!!! Это UnixStamp - это Даша-Time, то                *
+ *  Внимание!!! Это не UnixStamp - это ДашаStamp, то             *
  * есть упрощенное кол-во секунд с даты Рождения Даши.           *
  *****************************************************************/
 long long worker::getTimestamp(unsigned long &oSecMidnight,byte &oDayOfWeek) {

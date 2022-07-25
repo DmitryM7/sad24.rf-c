@@ -76,7 +76,7 @@ int stdSensorInfoLoader::calcMiddleDistance() {
 
 }
 
-void stdSensorInfoLoader::loadSensorInfo() {
+void stdSensorInfoLoader::loadSensorInfo(long long t) {
 {
     BMP085   dps = BMP085();
     dps.init(MODE_STANDARD, 17700, true);
@@ -104,4 +104,7 @@ void stdSensorInfoLoader::loadSensorInfo() {
 
 
   distance = calcMiddleDistance();
+
+  setLastMeasure(t);
+
 }

@@ -18,7 +18,7 @@ class stdSensorInfoLoader
            long getP1();
            unsigned int  getDistance();
            int  getMiddleDistance();
-           void loadSensorInfo();
+           void loadSensorInfo(long long t);
            void setLastMeasure(long long t);
            long long getLastMeasure();
 
