@@ -10,8 +10,7 @@
 #include <structs.h>
 
 
-stdSensorInfoLoader _sensorInfo;
-gsmTransport _stdTransport;
+
 
 
 long long mCurrTime, mPrevTime2;
@@ -19,9 +18,8 @@ long long mCurrTime, mPrevTime2;
 volatile bool mCanGoSleep   = true;              
 
 
-unsigned long mCurrP;
-
-
+stdSensorInfoLoader _sensorInfo;
+gsmTransport        _stdTransport;
 
 workerInfo _water;
 workerInfo _light;
@@ -30,39 +28,7 @@ workerInfo _light;
 void(* resetFunc) (void) = 0;
 
 
-bool isDisabledLightRange() {
-  offlineParams _offlineParams;
-  EEPROM.get(eeprom_mOfflineParamsStart, _offlineParams);
-  return abs(_offlineParams.tempUpLight1) == 19900 && abs(_offlineParams.tempUpLight2) == 19900;
-}
-bool isDisabledWaterRange() {
-  offlineParams _offlineParams;
-  EEPROM.get(eeprom_mOfflineParamsStart, _offlineParams);
-  return abs(_offlineParams.tempUpWater1) == 1990 && abs(_offlineParams.tempUpWater2) == 1990;
-}
 
-/**************************************************************
-    Конец доп.методов
- **************************************************************/
-
-/**************************************************************
-   Методы работы с модемом
- **************************************************************/
-
-void checkCommunicationSession() {
-  _stdTransport.checkCommunicationSession();
-}
-void makeCommunicationSession(long long mCurrTime,long long vPrevTime,stdSensorInfoLoader& si,workerInfo& _water,workerInfo& _light) {
-      
-    mPrevTime2 = _stdTransport.makeCommunicationSession(mCurrTime,
-                                                        vPrevTime,
-                                                        si,
-                                                        _water,
-                                                        _light); 
-     
-                                                    
-  
-}
 /**************************************************************************
     Конец методов работы с модемом
  *************************************************************************/
@@ -423,6 +389,9 @@ void loop()
 
      
 
+   /*****************************************************************
+    * Замеряем пар-ры окружающей среды в заданный интервал времени  *
+    *****************************************************************/
    if (vTimeAfterLastMeasure > __MEASURE_PERIOD__) {
 
        Timer1.stop(); //Отключаем таймер, так как в функции loadSensorInfo есть критичный участок кода
@@ -432,14 +401,17 @@ void loop()
             
    };
 
+   /*****************************************
+    * Обмениваемся информацией              *
+    *****************************************/
 
-   checkCommunicationSession();
+     _stdTransport.checkCommunicationSession();
    
-   makeCommunicationSession(mCurrTime,mPrevTime2,_sensorInfo,_water,_light);
+     mPrevTime2 = _stdTransport.makeCommunicationSession(mCurrTime,mPrevTime2,_sensorInfo,_water,_light); 
    
  
    if (!canGoSleep()) {
-    return;
+      return;
    };
 
 

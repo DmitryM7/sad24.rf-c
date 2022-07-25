@@ -2,6 +2,20 @@
 #include <structs.h>
 #include <EEPROM.h>
 
+
+
+bool isDisabledLightRange() {
+  offlineParams _offlineParams;
+  EEPROM.get(eeprom_mOfflineParamsStart, _offlineParams);
+  return abs(_offlineParams.tempUpLight1) == 19900 && abs(_offlineParams.tempUpLight2) == 19900;
+}
+
+bool isDisabledWaterRange() {
+  offlineParams _offlineParams;
+  EEPROM.get(eeprom_mOfflineParamsStart, _offlineParams);
+  return abs(_offlineParams.tempUpWater1) == 1990 && abs(_offlineParams.tempUpWater2) == 1990;
+}
+
 void _setOffline(byte iDirection,int iLight, int iWater) {
   offlineParams _offlineParams;
 
@@ -29,3 +43,5 @@ void _setOffline(byte iDirection,int iLight, int iWater) {
   interrupts();
 
  };
+
+

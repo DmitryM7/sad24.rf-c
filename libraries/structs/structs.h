@@ -36,6 +36,8 @@ struct offlineParams {
 #define eeprom_mOfflineParamsStart eeprom_mGlobalsStart+sizeof(Globals)
 
 
+bool isDisabledLightRange();
+bool isDisabledWaterRange();
 void _setOffline(byte iDirection,int iLight, int iWater);
 
 

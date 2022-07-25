@@ -2,11 +2,10 @@
 #include <SoftwareSerial.h>
 #include <gprs2.h>
 #include <mstr.h>
-#include <MemoryFree.h>
 #include <debug.h>
 
 
-const char OK_M[] PROGMEM = "OK";
+const char OK_M[]    PROGMEM = "OK";
 const char SPACE_M[] PROGMEM = " ";
 const char COMMA_M[] PROGMEM = ",";
 
@@ -850,49 +849,7 @@ void gprs2::hardRestart() {
  pinMode(6,INPUT);
 }
 
- bool gprs2::getCoords(char* oLongitude,char* oLatitdue,char* oRes,size_t iSize) {
-     char vTmpStr[15];
-     mstr _mstr;
-
-    _emptyBuffer(oLongitude,11);
-    _emptyBuffer(oLatitdue,11);
-
-    _doCmd(F("AT+CIPGSMLOC=1,1"));
-
-    strcpy_P(vTmpStr, PSTR("+CIPGSMLOC:"));
-
-    if (_getAnswerWait(oRes,iSize,vTmpStr)) {
-       _setLastError(__LINE__,oRes);
-       return false;
-    };
-
-
-
-    strcpy_P(vTmpStr, PSTR("CIPGSMLOC: 0"));
-
-    if (_mstr.indexOf(oRes,vTmpStr)==-1) {
-       _setLastError(__LINE__,oRes);
-       return false;
-    };
-
-
-    strcpy_P(vTmpStr, (char*)COMMA_M);
-
-    if (_mstr.numEntries(oRes,vTmpStr)<3) {
-       _setLastError(__LINE__,oRes);
-       return false;
-    };
-
-      _mstr.entry(2,oRes,vTmpStr,10,oLongitude);
-      _mstr.entry(3,oRes,vTmpStr,10,oLatitdue);
-
-     _emptyBuffer(oRes,iSize);
-
-      return true;
- };
-
-
-bool gprs2::wakeUp() {   
+bool gprs2::wakeUp() {
       pinMode(4,OUTPUT);
       digitalWrite(4,HIGH);
       return true;
