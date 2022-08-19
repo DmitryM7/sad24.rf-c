@@ -22,10 +22,12 @@ class btTransport
     void          externalKeyPress(long long vCurrTime);
     unsigned long getConnectPeriod();
     long long     calcFirstConnectPeriod(long long vCurrTime);
+    void          incConnectCount();
 
   private:
 
     bool _wasExternalKeyPress = false;
+
 
    //----------------------
 };

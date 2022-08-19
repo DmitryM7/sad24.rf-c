@@ -314,11 +314,12 @@ bool gsmTransport::updateRemoteParams() {
     {
       SiteCon _siteCon;
       EEPROM.get(eeprom_mSiteStart, _siteCon);
-      sprintf_P(vParams, PSTR("r=%s&s=%s&m=c&l=%u&a=%u"),
+      sprintf_P(vParams, PSTR("r=%s&s=%s&m=c&l=%u&a=%u&cc=%u"),
                                _siteCon.siteLogin,
                                _siteCon.sitePass,
                                0,
-                               0);
+                               0,
+                               _connectCount);
       strncpy(sitePoint, _siteCon.sitePoint, sizeof(sitePoint));
     };
 
@@ -388,6 +389,9 @@ long long gsmTransport::makeCommunicationSession(long long mCurrTime,long long v
           //Если же на предыдущем шаге не получилось, то идем спать.
           vStatus  = false;
           vAttempt = 0;
+
+          incConnectCount(); //Увеличиваем счетчик подключений
+
           do {
             vStatus = updateRemoteMeasure(si,_water,_light);
             vAttempt++;
@@ -412,7 +416,9 @@ long long gsmTransport::makeCommunicationSession(long long mCurrTime,long long v
 
 };
 
-bool gsmTransport::updateRemoteMeasure(stdSensorInfoLoader& si,workerInfo &_water,workerInfo &_light) {
+bool gsmTransport::updateRemoteMeasure(stdSensorInfoLoader& si,
+                                       workerInfo &_water,
+                                       workerInfo &_light) {
   char vParams[200],
        vRes[100],
        sitePoint[__SITE_POINT_SIZE__];
@@ -560,4 +566,8 @@ void gsmTransport::setConnectPeriod(int iSleepTime) {
 
 void gsmTransport::externalKeyPress(long long vCurrTime) {
    clearConfig();
+}
+
+void gsmTransport::incConnectCount() {
+  _connectCount++;
 }

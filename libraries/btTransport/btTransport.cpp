@@ -12,6 +12,9 @@ long long btTransport::makeCommunicationSession(long long mCurrTime,
                                            stdSensorInfoLoader& si,
                                            workerInfo &_water,
                                            workerInfo &_light) {
+
+
+   _wasExternalKeyPress = false;
 }
 
 void btTransport::checkCommunicationSession() {

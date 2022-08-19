@@ -365,6 +365,7 @@ void setup() {
   
   mPrevTime2 = _stdTransport.calcFirstConnectPeriod(_worker.getTimestamp());             
   
+  
   _sensorInfo.loadSensorInfo(_worker.getTimestamp()); 
 
   Timer1.initialize(7000000);
@@ -404,7 +405,11 @@ void loop()
 
      _stdTransport.checkCommunicationSession();
    
-     mPrevTime2 = _stdTransport.makeCommunicationSession(mCurrTime,mPrevTime2,_sensorInfo,_water,_light); 
+     mPrevTime2 = _stdTransport.makeCommunicationSession(mCurrTime,
+                                                         mPrevTime2,
+                                                         _sensorInfo,
+                                                         _water,
+                                                         _light); 
    
  
    if (!canGoSleep()) {

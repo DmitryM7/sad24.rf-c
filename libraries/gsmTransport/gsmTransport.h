@@ -45,9 +45,11 @@ class gsmTransport
     unsigned long getConnectPeriod();
     long long     calcFirstConnectPeriod(long long vCurrTime);
 
+ protected:
+  void          incConnectCount();
+
 
   private:
-
      void readSms2();
      bool isConnectInfoFull();
      void fillConnectInfo();
@@ -63,6 +65,8 @@ class gsmTransport
      void clearSite();
      void clearApn();
      void setConnectPeriod(int iConnectPeriod);
+
+     unsigned int _connectCount=0;
 };
 
 #endif
