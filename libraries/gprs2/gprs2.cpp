@@ -894,6 +894,36 @@ bool gprs2::_clearSmsBody(char* iRes,unsigned int iSize) {
 
     return true;
 }
+void gprs2::getCoords(gprs_coords& coords) {
+    char vRes[100],
+         vTmpStr[9];
+    mstr _mstr;
+    unsigned long vCurrTime = millis(); 
+    
+
+   _doCmd(F("AT+CGNSPWR=1")); //Включаем питание, если оно уже включено, то ничего не произойдет
+   strcpy_P(vTmpStr, (char*)OK_M);
+
+    if (_getAnswerWait(vRes,sizeof(vRes),vTmpStr)==-1) {
+      _setLastError(__LINE__,vRes);
+      return false;
+    };
+
+    //Начинаем долбить опрос координат,
+    //Делаем это не менее 1 минуты
+     strcpy_P(vTmpStr,PSTR("+CGNSINF"));
+
+    {
+      _doCmd(F("AT+CGNSINF"));
+
+       if (_getAnswerWait(vRes,sizeof(vRes),vTmpStr)!=-1) {
+        _mstr.entry(4,vRes,',',20,coords.a);
+        _mstr.entry(5,vRes,",",20,coords.l);
+       };       
+
+    } while ((atof(coords.a)==0 && atof(coords.l)==0) || millis()-vCurrTime>=65000);//пока либо координаты не получили, либо не прошла минута)
+
+}
 
 gprs2::~gprs2() {
  _modem.end();

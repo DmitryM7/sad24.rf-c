@@ -305,21 +305,31 @@ bool gsmTransport::workWithRes(char* iRes) {
    загружает новые параметры устройства.
  **********************************************************/
 bool gsmTransport::updateRemoteParams() {
-  char vParams[70],
+  char vParams[100],
        sitePoint[__SITE_POINT_SIZE__];
   bool vShouldReconnect = true;
+  gprs_coords coords;
+
 
 
   gprs2 sim900(7, 8);
     {
       SiteCon _siteCon;
       EEPROM.get(eeprom_mSiteStart, _siteCon);
-      sprintf_P(vParams, PSTR("r=%s&s=%s&m=c&l=%u&a=%u&cc=%u"),
+
+       if (_needTransferGps) { 
+          sim900.getCoords(coords);
+       };
+
+      sprintf_P(vParams, PSTR("r=%s&s=%s&m=c&a=%s&l=%s&cc=%u"),
                                _siteCon.siteLogin,
                                _siteCon.sitePass,
-                               0,
-                               0,
+                               coords.a,
+                               coords.l,
                                _connectCount);
+      #if IS_DEBUG>0 
+          Serial.println(vParams);
+      #endif
       strncpy(sitePoint, _siteCon.sitePoint, sizeof(sitePoint));
     };
 
@@ -570,4 +580,7 @@ void gsmTransport::externalKeyPress(long long vCurrTime) {
 
 void gsmTransport::incConnectCount() {
   _connectCount++;
+}
+void gsmTransport::needTransferGps() {
+  _needTransferGps=!_needTransferGps;
 }

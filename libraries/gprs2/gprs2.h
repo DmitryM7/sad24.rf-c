@@ -1,6 +1,10 @@
 #ifndef gprs2_h
 #define gprs2_h
 #include "SoftwareSerial.h"
+struct gprs_coords {
+  char  a[11];
+  char  l[11];
+};
 
 class gprs2
 {
@@ -36,6 +40,7 @@ class gprs2
     void setInternetSettings(char* iApn,char* iLogin,char* iPass);
     bool postUrl(char* iUrl,char* iPar,char* oRes);
     bool postUrl(char* iUrl, char* iPar, char* oRes,unsigned int iResLength);
+    void getCoords(gprs_coords& coords);
 
 
     void getSmsText(unsigned int iNum,char* oRes,unsigned int iSmsSize);

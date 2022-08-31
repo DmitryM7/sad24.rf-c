@@ -1,4 +1,4 @@
-//Serial Relay - Arduino will patch a 
+  //Serial Relay - Arduino will patch a 
 //serial link between the computer and the GPRS Shield
 //at 19200 bps 8-N-1
 //Computer is connected to Hardware UART
@@ -10,6 +10,7 @@
 #include <structs.h>
 #include <gprs2.h>
 
+#define __WAIT_MODEM_TIME__ 30
 
 bool wk() {
 

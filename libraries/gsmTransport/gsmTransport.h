@@ -1,5 +1,5 @@
-#ifndef btTransport_h
-#define btTransport_h
+#ifndef gsmTransport_h
+#define gsmTransport_h
 
 #include <worker.h>
 
@@ -44,12 +44,15 @@ class gsmTransport
     void          externalKeyPress(long long vCurrTime);
     unsigned long getConnectPeriod();
     long long     calcFirstConnectPeriod(long long vCurrTime);
+    void          needTransferGps();
 
  protected:
   void          incConnectCount();
 
 
   private:
+     bool _needTransferGps = false;
+
      void readSms2();
      bool isConnectInfoFull();
      void fillConnectInfo();
@@ -65,6 +68,7 @@ class gsmTransport
      void clearSite();
      void clearApn();
      void setConnectPeriod(int iConnectPeriod);
+
 
      unsigned int _connectCount=0;
 };
