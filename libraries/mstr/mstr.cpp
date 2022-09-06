@@ -164,21 +164,27 @@ void mstr::substr(char* iStr,int iStartPos,int iLength,char* oStr) {
   oStr[iLength]='\0';
 };
 
-void mstr::leftShift2(char* iStr,unsigned int iShift) { 
-/*  unsigned int vStrLen=strlen(iStr);
-  memmove(iStr,iStr+iShift,vStrLen-iShift);
-  memset(iStr + (vStrLen-iShift-1),0,iShift);
-*/ 
+/********************************************
+ * Сдвигает строку влево на заданное число  *
+ * символов.                                *
+ ********************************************/
+
+ void mstr::leftShift2(char* iStr,unsigned int iStart,unsigned int iShift) {
   int vStrLength=strlen(iStr);
 
-  for (int vI=0;vI<vStrLength-iShift;vI++) {
+  for (int vI=iStart;vI<vStrLength-iShift;vI++) {
       iStr[vI]=iStr[vI+iShift];
   };
 
   if (vStrLength-iShift>=0) {
     iStr[vStrLength-iShift]=0;
-  };  
+  };
 
+}
+
+
+void mstr::leftShift2(char* iStr,unsigned int iShift) { 
+   leftShift2(iStr,0,iShift);
 }                           
 
 void mstr::_emptyBuffer(char* oBuf,size_t iSize) {

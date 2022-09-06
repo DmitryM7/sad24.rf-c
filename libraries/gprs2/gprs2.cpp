@@ -356,11 +356,14 @@ bool gprs2::doInternet() {
 
 	 if(!hasGprs()) {
             gprsUp();
+
+          if (!hasGprs()) {
+             return false;
+           };
+
 	 };
   
-        if (!hasGprs()) {
-           return false;
-        };
+
 
  
 	/*****************************************************

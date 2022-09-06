@@ -28,6 +28,7 @@ class mstr
     void substr(char* iStr,int iStartPos,int iLength,char* oStr);
 
     void leftShift2(char* iStr,unsigned int iShift);
+    void leftShift2(char* iStr,unsigned int iStart,unsigned int iShift);
 
     void _emptyBuffer(char* oBuf,size_t iSize);
 
