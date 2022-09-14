@@ -44,7 +44,7 @@ class gsmTransport
     void          externalKeyPress(long long vCurrTime);
     unsigned long getConnectPeriod();
     long long     calcFirstConnectPeriod(long long vCurrTime);
-    void          needTransferGps();
+    void          toogleTransferGps();
 
  protected:
   void          incConnectCount();
@@ -52,6 +52,7 @@ class gsmTransport
 
   private:
      bool _needTransferGps = false;
+     unsigned long _measurementId = 0;
 
      void readSms2();
      bool isConnectInfoFull();
@@ -68,6 +69,7 @@ class gsmTransport
      void clearSite();
      void clearApn();
      void setConnectPeriod(int iConnectPeriod);
+
 
 
      unsigned int _connectCount=0;

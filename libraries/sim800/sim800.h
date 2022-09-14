@@ -47,6 +47,16 @@ class sim800
     bool postUrl(char* iUrl,char* iPar,char* oRes);
     bool postUrl(char* iUrl, char* iPar, char* oRes,unsigned int iResLength);
 
+    bool setOnSms(bool (*iSmsEvent)(byte iSms, char* oStr));
+    bool setBeforePostParams(bool (*ifunction)(char* iStr));
+    bool setAfterPostParams(bool (*ifunction)());
+
+    bool sendSms(char* iPhone,char* iText);
+    bool readSms(bool deleteAfterRead=true);
+    bool deleteAllSms();
+    bool deleteSms(byte iSms);
+
+
 
   protected:
     SoftwareSerial _modem;
@@ -56,6 +66,10 @@ class sim800
     void _setLastError(unsigned int iErrorNum,char* iErrorText);
     uint8_t getLastErrorNum();
     void _sendTermCommand(bool iWaitOK=true);
+    bool _setSmsTextMode();
+    void getSmsText(unsigned int iNum,char* oRes,unsigned int iSmsSize);
+
+
 
   private:
     String _apn, _login, _pass,_lastError;
@@ -73,6 +87,7 @@ class sim800
     bool (*_onSmsRead)(byte iSms,char* oStr);
     bool (*_onBeforePostParams)(char* iStr);
     bool (*_onAfterPostParams)();
+
 
 };
 

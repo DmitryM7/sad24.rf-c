@@ -641,6 +641,126 @@ bool sim800::_clearSmsBody(char* iRes,unsigned int iSize) {
     return true;
 }
 
+bool sim800::setOnSms(bool (*iSmsEvent)(byte iSms, char* oStr)) {
+    _onSmsRead = iSmsEvent;
+}
+
+bool sim800::setBeforePostParams(bool (*ifunction)(char* iStr)) {
+    _onBeforePostParams = ifunction;
+}
+
+bool sim800::setAfterPostParams(bool (*ifunction)()) {
+    _onAfterPostParams = ifunction;
+}
+
+void sim800::getSmsText(unsigned int iNum,char* oRes,unsigned int iSmsSize) {
+   char vCommand[13],vTmpStr[3];
+   sprintf_P(vCommand,PSTR("AT+CMGR=%u,1"),iNum);
+   _doCmd(vCommand);
+   strcpy_P(vTmpStr,(char*)OK_M);
+  _getAnswerWait(oRes,iSmsSize,vTmpStr,true);
+}
+
+ bool sim800::readSms(bool deleteAfterRead) {
+    char vRes[200];
+
+   _setOnSmsMode();
+   _setSmsTextMode();
+
+    for (unsigned int vI=1; vI<6; vI++) {
+         _emptyBuffer(vRes,sizeof(vRes));
+
+         getSmsText(vI,vRes,sizeof(vRes));
+
+         #if IS_DEBUG>1
+           Serial.print(vI);
+           Serial.print(F(":"));
+           Serial.println(vRes);
+         #endif
+
+         if (strlen(vRes) < 20) {
+               /********************************************************************
+                *Возможно ситуация, когда SMS  содержит текст на кирилице          *
+                *этот текст будет кодироваться существенно больше 200 символов     *
+                * в результате в итоговую строку не попадет завершаюший OK СМС.    *
+                * Это приведет к тому, что СМС будет считаться как отсутствующее,  *
+                * но при этом память СМС будет занята. Поэтому несмотря на то, что *
+                * СМС не считана память следует очистить.                          *
+                ********************************************************************/
+	       if (deleteAfterRead) {
+	           deleteSms(vI);
+	       };
+            continue;
+         };
+
+
+        if (!_clearSmsBody(vRes,sizeof(vRes))) { continue; };
+
+        if (_onSmsRead) {
+            if (!_onSmsRead(vI,vRes)) {
+                if (deleteAfterRead) {
+                    deleteSms(vI);
+                };
+        	continue;
+            };
+      };
+
+       if (deleteAfterRead) {
+           deleteSms(vI);
+       };
+
+   };
+
+  return true;
+ }
+
+ bool sim800::deleteSms(byte iSms) {
+   char vRes[8],_tmpStr[3];
+   mstr _mstr;
+
+  _modem.print(F("AT+CMGD="));
+  _modem.flush();
+  _modem.println((int)iSms);
+  _modem.flush();
+  getAnswer3(vRes,sizeof(vRes));
+
+  strcpy_P(_tmpStr, (char*)OK_M);
+   return _mstr.indexOf(vRes,_tmpStr)!=-1;
+};
+
+ bool sim800::deleteAllSms() {
+   char vRes[10],
+        _tmpStr[20];
+   mstr _mstr;
+
+  _doCmd(F("AT+CMGDA=\"DEL ALL\""));
+  getAnswer3(vRes,sizeof(vRes));
+
+strcpy_P(_tmpStr, (char*)OK_M);
+   if (_mstr.indexOf(vRes,_tmpStr)>-1) {
+        return true;
+   };
+
+  return false;
+
+};
+
+bool sim800::_setSmsTextMode() {
+  char vTmpStr[3],
+       vRes[10];
+
+  _doCmd(F("AT+CMGF=1"));
+  strcpy_P(vTmpStr, (char*)OK_M);
+  return  _getAnswerWait(vRes,sizeof(vRes),vTmpStr)>-1;
+}
+
+
+
+
+
+
+
+
 
 
 

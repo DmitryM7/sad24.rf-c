@@ -172,6 +172,10 @@ void mstr::substr(char* iStr,int iStartPos,int iLength,char* oStr) {
  void mstr::leftShift2(char* iStr,unsigned int iStart,unsigned int iShift) {
   int vStrLength=strlen(iStr);
 
+  if (iStart<0 || iStart>vStrLength) {
+    return;
+  };
+
   for (int vI=iStart;vI<vStrLength-iShift;vI++) {
       iStr[vI]=iStr[vI+iShift];
   };

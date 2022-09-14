@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <stdSensorInfoLoader.h>
 #include <gsmTransport.h>
-#include <gprs2.h>
+#include <sim868.h>
 #include <structs.h>
 #include <EEPROM.h>
 #include <mstr.h>
@@ -199,18 +199,29 @@ bool _onSms(byte iSms, char* iCommand) {
  *           END PRIVATE FUNCTION           *
  ********************************************/
 
+
+void gsmTransport::readSms2() {
+
+  sim868 modem(7, 8);
+
+  modem.setOnSms(_onSms);
+
+  delay(500); //Не знаю почему, но без этой конструкции freemem показывает, что сожрано на 200байт больше памяти.
+  modem.readSms();
+}
+
 bool gsmTransport::wk() {
 
   bool vStatus = false;
   byte vAttempt = 0;
 
-  gprs2 sim900(7, 8);
+  sim868 modem(7, 8);
 
-  sim900.wakeUp();
+  modem.wakeUp();
   delay(__WAIT_MODEM_TIME__);
 
   do {
-    vStatus = sim900.canWork();
+    vStatus = modem.canWork();
     delay(vAttempt * 3000);
     vAttempt++;
   } while (!vStatus && vAttempt < 3);
@@ -224,13 +235,13 @@ bool gsmTransport::wk() {
 };
 
 void gsmTransport::sl() {
-  gprs2 sim900(7, 8);
-  sim900.sleep();
+  sim868 modem(7, 8);
+  modem.sleep();
 };
 
 void gsmTransport::restartModem() {
-     gprs2 sim900(7, 8);
-     sim900.hardRestart();
+     sim868 modem(7, 8);
+     modem.hardRestart();
      delay(__WAIT_MODEM_TIME__);
 };
 
@@ -247,15 +258,15 @@ void gsmTransport::fillConnectInfo() {
 };
 
 bool gsmTransport::doInternet() {
-  gprs2 sim900(7, 8);
+  sim868 modem(7, 8);
 
   {
     ApnCon _apnCon;
     EEPROM.get(eeprom_mApnStart, _apnCon);
-    sim900.setInternetSettings(_apnCon.apnPoint, _apnCon.apnLogin, _apnCon.apnPass);
+    modem.setInternetSettings(_apnCon.apnPoint, _apnCon.apnLogin, _apnCon.apnPass);
   };
 
-  if (!sim900.doInternet()) {
+  if (!modem.doInternet()) {
       return false;
   };
 
@@ -308,22 +319,23 @@ bool gsmTransport::updateRemoteParams() {
   char vParams[100],
        sitePoint[__SITE_POINT_SIZE__];
   bool vShouldReconnect = true;
-  gprs_coords coords;
+  sim868_coords coords;
 
 
 
-  gprs2 sim900(7, 8);
+  sim868 modem(7, 8);
     {
       SiteCon _siteCon;
       EEPROM.get(eeprom_mSiteStart, _siteCon);
 
        if (_needTransferGps) { 
-          sim900.getCoords(coords);
+          modem.getCoords(coords);
        };
 
-      sprintf_P(vParams, PSTR("r=%s&s=%s&m=c&a=%s&l=%s&cc=%u"),
+      sprintf_P(vParams, PSTR("r=%s&s=%s&m=%ld&a=%ld&l=%ld&cc=%u"),
                                _siteCon.siteLogin,
                                _siteCon.sitePass,
+                               _measurementId,
                                coords.a,
                                coords.l,
                                _connectCount);
@@ -339,7 +351,7 @@ bool gsmTransport::updateRemoteParams() {
     char vRes[250];
     bool vResult;
 
-    vResult = sim900.postUrl(sitePoint, vParams, vRes, sizeof(vRes));
+    vResult = modem.postUrl(sitePoint, vParams, vRes, sizeof(vRes));
 #ifdef IS_DEBUG
     Serial.print(F("P"));
     if (vResult) {
@@ -347,7 +359,7 @@ bool gsmTransport::updateRemoteParams() {
       Serial.println(vRes);
     } else {
       char vError[20];
-      sim900.getLastError(vError);
+      modem.getLastError(vError);
       Serial.print(F("E:"));
       Serial.println(vError);
     };
@@ -388,8 +400,8 @@ long long gsmTransport::makeCommunicationSession(long long mCurrTime,long long v
         byte vAttempt = 0;
         bool vStatus  = false;
 
-        do {
-          vStatus = updateRemoteParams();
+       do {
+          vStatus = updateRemoteMeasure(si,_water,_light);
           vAttempt++;
         } while (!vStatus && vAttempt < 3);
 
@@ -402,8 +414,8 @@ long long gsmTransport::makeCommunicationSession(long long mCurrTime,long long v
 
           incConnectCount(); //Увеличиваем счетчик подключений
 
-          do {
-            vStatus = updateRemoteMeasure(si,_water,_light);
+         do {
+            vStatus = updateRemoteParams();
             vAttempt++;
           } while (!vStatus && vAttempt < 3);
         };
@@ -436,7 +448,7 @@ bool gsmTransport::updateRemoteMeasure(stdSensorInfoLoader& si,
 
 
 
-  gprs2 sim900(7, 8);
+  sim868 modem(7, 8);
 
 
     {
@@ -460,7 +472,7 @@ bool gsmTransport::updateRemoteMeasure(stdSensorInfoLoader& si,
        strncpy(sitePoint, _siteCon.sitePoint, sizeof(sitePoint));
     };
 
-    vResult = sim900.postUrl(sitePoint, vParams, vRes, sizeof(vRes));
+    vResult = modem.postUrl(sitePoint, vParams, vRes, sizeof(vRes));
 
 #ifdef IS_DEBUG
   Serial.print(F("M"));
@@ -487,11 +499,13 @@ bool gsmTransport::updateRemoteMeasure(stdSensorInfoLoader& si,
       _light.duration = 0;
     };
 
+    _measurementId=atol(vRes);
+
 
   } else {
       #ifdef IS_DEBUG
         char vError[20];
-        sim900.getLastError(vError);
+        modem.getLastError(vError);
         Serial.print(F("E:"));
         Serial.println(vError);
         Serial.flush();
@@ -520,16 +534,6 @@ void gsmTransport::checkCommunicationSession() {
   };
 };
 
-
-void gsmTransport::readSms2() {
-
-  gprs2 sim900(7, 8);
-
-  sim900.setOnSms(_onSms);
-
-  delay(500); //Не знаю почему, но без этой конструкции freemem показывает, что сожрано на 200байт больше памяти.
-  sim900.readSms();
-}
 
 
 unsigned long gsmTransport::getConnectPeriod() {
@@ -581,6 +585,6 @@ void gsmTransport::externalKeyPress(long long vCurrTime) {
 void gsmTransport::incConnectCount() {
   _connectCount++;
 }
-void gsmTransport::needTransferGps() {
+void gsmTransport::toogleTransferGps() {
   _needTransferGps=!_needTransferGps;
 }

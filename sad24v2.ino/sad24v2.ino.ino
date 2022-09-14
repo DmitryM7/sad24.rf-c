@@ -350,8 +350,7 @@ void setup() {
     _setOffline(__WATER__,-199, 199);
     _setOffline(__LIGHT__,-199, 199);
 
-   _stdTransport.clearConfig();
-   _stdTransport.needTransferGps();
+   _stdTransport.clearConfig();   
          /**************************************************************************
           *   Инициализруем переменную. Если этого не сделать,                     *
           *   то возможно переполнение при первом старке.                          *
@@ -363,6 +362,8 @@ void setup() {
     _worker.setDateTime(16, 9, 13, 18, 45, 0); //Устанавливаем часы в эпоху Дарьи
 
   };
+
+  _stdTransport.toogleTransferGps();
   
   mPrevTime2 = _stdTransport.calcFirstConnectPeriod(_worker.getTimestamp());             
   
