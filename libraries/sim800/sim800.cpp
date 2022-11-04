@@ -440,13 +440,9 @@ void sim800::setInternetSettings(char* iApn,char* iLogin,char* iPass) {
       mstr _mstr;
 
 
-
-       if (strlen(iUrl)<2) {
-           strcpy_P(oRes,PSTR("NURL"));
-          _setLastError(__LINE__,oRes);
-          _emptyBuffer(oRes,iResLength);
-          return false;
-       };
+      #if IS_DEBUG>1
+        Serial.println(iUrl);
+      #endif
 
 
        if (iResLength < 35) {

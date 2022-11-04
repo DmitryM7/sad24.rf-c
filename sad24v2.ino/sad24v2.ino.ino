@@ -15,7 +15,7 @@
 
 long long mCurrTime, mPrevTime2;
 
-volatile bool mCanGoSleep   = true;              
+volatile bool mCanGoSleep   = true;
 
 
 stdSensorInfoLoader _sensorInfo;
@@ -34,19 +34,19 @@ void(* resetFunc) (void) = 0;
  *************************************************************************/
 bool canGoSleep() {
   /********************
-   * Уходим в сон, при следующих условиях:
-   *   1. Оба исполнителя (вода, свет) выключены;
-   *   2. Режим мониторинга окружающей температуры выключен
-   *   3. Время передачи информации не менее 15 минут.
-   */
+     Уходим в сон, при следующих условиях:
+       1. Оба исполнителя (вода, свет) выключены;
+       2. Режим мониторинга окружающей температуры выключен
+       3. Время передачи информации не менее 15 минут.
+  */
   bool vRes;
 
-  vRes=mCanGoSleep && isDisabledLightRange() && isDisabledWaterRange() && _stdTransport.getConnectPeriod() >= 900;
-  
-  return vRes; 
+  vRes = mCanGoSleep && isDisabledLightRange() && isDisabledWaterRange() && _stdTransport.getConnectPeriod() >= 900;
+
+  return vRes;
 }
 
-byte goSleep(byte iMode, 
+byte goSleep(byte iMode,
              long long iPrevTime
             ) {
   unsigned long  vSleepTime     = 0,
@@ -54,7 +54,7 @@ byte goSleep(byte iMode,
                  vPeriodSleep   = 0,
                  vCurrTime;
 
-                 
+
 
 
   long  vNextModem   = 0;
@@ -63,65 +63,65 @@ byte goSleep(byte iMode,
 
   {
     worker _worker(eeprom_mWorkerStart);
-    vTimeStamp   = _worker.getTimestamp(vCurrTime,vDayOfWeek);
-    vSleepTime   = _worker.getSleepTime(vDayOfWeek,vCurrTime);
+    vTimeStamp   = _worker.getTimestamp(vCurrTime, vDayOfWeek);
+    vSleepTime   = _worker.getSleepTime(vDayOfWeek, vCurrTime);
 
 
-  #ifdef IS_DEBUG_SLEEP
+#ifdef IS_DEBUG_SLEEP
     Serial.print(F("M:"));
     Serial.print(vCurrTime);
     Serial.print(F(" S="));
     Serial.print(vSleepTime);
     Serial.print(F(" W="));
-    Serial.print(vCurrTime+vSleepTime);
-  #endif
-    
+    Serial.print(vCurrTime + vSleepTime);
+#endif
+
   };
 
-  
+
   {
-     vNextModem   = (long)(iPrevTime + _stdTransport.getConnectPeriod() - vTimeStamp);
+    vNextModem   = (long)(iPrevTime + _stdTransport.getConnectPeriod() - vTimeStamp);
   }
 
-  
-  #ifdef IS_DEBUG_SLEEP
-    Serial.print(F(" N="));
-    Serial.println(vNextModem);
-  #endif
+
+#ifdef IS_DEBUG_SLEEP
+  Serial.print(F(" N="));
+  Serial.println(vNextModem);
+#endif
 
   /***********************************************************************
-   * Если по каким-то причинам было пропущено несколько подключений,     *
-   * то принудительно подключаемся через 5 сек.                          *
-   * ВНИМАНИЕ! 0 ставить нельзя, так как будет зависание.                *
+     Если по каким-то причинам было пропущено несколько подключений,
+     то принудительно подключаемся через 5 сек.
+     ВНИМАНИЕ! 0 ставить нельзя, так как будет зависание.
    ***********************************************************************/
   vNextModem    = max(5, vNextModem);
 
   vSleepTime    = min(vNextModem, vSleepTime);
 
-  if (vSleepTime<30) {
-    return vSleepTime;    
+  if (vSleepTime < 30) {
+    return vSleepTime;
   }
 
   vCalcSleepTime   = vSleepTime * iMode / 100U;
 
   /* Считаем кол-во циклов */
   vPeriodSleep = vCalcSleepTime / 8U;
-  
-  #ifdef IS_DEBUG_SLEEP
-    Serial.print(F("S*"));
-    Serial.print(iMode);
-    Serial.print(F("%="));
-    Serial.print(vCalcSleepTime);
-    Serial.print(F("(s)"));
-    Serial.print(F("P="));
-    Serial.println(vPeriodSleep);
-    Serial.flush();
-  #endif
 
- 
+#ifdef IS_DEBUG_SLEEP
+  Serial.print(F("S*"));
+  Serial.print(iMode);
+  Serial.print(F("%="));
+  Serial.print(vCalcSleepTime);
+  Serial.print(F("(s)"));
+  Serial.print(F("P="));
+  Serial.println(vPeriodSleep);
+  Serial.flush();
+#endif
+
+
 
   for (unsigned int vJ = 0; vJ < vPeriodSleep; vJ++) {
-      LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
+    LowPower.powerDown(SLEEP_8S, ADC_OFF, BOD_OFF);
   };
 
   return 0;
@@ -136,7 +136,7 @@ void Timer1_doJob(void) {
   wdt_reset();
 #endif
 
-  
+
   worker _worker(eeprom_mWorkerStart);
   offlineParams _offlineParams;
   unsigned long vSecMidnight = 0;
@@ -182,21 +182,21 @@ void Timer1_doJob(void) {
   };
 
 
- /********************
-  * Отключаем исполнителя по границе в двух случаях: 
-  *  1. достигли граничной температуры, 
-  *  2. режим мониторинга температуры отключен
-  ********************/
-  if (_sensorInfo.getT1() >= _offlineParams.tempUpLight2 || isDisabledLightRange()) {  
+  /********************
+     Отключаем исполнителя по границе в двух случаях:
+      1. достигли граничной температуры,
+      2. режим мониторинга температуры отключен
+   ********************/
+  if (_sensorInfo.getT1() >= _offlineParams.tempUpLight2 || isDisabledLightRange()) {
     _light.isEdge     = false;
   };
 
 
-  if (_sensorInfo.getT2() >= _offlineParams.tempUpWater2 || isDisabledWaterRange()) { 
+  if (_sensorInfo.getT2() >= _offlineParams.tempUpWater2 || isDisabledWaterRange()) {
     _water.isEdge     = false;
   };
 
- #ifdef IS_DEBUG
+#ifdef IS_DEBUG
 
   Serial.print(F("VSM:"));
   Serial.print(vSecMidnight);
@@ -210,7 +210,7 @@ void Timer1_doJob(void) {
   Serial.print(F("Mem:"));
   Serial.println(freeMemory());
 
- #endif
+#endif
 
 
   /************************************************************************
@@ -300,7 +300,7 @@ void Timer1_doJob(void) {
 
 
   mCanGoSleep = !(_light.isWork || _water.isWork);
-  
+
 }
 
 void pin_ISR () {
@@ -308,7 +308,7 @@ void pin_ISR () {
      Пришло прерывание по нажатию на кнопку.
      Обнуляем переменные соединения, выставляем
      флаг считывания СМС сообщений.
-   **********************************************/  
+   **********************************************/
 
   _stdTransport.externalKeyPress(mCurrTime);
   resetFunc();
@@ -319,10 +319,10 @@ void setup() {
 
   Wire.begin(); // ВАЖНО!!! ЭТА КОМАНДА ДОЛЖНА БЫТЬ ДО ПЕРВОЙ РАБОТЫ С ЧАСАМИ
 
-  #ifdef IS_DEBUG
-    Serial.begin(19200);
-  #endif  
-  
+#ifdef IS_DEBUG
+  Serial.begin(19200);
+#endif
+
 
   Globals _globals;
   worker _worker(eeprom_mWorkerStart);
@@ -337,99 +337,99 @@ void setup() {
   EEPROM.get(eeprom_mGlobalsStart, _globals);
 
 
-  if (_globals.version!=21) {
-  
-    
+  if (_globals.version != 21) {
+
+
     //Признак того, что инициализация выполнена
     _globals.version = 21;
     EEPROM.put(eeprom_mGlobalsStart, _globals);
 
-    ;    
+    ;
 
-    //Устанавливаем умолчательные значения для автономного режима     
-    _setOffline(__WATER__,-199, 199);
-    _setOffline(__LIGHT__,-199, 199);
+    //Устанавливаем умолчательные значения для автономного режима
+    _setOffline(__WATER__, -199, 199);
+    _setOffline(__LIGHT__, -199, 199);
 
-   _stdTransport.clearConfig();   
-         /**************************************************************************
-          *   Инициализруем переменную. Если этого не сделать,                     *
-          *   то возможно переполнение при первом старке.                          *
-          *   Дополнительно экономим                                               *
-          *   память по глобальной переменной отображающей факт первого запуска.   *
-          **************************************************************************/       
-    
-    
+    _stdTransport.clearConfig();
+    /**************************************************************************
+         Инициализруем переменную. Если этого не сделать,
+         то возможно переполнение при первом старке.
+         Дополнительно экономим
+         память по глобальной переменной отображающей факт первого запуска.
+     **************************************************************************/
+
+
     _worker.setDateTime(16, 9, 13, 18, 45, 0); //Устанавливаем часы в эпоху Дарьи
 
   };
 
   _stdTransport.toogleTransferGps();
-  
-  mPrevTime2 = _stdTransport.calcFirstConnectPeriod(_worker.getTimestamp());             
-  
-  
-  _sensorInfo.loadSensorInfo(_worker.getTimestamp()); 
+
+  mPrevTime2 = _stdTransport.calcFirstConnectPeriod(_worker.getTimestamp());
+
+
+  _sensorInfo.loadSensorInfo(_worker.getTimestamp());
 
   Timer1.initialize(7000000);
   Timer1.attachInterrupt(Timer1_doJob);
   Timer1.start();
 
-  #ifdef WDT_ENABLE
-    wdt_enable (WDTO_8S);
-  #endif
+#ifdef WDT_ENABLE
+  wdt_enable (WDTO_8S);
+#endif
 
-  attachInterrupt(0, pin_ISR, FALLING);  
+  attachInterrupt(0, pin_ISR, FALLING);
 
 }
 
 
 void loop()
 {
-  
-   long int vTimeAfterLastMeasure = (long) (mCurrTime - _sensorInfo.getLastMeasure()); // mCurrTime берем из прерывания по будильнику
 
-     
+  long int vTimeAfterLastMeasure = (long) (mCurrTime - _sensorInfo.getLastMeasure()); // mCurrTime берем из прерывания по будильнику
 
-   /*****************************************************************
-    * Замеряем пар-ры окружающей среды в заданный интервал времени  *
-    *****************************************************************/
-   if (vTimeAfterLastMeasure > __MEASURE_PERIOD__) {
 
-       Timer1.stop(); //Отключаем таймер, так как в функции loadSensorInfo есть критичный участок кода
-       _sensorInfo.loadSensorInfo(mCurrTime);
-       Timer1.start();     
-            
-   };
 
-   /*****************************************
-    * Обмениваемся информацией              *
-    *****************************************/
+  /*****************************************************************
+     Замеряем пар-ры окружающей среды в заданный интервал времени
+   *****************************************************************/
+  if (vTimeAfterLastMeasure > __MEASURE_PERIOD__) {
 
-     _stdTransport.checkCommunicationSession();
-   
-     mPrevTime2 = _stdTransport.makeCommunicationSession(mCurrTime,
-                                                         mPrevTime2,
-                                                         _sensorInfo,
-                                                         _water,
-                                                         _light); 
-   
- 
-   if (!canGoSleep()) {
-      return;
-   };
+    Timer1.stop(); //Отключаем таймер, так как в функции loadSensorInfo есть критичный участок кода
+    _sensorInfo.loadSensorInfo(mCurrTime);
+    Timer1.start();
+
+  };
+
+  /*****************************************
+     Обмениваемся информацией
+   *****************************************/
+
+  _stdTransport.checkCommunicationSession();
+
+  mPrevTime2 = _stdTransport.makeCommunicationSession(mCurrTime,
+               mPrevTime2,
+               _sensorInfo,
+               _water,
+               _light);
+
+
+  if (!canGoSleep()) {
+    return;
+  };
 
 
   Timer1.stop();
 
-   {
-      byte waitTime=0;
- 
-       do {
-          waitTime=goSleep(50, mPrevTime2);
-       } while (waitTime==0);
- 
-       Timer1.start();
-       delay(waitTime * 1000 + 2000);
- 
-   };
+  {
+    byte waitTime = 0;
+
+    do {
+      waitTime = goSleep(50, mPrevTime2);
+    } while (waitTime == 0);
+
+    Timer1.start();
+    delay(waitTime * 1000 + 2000);
+
+  };
 }

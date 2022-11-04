@@ -451,6 +451,8 @@ bool gsmTransport::updateRemoteMeasure(stdSensorInfoLoader& si,
   sim868 modem(7, 8);
 
 
+
+
     {
       SiteCon _siteCon;
       EEPROM.get(eeprom_mSiteStart, _siteCon);
@@ -471,6 +473,8 @@ bool gsmTransport::updateRemoteMeasure(stdSensorInfoLoader& si,
 
        strncpy(sitePoint, _siteCon.sitePoint, sizeof(sitePoint));
     };
+
+    _measurementId = 0;
 
     vResult = modem.postUrl(sitePoint, vParams, vRes, sizeof(vRes));
 

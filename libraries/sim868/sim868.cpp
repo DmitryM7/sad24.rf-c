@@ -59,7 +59,7 @@ bool sim868::getCoords(sim868_coords& coords) {
 
 
 
-    } while (coords.a==0 && coords.l==0 && millis()-vCurrTime<=180000);//запрашиваем координаты в течение 3 минут.
+    } while (coords.a==0 && coords.l==0 && millis()-vCurrTime<=60000);//запрашиваем координаты в течение 3 минут.
 
 
 }
