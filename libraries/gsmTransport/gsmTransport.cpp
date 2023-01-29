@@ -213,7 +213,7 @@ void gsmTransport::readSms2() {
 bool gsmTransport::wk() {
 
   bool vStatus = false;
-  byte vAttempt = 0;
+  byte vAttempt = 1;
 
   sim868 modem(7, 8);
 
@@ -224,7 +224,7 @@ bool gsmTransport::wk() {
     vStatus = modem.canWork();
     delay(vAttempt * 3000);
     vAttempt++;
-  } while (!vStatus && vAttempt < 3);
+  } while (!vStatus && vAttempt < 4);
 
   if (!vStatus) {
     return false;

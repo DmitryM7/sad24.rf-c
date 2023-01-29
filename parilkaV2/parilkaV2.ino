@@ -32,21 +32,15 @@ CRGB leds[NUM_LEDS];
 
 bool isLedsWork,mIsDallas=false;
 
-void hide() {
-  for (unsigned int vI=0;vI<NUM_LEDS;vI++) {
-    leds[vI] = CRGB::Black; 
-    
-  };
-  FastLED.show();
+void hide() {  
+  FastLED.clear();
 }
 
 void setRGB(int r,int g,int b) {
   //G,R,B
   for (unsigned int vI=0;vI<NUM_LEDS;vI++) {
     leds[vI].setRGB(g,r,b); 
- 
-    
-  };
+      };
   FastLED.show();
 }
 
