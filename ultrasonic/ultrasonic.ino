@@ -4,6 +4,7 @@
  ***************************************************************/
 #include <structs.h> 
 #include <worker.h>
+#include <stdSensorInfoLoader.h>
                  
 /** Задаю пороговые значения в сантиметрах **/
 
