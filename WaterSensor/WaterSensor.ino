@@ -2,6 +2,7 @@
 #include <debug.h>
 #include <worker.h>
 #include <mstr.h>
+#include <stdSensorInfoLoader.h>
 /************************************************************************************************
  * Пример кода для посчета количества протекующей жидкости                                      *
  * int Calc;                               
@@ -16,15 +17,16 @@
  * Serial.print (" L/hour\r\n"); //Prints "L/hour" and returns a  new line                       *
  ************************************************************************************************/
          
-volatile int NbTopsFan; //measuring the rising edges of the signal
-volatile unsigned long int mPrevFlow = 0;
-volatile bool mCanEnablePump=true;
-volatile unsigned long int mWirePumpOn=0,mWirePumpOff=0;
-bool isWater = false;  
-unsigned long int mLastWireOffSend=0,mLastWireOnnSend=0;
+volatile unsigned      int NbTopsFan; //measuring the rising edges of the signal
+volatile unsigned long int mPrevFlow = 0,
+                           mWirePumpOn=0,
+                           mWirePumpOff=0;;
+volatile bool              mCanEnablePump=true,
+                           isWater = false;
 
 workerInfo _water;
 workerInfo _light;
+stdSensorInfoLoader mStdSensorInfo;
 
 
 
@@ -33,27 +35,12 @@ workerInfo _light;
 #define LEVEL_WATER_MIDDLE 175    // Уровень при котором хорошо работать. Медианное значение воды к которому автоматика будет стремиться привести состояние воды.
 #define LEVEL_WATER_BOTTOM 250    // Уровень при котором нельзя вклчюать насосо.
 
-
-#define ECHO_PIN   10           // ECHO  pin УЗ-сенсора
-#define TRIG_PIN   3            // TRIG  pin УЗ-сенсора
-#define TRIG_DELAY 40           // DELAY задержка перед опроса сигнала
   
-#define WIRE_SERVER 1
-#define WIRE_ADDRESS 7
-#define WIRE_REPEAT_TIMEOUT 3000
-#define WORD_LENGTH 30
 
-#if WIRE_SERVER>0
-  #define CRITICAL_PREASURE 2.7        // Критическое давление при котором устройсво отключится без учета  потока.
-  #define MAX_PREASURE 2.6          // Давление при котором устройство отключится если нет потока
-  #define MIN_PREASURE 2.6           // В случае если давление в системе упадет меньше указанного, то устройство вклчючит насос
-  #define FLOW_DIFF 15            // Время в течение которого устройство опеделяет отсутствие потока.
-#else
-  #define CRITICAL_PREASURE 3.5        // Критическое давление при котором устройсво отключится без учета  потока.
-  #define MAX_PREASURE 2.2          // Давление при котором устройство отключится если нет потока
-  #define MIN_PREASURE 1.9          // В случае если давление в системе упадет меньше указанного, то устройство вклчючит насос
-  #define FLOW_DIFF 50              // Время в течение которого устройство опеделяет отсутствие потока.
-#endif
+#define CRITICAL_PREASURE 2.7        // Критическое давление при котором устройсво отключится без учета  потока.
+#define MAX_PREASURE 2.6          // Давление при котором устройство отключится если нет потока
+#define MIN_PREASURE 2.6           // В случае если давление в системе упадет меньше указанного, то устройство вклчючит насос
+#define FLOW_DIFF 15            // Время в течение которого устройство опеделяет отсутствие потока.
 
 worker _worker(0);    
 
@@ -65,17 +52,6 @@ void rpm ()     //This is the function that the interupt calls
 } 
 // The setup() method runs once, when the sketch starts
 
-float getDistance() {
-    int duration, cm;     
-    digitalWrite(TRIG_PIN, LOW); 
-    delayMicroseconds(2); 
-    digitalWrite(TRIG_PIN, HIGH); 
-    delayMicroseconds(TRIG_DELAY); 
-    digitalWrite(TRIG_PIN, LOW); 
-    duration = pulseIn(ECHO_PIN, HIGH); 
-    cm = duration / 58;
-    return cm;
-}
 
 float getCurrPreasure() {
   unsigned int v;
@@ -127,10 +103,13 @@ void setup()
 } 
 void loop ()    
 {
+  float mCurrPreasure;
 
-  float mCurrPreasure, 
-        mDistance     = getDistance();
-   unsigned long  mCurrFlowTimeDiff=getPrevFlowDiff();
+  mStdSensorInfo.loadSensorInfo(millis());
+
+  
+  unsigned long  mCurrFlowTimeDiff = getPrevFlowDiff();
+  unsigned int mDistance           = mStdSensorInfo.getDistance();
 
   digitalWrite(LED_BUILTIN,HIGH);
   delay(500);
@@ -193,20 +172,7 @@ void loop ()
     Serial.print(F("Max preasure: ")); Serial.print(mCurrPreasure); Serial.print(F(" and no flow: ")); Serial.print(mCurrFlowTimeDiff); Serial.println(F(" - power off."));  Serial.flush();
    #endif
     _worker.stopWater();
-
-    #if WIRE_SERVER==0
-    if (millis() - mLastWireOffSend > WIRE_REPEAT_TIMEOUT) {
-      char wWord[WORD_LENGTH];
-      sprintf_P(wWord, PSTR("OFF|p:%lu|f:%lu|nf"),(unsigned long)(mCurrPreasure*100),mCurrFlowTimeDiff);
-      Wire.beginTransmission(WIRE_ADDRESS);
-      Wire.write(wWord);
-      Wire.endTransmission();  
-      mLastWireOffSend=millis();
-      #ifdef IS_DEBUG
-        Serial.print(F("Wire:")); Serial.println(wWord); Serial.flush();
-      #endif
-    }
-    #endif
+    
     isWater = false;
   };
 
@@ -219,23 +185,7 @@ void loop ()
 
    #ifdef IS_DEBUG
      Serial.print(F("!!! Critical preasure: ")); Serial.print(mCurrPreasure); Serial.print(F("- power off !!!")); Serial.print(F("FLOW: ")); Serial.println(getPrevFlowDiff()); Serial.flush();
-   #endif
-
-   #if WIRE_SERVER==0
-    if (millis() - mLastWireOffSend > WIRE_REPEAT_TIMEOUT) {
-      char wWord[WORD_LENGTH];
-      sprintf_P(wWord, PSTR("OFF|p:%lu|f:%lu|cp"),(unsigned long)(mCurrPreasure*100),999999);
-      Wire.beginTransmission(WIRE_ADDRESS);
-      Wire.write(wWord);
-      Wire.endTransmission();  
-
-      mLastWireOffSend=millis();
-      
-      #ifdef IS_DEBUG
-        Serial.print(F("Wire:")); Serial.println(wWord); Serial.flush();
-      #endif
-    }
-    #endif
+   #endif   
 
 
    _worker.stopWater();
@@ -261,54 +211,6 @@ void loop ()
    
   };
 
-  /**************************************************************
-   * Если у ведомого включена вода, то сообщаем об этом мастеру 
-   **************************************************************/
-
-   #if WIRE_SERVER==0
-    if (isWater) {
-      char wWord[WORD_LENGTH];
-      sprintf_P(wWord, PSTR("ONN|p:%lu|f:%lu"),(unsigned long)(mCurrPreasure*100),mCurrFlowTimeDiff);    
-      Wire.beginTransmission(WIRE_ADDRESS);
-      Wire.write(wWord);
-      Wire.endTransmission();  
-      mLastWireOnnSend=millis();
-      #ifdef IS_DEBUG
-        Serial.print(F("Wire:")); Serial.println(wWord); Serial.flush();
-      #endif   
-    };
-   #endif
-
   wdt_reset();
 
-}
-
-void receiveEvent(int howMany) {
- char vAnswer[WORD_LENGTH];
- char vNeedStr[4];
- byte vCount=0;
- mstr _mstr;
-
- _mstr._emptyBuffer(vAnswer,sizeof(vAnswer));
-
- 
- while (Wire.available()) {
-  char c = Wire.read();
-     if (vCount<sizeof(vAnswer)) {
-        vAnswer[vCount]=c;
-        vCount++;
-     };
- };
-
- #if IS_DEBUG>0
-   Serial.print(F("Wire rec: ")); Serial.println(vAnswer); Serial.flush();
- #endif
-
- strcpy_P(vNeedStr, PSTR("ONN"));
-
- if (_mstr.indexOf(vAnswer,vNeedStr)>-1) {
-   mWirePumpOn=millis();
- } else {
-   mWirePumpOff=millis();
- };
 }
